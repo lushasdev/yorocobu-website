@@ -1,4 +1,6 @@
 import './Contact.css'
+import ethanPhoto from '../assets/images/linkedin2.png'
+import bencePhoto from '../assets/images/linkedin3.png'
 
 const Contact = () => {
   const founders = [
@@ -6,11 +8,13 @@ const Contact = () => {
       name: 'Ethan Gailushas',
       title: 'Co-Founder',
       bio: 'Passionate about building innovative solutions for underserved markets.',
+      image: ethanPhoto,
     },
     {
       name: 'Bence Burton',
       title: 'Co-Founder',
       bio: 'Dedicated to creating apps that improve quality of life.',
+      image: bencePhoto,
     },
   ]
 
@@ -60,10 +64,8 @@ const Contact = () => {
           <div className="founders-grid">
             {founders.map((founder, index) => (
               <div key={index} className="founder-card card">
-                <div className="founder-image-placeholder">
-                  <div className="founder-initials">
-                    {founder.name.split(' ').map(n => n[0]).join('')}
-                  </div>
+                <div className="founder-image">
+                  <img src={founder.image} alt={founder.name} />
                 </div>
                 <div className="founder-info">
                   <h3 className="founder-name">{founder.name}</h3>
