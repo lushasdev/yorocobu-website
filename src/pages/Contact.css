@@ -60,6 +60,26 @@
   box-shadow: var(--shadow-xl);
 }
 
+.founder-image {
+  width: 180px;
+  height: 180px;
+  margin: 0 auto var(--spacing-md) auto;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  border: 3px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(135deg, var(--accent) 0%, var(--primary-light) 100%) border-box;
+}
+
+.founder-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .founder-image-placeholder {
   width: 180px;
   height: 180px;
@@ -287,6 +307,7 @@
     grid-template-columns: 1fr;
   }
 
+  .founder-image,
   .founder-image-placeholder {
     width: 150px;
     height: 150px;

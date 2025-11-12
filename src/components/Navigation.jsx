@@ -27,7 +27,7 @@ const Navigation = () => {
     <nav className={`navigation ${scrolled ? 'scrolled' : ''}`}>
       <div className="nav-container container">
         <Link to="/" className="logo">
-          <div className="logo-placeholder">Y</div>
+          <img src="/images/yweb2.png" alt="Yorocobu Logo" className="logo-image" />
           <span className="logo-text">Yorocobu</span>
         </Link>
 
