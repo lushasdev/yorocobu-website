@@ -1,12 +1,12 @@
-# Yorocobu LLC Website
+# yorocobu LLC Website
 
-A modern, professional 3-page website for Yorocobu LLC - an app development company building applications for underserved markets.
+A modern, professional 3-page website for yorocobu LLC - an app development company building applications for underserved markets.
 
 ## 🚀 Overview
 
-Yorocobu LLC is preparing for investor fundraising and portfolio launch in Q4 2025. This website showcases our mission, technology stack, and team while providing a professional online presence for credibility and investor outreach.
+yorocobu LLC is preparing for investor fundraising and portfolio launch in Q4 2025. This website showcases our mission, technology stack, and team while providing a professional online presence for credibility and investor outreach.
 
-**Company Name:** Yorocobu LLC
+**Company Name:** yorocobu LLC
 **Meaning:** "To have joy" in Japanese
 **Founders:** Ethan Gailushas and Bence Burton
 **Focus:** React, Swift, Flutter, and major platforms
@@ -203,7 +203,7 @@ yorocobu-website/
 
 ## 📄 License
 
-Copyright © 2025 Yorocobu LLC. All rights reserved.
+Copyright © 2025 yorocobu LLC. All rights reserved.
 
 ## 🤝 Support
 
@@ -211,5 +211,5 @@ For questions or support, contact: contact@yorocobu.com (placeholder)
 
 ---
 
-**Built with ❤️ by Yorocobu LLC**
+**Built with ❤️ by yorocobu LLC**
 *Building apps for underserved markets*

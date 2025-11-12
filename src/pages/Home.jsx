@@ -1,4 +1,5 @@
 import './Home.css'
+import heroLogo from '../assets/images/yweb1.png'
 
 const Home = () => {
   return (
@@ -8,9 +9,11 @@ const Home = () => {
         <div className="hero-background"></div>
         <div className="container hero-content">
           <div className="hero-logo-large">
-            <div className="logo-circle">Y</div>
+            <div className="logo-circle">
+              <img src={heroLogo} alt="yorocobu" className="hero-logo-image" />
+            </div>
           </div>
-          <h1 className="hero-title fade-in">Yorocobu LLC</h1>
+          <h1 className="hero-title fade-in">yorocobu LLC</h1>
           <p className="hero-tagline fade-in">Building apps for underserved markets</p>
           <div className="hero-cta fade-in">
             <a href="/tech-portfolio" className="btn btn-accent">
