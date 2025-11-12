@@ -7,13 +7,11 @@ const Contact = () => {
     {
       name: 'Ethan Gailushas',
       title: 'Co-Founder',
-      bio: 'Passionate about building innovative solutions for underserved markets.',
       image: ethanPhoto,
     },
     {
       name: 'Bence Burton',
       title: 'Co-Founder',
-      bio: 'Dedicated to creating apps that improve quality of life.',
       image: bencePhoto,
     },
   ]
@@ -59,7 +57,7 @@ const Contact = () => {
         <div className="container">
           <h2 className="section-title">Our Founders</h2>
           <p className="section-description">
-            Meet the team behind Yorocobu LLC
+            Meet the team behind yorocobu LLC
           </p>
           <div className="founders-grid">
             {founders.map((founder, index) => (
@@ -70,7 +68,6 @@ const Contact = () => {
                 <div className="founder-info">
                   <h3 className="founder-name">{founder.name}</h3>
                   <p className="founder-title">{founder.title}</p>
-                  <p className="founder-bio">{founder.bio}</p>
                 </div>
               </div>
             ))}

@@ -25,10 +25,11 @@ const TechPortfolio = () => {
   ]
 
   const portfolioPlaceholders = [
-    { title: 'App 1', description: 'Coming Q4 2025' },
-    { title: 'App 2', description: 'Coming Q4 2025' },
-    { title: 'App 3', description: 'Coming Q4 2025' },
-    { title: 'App 4', description: 'Coming Q4 2025' },
+    { title: 'Email Platform', description: 'Coming Q4 2025' },
+    { title: 'Family History App', description: 'Coming Q4 2025' },
+    { title: 'Mobile Tool', description: 'Coming Q4 2025' },
+    { title: 'Scheduling Program for Institutions', description: 'Coming Q4 2025' },
+    { title: 'Marketplace Tool', description: 'Coming Q4 2025' },
   ]
 
   return (
