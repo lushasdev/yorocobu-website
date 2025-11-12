@@ -1,0 +1,15 @@
+[build]
+  # Directory to run the build command in
+  base = "."
+
+  # Build command
+  command = "npm install && npm run build"
+
+  # Directory that contains the built files
+  publish = "dist"
+
+[[redirects]]
+  # Redirect all routes to index.html for React Router to handle
+  from = "/*"
+  to = "/index.html"
+  status = 200
