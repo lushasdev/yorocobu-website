@@ -45,7 +45,7 @@ const Contact = () => {
               applications for underserved markets. If you're interested in learning more about
               our upcoming launches and growth strategy, we'd love to hear from you.
             </p>
-            <a href="mailto:contact@yorocobu.com" className="btn btn-accent investor-btn">
+            <a href="mailto:yorocobu.llc@gmail.com" className="btn btn-accent investor-btn">
               Get In Touch
             </a>
           </div>
@@ -90,10 +90,9 @@ const Contact = () => {
                 <div className="contact-icon">📧</div>
                 <div className="contact-details">
                   <h4 className="contact-label">Email</h4>
-                  <a href="mailto:contact@yorocobu.com" className="contact-link">
-                    contact@yorocobu.com
+                  <a href="mailto:yorocobu.llc@gmail.com" className="contact-link">
+                    yorocobu.llc@gmail.com
                   </a>
-                  <p className="contact-note">(Placeholder - will be updated)</p>
                 </div>
               </div>
             </div>
@@ -127,7 +126,7 @@ const Contact = () => {
                   Whether you're an investor, partner, or potential client, we're excited to
                   connect and explore opportunities together.
                 </p>
-                <a href="mailto:contact@yorocobu.com" className="btn btn-primary">
+                <a href="mailto:yorocobu.llc@gmail.com" className="btn btn-primary">
                   Send Us a Message
                 </a>
               </div>
