@@ -113,7 +113,7 @@ Replace the placeholder logo in these locations:
 - Update `index.html` favicon
 
 ### Update Contact Email
-Replace `contact@yorocobu.com` with your actual email in:
+Email has been updated to `yorocobu.llc@gmail.com` in:
 - `src/pages/Contact.jsx` - Lines 74 and 147
 
 ### Update Founder Photos
@@ -207,7 +207,7 @@ Copyright © 2025 yorocobu LLC. All rights reserved.
 
 ## 🤝 Support
 
-For questions or support, contact: contact@yorocobu.com (placeholder)
+For questions or support, contact: yorocobu.llc@gmail.com
 
 ---
 
