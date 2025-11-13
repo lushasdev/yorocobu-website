@@ -18,8 +18,8 @@ const Contact = () => {
 
   const socialLinks = [
     { name: 'LinkedIn', icon: '💼', url: 'https://linkedin.com/company/yorocobu', placeholder: false },
+    { name: 'Instagram', icon: '📷', url: 'https://www.instagram.com/yorocobu/', placeholder: false },
     { name: 'GitHub', icon: '📦', url: '#', placeholder: true },
-    { name: 'Twitter/X', icon: '𝕏', url: '#', placeholder: true },
   ]
 
   return (
