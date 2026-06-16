@@ -4,7 +4,7 @@ A modern, professional 3-page website for yorocobu LLC - an app development comp
 
 ## 🚀 Overview
 
-yorocobu LLC is preparing for investor fundraising and portfolio launch in Q4 2025. This website showcases our mission, technology stack, and team while providing a professional online presence for credibility and investor outreach.
+yorocobu LLC is preparing for investor fundraising and portfolio launch in Q3 2026. This website showcases our mission, technology stack, and team while providing a professional online presence for credibility and investor outreach.
 
 **Company Name:** yorocobu LLC
 **Meaning:** "To have joy" in Japanese
@@ -22,7 +22,7 @@ yorocobu LLC is preparing for investor fundraising and portfolio launch in Q4 20
 ### Page 2: Tech & Portfolio
 - **Tech Stack** - Visual showcase of primary technologies (React, Swift, Flutter)
 - **Additional Technologies** - Grid of supporting tech and tools
-- **Portfolio** - Placeholder for Q4 2025 app launches
+- **Portfolio** - Placeholder for Q3 2026 app launches
 
 ### Page 3: Contact & Investors
 - **Investor Interest** - Information for strategic investors

@@ -25,11 +25,11 @@ const TechPortfolio = () => {
   ]
 
   const portfolioPlaceholders = [
-    { title: 'Email Platform', description: 'Coming Q4 2025' },
-    { title: 'Family History App', description: 'Coming Q4 2025' },
-    { title: 'Mobile Tool', description: 'Coming Q4 2025' },
-    { title: 'Scheduling Program for Institutions', description: 'Coming Q4 2025' },
-    { title: 'Marketplace Tool', description: 'Coming Q4 2025' },
+    { title: 'Email Platform', description: 'Coming Q3 2026' },
+    { title: 'Family History App', description: 'Coming Q3 2026' },
+    { title: 'Mobile Tool', description: 'Coming Q3 2026' },
+    { title: 'Scheduling Program for Institutions', description: 'Coming Q3 2026' },
+    { title: 'Marketplace Tool', description: 'Coming Q3 2026' },
   ]
 
   return (
@@ -88,7 +88,7 @@ const TechPortfolio = () => {
           <div className="portfolio-status">
             <div className="status-badge">
               <span className="status-dot"></span>
-              <span className="status-text">Portfolio launching Q4 2025</span>
+              <span className="status-text">Portfolio launching Q3 2026</span>
             </div>
           </div>
           <p className="section-description">
