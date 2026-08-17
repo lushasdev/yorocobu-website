@@ -6,8 +6,8 @@
 
 .prose {
   max-width: var(--measure);
-  font-size: 1.0625rem;
-  line-height: 1.7;
+  font-size: 1rem;
+  line-height: 1.65;
 }
 
 .prose > * + * {
@@ -32,7 +32,7 @@
   top: 0.72em;
   width: 4px;
   height: 4px;
-  background: var(--accent);
+  background: var(--warm);
 }
 
 .prose strong {
@@ -62,7 +62,7 @@
 
 .region__sep {
   margin-inline: 0.5rem;
-  color: var(--accent);
+  color: var(--warm);
 }
 
 /*
@@ -104,16 +104,16 @@
   font-size: 0.7rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--dim);
+  color: var(--text-secondary);
   text-decoration: none;
 }
 
 .escape:hover {
-  color: var(--ink);
+  color: var(--text-primary);
 }
 
 .escape__mark {
-  color: var(--accent);
+  color: var(--warm);
   margin-right: 0.35rem;
 }
 
@@ -137,7 +137,7 @@
 
 .index-page__head {
   padding-bottom: 2.5rem;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: 1px solid var(--border);
   margin-bottom: 1rem;
 }
 
@@ -145,18 +145,18 @@
   margin-top: 1.4rem;
   max-width: var(--measure);
   font-size: 1.2rem;
-  color: var(--ink-soft);
+  color: var(--text-secondary);
 }
 
 .index-page__jp {
-  color: var(--accent);
+  color: var(--warm);
   font-size: 0.9em;
   margin-left: 0.3em;
 }
 
 .index-page .region {
   display: block;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: 1px solid var(--border);
   padding-bottom: clamp(2.5rem, 6vh, 3.5rem);
 }
 
@@ -181,15 +181,15 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   text-decoration: none;
-  color: var(--dim);
+  color: var(--text-secondary);
 }
 
 .toc a:hover {
-  color: var(--ink);
+  color: var(--text-primary);
 }
 
 .toc__n {
-  color: var(--accent);
+  color: var(--warm);
 }
 
 .back {
@@ -202,15 +202,15 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   text-decoration: none;
-  color: var(--dim);
+  color: var(--text-secondary);
 }
 
 .back:hover {
-  color: var(--ink);
+  color: var(--text-primary);
 }
 
 .back__mark {
-  color: var(--accent);
+  color: var(--warm);
 }
 
 /* ─── Founders ───────────────────────────────────────────────────────────── */
@@ -228,7 +228,7 @@
   aspect-ratio: 1;
   object-fit: cover;
   filter: grayscale(1) contrast(1.04);
-  border: 1px solid var(--rule);
+  border: 1px solid var(--border);
 }
 
 .person__name {

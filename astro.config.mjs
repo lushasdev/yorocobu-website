@@ -11,6 +11,9 @@ import sitemap from '@astrojs/sitemap'
   Astro's local provider generates the @font-face rules, exposes each family as a
   CSS variable, and derives a metric-compatible fallback from the real font metrics
   (optimizedFallbacks, on by default) so nothing shifts when a face lands.
+
+  The signature contrast is serif display against sans body against mono machine
+  voice. Body is a sans; it is not the display face at a smaller size.
 */
 export default defineConfig({
   site: 'https://yorocobu.org',
@@ -22,7 +25,7 @@ export default defineConfig({
       name: 'Instrument Serif',
       cssVariable: '--font-display',
       provider: fontProviders.local(),
-      fallbacks: ['Times New Roman', 'serif'],
+      fallbacks: ['Zen Old Mincho', 'Georgia', 'serif'],
       display: 'swap',
       options: {
         variants: [
@@ -36,21 +39,21 @@ export default defineConfig({
     },
     {
       // Body copy. Variable weight axis, with true italics.
-      name: 'Newsreader',
+      name: 'Instrument Sans',
       cssVariable: '--font-body',
       provider: fontProviders.local(),
-      fallbacks: ['Georgia', 'serif'],
+      fallbacks: ['Zen Kaku Gothic New', 'system-ui', 'sans-serif'],
       display: 'swap',
       options: {
         variants: [
           {
-            src: ['./src/assets/fonts/newsreader-variable.woff2'],
-            weight: '200 800',
+            src: ['./src/assets/fonts/instrument-sans-variable.woff2'],
+            weight: '400 700',
             style: 'normal',
           },
           {
-            src: ['./src/assets/fonts/newsreader-variable-italic.woff2'],
-            weight: '200 800',
+            src: ['./src/assets/fonts/instrument-sans-variable-italic.woff2'],
+            weight: '400 700',
             style: 'italic',
           },
         ],
@@ -58,7 +61,7 @@ export default defineConfig({
     },
     {
       // The machine voice: boot lines, metadata, the input, the transcript.
-      name: 'IBM Plex Mono',
+      name: 'JetBrains Mono',
       cssVariable: '--font-mono',
       provider: fontProviders.local(),
       fallbacks: ['ui-monospace', 'monospace'],
@@ -66,17 +69,18 @@ export default defineConfig({
       options: {
         variants: [
           {
-            src: ['./src/assets/fonts/ibm-plex-mono-400.woff2'],
-            weight: 400,
+            src: ['./src/assets/fonts/jetbrains-mono-variable.woff2'],
+            weight: '400 700',
             style: 'normal',
           },
         ],
       },
     },
     {
-      // Subset to the single glyph the site sets: 喜. 894KB down to 0.8KB.
+      // Subset to the single glyph the site sets: 喜. 1.8MB down to 1.1KB.
+      // It sits in the display stack now, so it comes from the mincho.
       // No fallback chain is generated, because nothing else would carry it.
-      name: 'IBM Plex Sans JP',
+      name: 'Zen Old Mincho',
       cssVariable: '--font-jp',
       provider: fontProviders.local(),
       fallbacks: [],
@@ -84,7 +88,7 @@ export default defineConfig({
       options: {
         variants: [
           {
-            src: ['./src/assets/fonts/ibm-plex-sans-jp-400-subset.woff2'],
+            src: ['./src/assets/fonts/zen-old-mincho-400-subset.woff2'],
             weight: 400,
             style: 'normal',
           },

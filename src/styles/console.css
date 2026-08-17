@@ -28,7 +28,7 @@
   left: 0;
   height: 2px;
   width: 100%;
-  background: var(--accent);
+  background: var(--primary);
   transform: scaleX(0);
   transform-origin: left;
   opacity: 0;
@@ -76,7 +76,7 @@
     calc(100svh - 100% - var(--frame-inset) - 1.1rem - var(--keyboard-inset, 0px))
   );
   padding-block: 0.75rem 0.9rem;
-  background: var(--paper);
+  background: var(--bg);
 }
 
 .console[data-engaged] .bar::before {
@@ -86,7 +86,7 @@
   right: 0;
   bottom: 100%;
   height: 2.5rem;
-  background: linear-gradient(to top, var(--paper), transparent);
+  background: linear-gradient(to top, var(--bg), transparent);
   pointer-events: none;
 }
 
@@ -99,7 +99,7 @@
   right: 0;
   top: 100%;
   height: calc(var(--frame-inset) + 2rem + var(--keyboard-inset, 0px));
-  background: var(--paper);
+  background: var(--bg);
   pointer-events: none;
 }
 
@@ -122,13 +122,13 @@
   position: relative;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--ink);
+  border-bottom: 1px solid var(--text-primary);
   padding-block: 0.5rem;
   transition: border-color 200ms var(--ease);
 }
 
 .console[data-engaged] .field {
-  border-bottom-color: var(--rule);
+  border-bottom-color: var(--border);
 }
 
 /*
@@ -138,12 +138,13 @@
   hairline-and-caret the console is built on.
 */
 .field:focus-within {
-  border-bottom-color: var(--accent);
-  box-shadow: 0 1px 0 var(--accent);
+  border-bottom-color: var(--primary);
+  box-shadow: 0 1px 0 var(--primary);
 }
 
 .field__input:focus-visible {
   outline: none;
+  box-shadow: none;
 }
 
 .field__input,
@@ -165,7 +166,7 @@
 }
 
 .field__input::placeholder {
-  color: var(--dim);
+  color: var(--text-secondary);
   opacity: 1;
 }
 
@@ -183,7 +184,7 @@
   left: 0;
   width: 0.55rem;
   height: 1.05rem;
-  background: var(--accent);
+  background: var(--primary);
   pointer-events: none;
   animation: caret-blink 1.1s steps(1) infinite;
 }
@@ -227,25 +228,25 @@
   font-family: var(--font-mono);
   font-size: 0.74rem;
   letter-spacing: 0.02em;
-  color: var(--dim);
+  color: var(--text-secondary);
   transition: color 140ms var(--ease);
 }
 
 .chip:hover,
 .chip[data-highlight] {
-  color: var(--ink);
+  color: var(--text-primary);
 }
 
 .chip__bullet {
   width: 4px;
   height: 4px;
-  background: var(--accent);
+  background: var(--primary);
   flex: none;
 }
 
 .chip[data-highlight] {
   text-decoration: underline;
-  text-decoration-color: var(--accent);
+  text-decoration-color: var(--primary);
   text-underline-offset: 0.25em;
 }
 
@@ -262,19 +263,19 @@
 }
 
 .answer__q {
-  color: var(--dim);
+  color: var(--text-secondary);
   margin-bottom: 0.9rem;
 }
 
 .answer__q::before {
   content: '▸ ';
-  color: var(--accent);
+  color: var(--warm-text);
 }
 
 .answer__text {
   font-size: clamp(1.35rem, 2.7vw, 1.75rem);
   line-height: 1.45;
-  font-weight: 380;
+  font-weight: 400;
   min-height: 1.45em;
 }
 
@@ -291,27 +292,27 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   text-decoration: none;
-  border-bottom: 1px solid var(--accent);
+  border-bottom: 1px solid var(--primary);
   padding-bottom: 2px;
 }
 
 .action:hover {
-  color: var(--accent);
+  color: var(--primary-text);
 }
 
 /* Buttons that are actions read exactly as the anchors beside them. */
 .action--button {
   background: none;
   border: 0;
-  border-bottom: 1px solid var(--accent);
+  border-bottom: 1px solid var(--primary);
   padding: 0 0 2px;
   cursor: pointer;
   color: inherit;
 }
 
 .action--button:disabled {
-  color: var(--dim);
-  border-bottom-color: var(--rule);
+  color: var(--text-secondary);
+  border-bottom-color: var(--border);
   cursor: default;
 }
 
@@ -320,18 +321,18 @@
 .compose {
   margin-top: 1.9rem;
   padding-top: 1.4rem;
-  border-top: 1px solid var(--rule);
+  border-top: 1px solid var(--border);
   max-width: var(--measure);
 }
 
 .compose__note.mono {
-  color: var(--dim);
+  color: var(--text-secondary);
   text-transform: none;
   letter-spacing: 0.02em;
 }
 
 .compose__q {
-  color: var(--ink);
+  color: var(--text-primary);
 }
 
 .compose__label {
@@ -343,7 +344,7 @@
 }
 
 .compose__field {
-  border-bottom-color: var(--rule);
+  border-bottom-color: var(--border);
 }
 
 /* Off-screen rather than display:none, so bots that skip hidden fields fill it. */
@@ -364,7 +365,7 @@
 
 .compose__error.mono {
   margin-top: 0.9rem;
-  color: var(--ink);
+  color: var(--text-primary);
   text-transform: none;
   letter-spacing: 0.02em;
 }
@@ -413,17 +414,17 @@
   font-family: var(--font-mono);
   font-size: 0.68rem;
   line-height: 1.4;
-  color: var(--dim);
+  color: var(--text-secondary);
   transition: color 140ms var(--ease);
 }
 
 .rail button:hover,
 .rail button[data-active] {
-  color: var(--ink);
+  color: var(--text-primary);
 }
 
 .rail button[data-active] .rail__n {
-  color: var(--accent);
+  color: var(--primary-text);
 }
 
 .rail__n {

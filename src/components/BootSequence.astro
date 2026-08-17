@@ -43,14 +43,22 @@ const { bootLines } = knowledge
     <span class="boot__rule boot__rule--left"></span>
   </div>
 
+  <!--
+    The mark: an inverted plum band carrying 喜 in gold at display size. Gold on
+    --surface-invert is the one pairing where gold can be type, and this is the
+    one place on the site it appears large.
+  -->
+  <div class="boot__mark-band" style="--i:0">
+    <span class="boot__kanji jp">喜</span>
+  </div>
+
   <dl class="boot__status">
-    <div class="boot__line boot__line--title" style="--i:0">
+    <div class="boot__line boot__line--title" style="--i:1">
       <dt>Yorocobu</dt>
-      <dd><span class="jp">喜</span></dd>
     </div>
     {
       bootLines.map((line, i) => (
-        <div class="boot__line" style={`--i:${i + 1}`}>
+        <div class="boot__line" style={`--i:${i + 2}`}>
           <dt>{line.label}</dt>
           <dd>{line.value}</dd>
         </div>
@@ -72,7 +80,7 @@ const { bootLines } = knowledge
     position: fixed;
     inset: 0;
     z-index: 60;
-    background: var(--paper);
+    background: var(--bg);
   }
 
   /* The real frame stays out of the way until calibration hands off to it. */
@@ -86,7 +94,7 @@ const { bootLines } = knowledge
   .boot__marks {
     position: absolute;
     inset: var(--frame-inset);
-    color: var(--accent);
+    color: var(--warm);
   }
 
   .boot__mark {
@@ -134,7 +142,7 @@ const { bootLines } = knowledge
     right: var(--frame-inset);
     top: var(--frame-inset);
     height: 1px;
-    background: var(--accent);
+    background: var(--warm);
     opacity: 0;
     animation: sweep 400ms var(--ease) 200ms both;
   }
@@ -165,7 +173,7 @@ const { bootLines } = knowledge
 
   .boot__rule {
     position: absolute;
-    background: var(--rule);
+    background: var(--border);
   }
 
   /* Verticals are drawn by the downward pass, horizontals by the return. */
@@ -222,7 +230,7 @@ const { bootLines } = knowledge
     font-family: var(--font-mono);
     font-size: 0.74rem;
     letter-spacing: 0.04em;
-    color: var(--dim);
+    color: var(--text-secondary);
   }
 
   .boot__line {
@@ -248,7 +256,7 @@ const { bootLines } = knowledge
   .boot__line dd {
     margin: 0;
     white-space: nowrap;
-    color: var(--ink-soft);
+    color: var(--text-secondary);
   }
 
   .boot__line dt {
@@ -260,7 +268,7 @@ const { bootLines } = knowledge
 
   .boot__line dt::after {
     content: ' ....................................................................';
-    color: var(--rule);
+    color: var(--border);
   }
 
   /* The title reads as one lockup, so it opts out of the dot leader. */
@@ -270,24 +278,36 @@ const { bootLines } = knowledge
 
   .boot__line--title dt {
     flex: none;
-    color: var(--ink);
+    color: var(--text-primary);
     font-size: 0.86rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
 
-  /* Explicit margins: the tracking on the label swallows literal spaces. */
   .boot__line--title dt::after {
-    content: '//';
-    color: var(--dim);
-    letter-spacing: 0;
-    margin-inline: 0.5em 0.6em;
+    content: '';
+    margin: 0;
   }
 
-  .boot__line--title dd .jp {
-    font-size: 1.15rem;
-    color: var(--accent);
+  /* ── The mark ───────────────────────────────────────────────────────────── */
+
+  .boot__mark-band {
+    position: absolute;
+    left: calc(var(--frame-inset) + 28px);
+    bottom: calc(var(--frame-inset) + 30px + 11.2rem);
+    display: grid;
+    place-items: center;
+    width: 5.5rem;
+    height: 5.5rem;
+    background: var(--surface-invert);
+    animation: unmask 260ms var(--ease) both;
+    animation-delay: calc(600ms + var(--i) * 90ms);
+  }
+
+  .boot__kanji {
+    font-size: 3.4rem;
     line-height: 1;
+    color: var(--warm);
   }
 
   /* ── 4. Everything dims back and hands off. 1200–1500ms ─────────────────── */
@@ -314,6 +334,15 @@ const { bootLines } = knowledge
     .boot__status {
       left: calc(var(--frame-inset) + 16px);
       font-size: 0.68rem;
+    }
+    .boot__mark-band {
+      left: calc(var(--frame-inset) + 16px);
+      bottom: calc(var(--frame-inset) + 30px + 10.4rem);
+      width: 4.4rem;
+      height: 4.4rem;
+    }
+    .boot__kanji {
+      font-size: 2.7rem;
     }
     .boot__skip {
       right: calc(var(--frame-inset) + 16px);

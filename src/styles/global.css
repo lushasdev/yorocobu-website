@@ -1,45 +1,75 @@
 /*
   Yorocobu design system.
 
-  A precision instrument that is glad to see you: cool paper, a literary serif,
-  a machine voice in mono, and ruri-iro blue used only where a machine would mark
-  a sheet. The accent never carries a large surface: registration marks, the
-  caret, the streaming hairline, link underlines, the focus rule. No fills, no
-  gradients, no second accent.
+  A precision instrument that is glad to see you: warm neutral paper, a serif
+  display face against a sans body against a mono machine voice, and two accents
+  with strictly separate jobs.
+
+  ─── The two accents ────────────────────────────────────────────────────────
+  They never swap. This division is the whole reason the page does not read as a
+  fruit salad.
+
+    PLUM  (紅梅 kobai) is interactive.  Links, buttons, the caret, active states,
+                                       the live indicator, focus.
+    GOLD  (山吹 yamabuki) is atmosphere. Hairline rules, the calibration marks,
+                                       the mark itself, decorative markers.
+
+  If it is clickable it is plum. If it is structure or light it is gold.
+  Roughly 82% neutral, 12% plum, 6% gold. Gold is a garnish, not a theme.
+
+  Gold at --gold-400 is never text: it is about 1.9:1 on white. Where gold has to
+  carry type it uses --warm-text. The single exception is gold at display size on
+  --surface-invert, which measures about 8:1, and the calibration sequence's 喜 is
+  the one place that belongs.
 
   ─── Changing the palette ───────────────────────────────────────────────────
-  Every colour in the site resolves to one of the tokens below, and every hex
-  appears exactly once. The dark values live in the --d-* set and are referenced
-  by both dark blocks, so a palette decision is a single edit here and nothing
-  else in the codebase needs to change.
+  Every colour resolves to a token here and every hex appears exactly once.
+  Nothing else in the codebase carries a colour. `node scripts/check-contrast.mjs`
+  measures every pairing.
 */
 
-/* ─── Tokens ─────────────────────────────────────────────────────────────── */
+/* ─── Brand tokens ───────────────────────────────────────────────────────── */
 
 :root {
-  /* Light, the default. */
-  --paper: #f6f7f8;
-  --ink: #0b0b0c;
-  --accent: #1e50a2; /* ruri-iro 瑠璃色, lapis */
-  --dim: #6d7277; /* one step down from #6E7378 to clear AA on paper */
-  --rule: #dde1e5;
+  /* 山吹 yamabuki gold */
+  --gold-50: #fef7e6;
+  --gold-100: #fbe8bc;
+  --gold-200: #f8d486;
+  --gold-300: #f5bf4e;
+  --gold-400: #f2a81d; /* signature */
+  --gold-500: #d08c0c;
+  --gold-600: #a66e04;
+  --gold-700: #7a5200; /* lowest stop that can be text on light */
+  --gold-800: #543800;
+  --gold-900: #2e1f00;
 
-  /* Derived surfaces. */
-  --paper-sunk: #edeff1;
-  --ink-soft: #3a3e42;
+  /* 紅梅 kobai plum */
+  --plum-50: #fdf0f4;
+  --plum-100: #f9d8e3;
+  --plum-200: #f1afc6;
+  --plum-300: #e683a6;
+  --plum-400: #d95c87;
+  --plum-500: #c93a6b; /* signature */
+  --plum-600: #a82a57;
+  --plum-700: #851f43;
+  --plum-800: #5e1430; /* inverted band */
+  --plum-900: #3a0b1d;
 
-  /*
-    Dark. Paper and ink swap; the accent lifts, because #1E50A2 disappears
-    against black. Declared here so each value is written once and referenced
-    by both dark blocks below.
-  */
-  --d-paper: #0b0b0c;
-  --d-ink: #f6f7f8;
-  --d-accent: #5b8def;
-  --d-dim: #757a7f; /* lifted from #6E7378: a shared dim cannot clear AA in both modes */
-  --d-rule: #24262a;
-  --d-paper-sunk: #131417;
-  --d-ink-soft: #c3c8cc;
+  /* warm neutrals (生成り kinari / 墨 sumi) */
+  --n-0: #ffffff;
+  --n-50: #fbf7f0;
+  --n-100: #f3ede2;
+  --n-200: #e6ded0;
+  --n-300: #d2c8b8;
+  --n-400: #a8a093;
+  --n-600: #6b6459;
+  --n-700: #4a4640;
+  --n-800: #2a262a;
+  --n-900: #191317; /* ink, faint plum cast */
+
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-pill: 999px;
 
   /*
     --font-display, --font-body, --font-mono and --font-jp are defined by Astro's
@@ -53,20 +83,56 @@
 
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --unmask: 180ms;
+}
+
+/* ─── Semantic tokens, light ─────────────────────────────────────────────── */
+
+:root {
+  --bg: var(--n-50);
+  --surface: var(--n-0);
+  --surface-warm: var(--gold-50);
+  --surface-invert: var(--plum-800);
+  --text-primary: var(--n-900);
+  --text-secondary: var(--n-600);
+  --text-muted: var(--n-400);
+  --text-on-invert: #f6ede6;
+  --border: var(--n-200);
+  --border-strong: var(--n-300);
+  --primary: var(--plum-500);
+  --primary-hover: var(--plum-600);
+  --on-primary: #ffffff;
+  --primary-text: var(--plum-700); /* plum as small text on light */
+  --primary-subtle: var(--plum-50);
+  --warm: var(--gold-400); /* fills, rules, the sun, the mark */
+  --warm-text: var(--gold-700); /* gold as text, never gold-400 */
+  --warm-subtle: var(--gold-50);
+  --focus-ring: 0 0 0 2px var(--n-50), 0 0 0 4px var(--plum-500);
 
   color-scheme: light;
 }
 
-/* An explicit choice wins in both directions. */
-:root[data-theme='dark'] {
-  --paper: var(--d-paper);
-  --ink: var(--d-ink);
-  --accent: var(--d-accent);
-  --dim: var(--d-dim);
-  --rule: var(--d-rule);
+/* ─── Semantic tokens, dark ──────────────────────────────────────────────── */
 
-  --paper-sunk: var(--d-paper-sunk);
-  --ink-soft: var(--d-ink-soft);
+[data-theme='dark'] {
+  --bg: #171114;
+  --surface: #201820;
+  --surface-warm: #2a1f14;
+  --surface-invert: var(--plum-900);
+  --text-primary: #f6ede6;
+  --text-secondary: #c4b6bc;
+  --text-muted: #8b8087;
+  --text-on-invert: #f6ede6;
+  --border: #322a31;
+  --border-strong: #463b44;
+  --primary: var(--plum-400);
+  --primary-hover: var(--plum-300);
+  --on-primary: #2a0a17;
+  --primary-text: var(--plum-300);
+  --primary-subtle: #3a0b1d;
+  --warm: var(--gold-300);
+  --warm-text: var(--gold-300);
+  --warm-subtle: #2a1f14;
+  --focus-ring: 0 0 0 2px #171114, 0 0 0 4px var(--gold-300);
 
   color-scheme: dark;
 }
@@ -74,14 +140,25 @@
 /* The system setting, until the visitor overrides it. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --paper: var(--d-paper);
-    --ink: var(--d-ink);
-    --accent: var(--d-accent);
-    --dim: var(--d-dim);
-    --rule: var(--d-rule);
-
-    --paper-sunk: var(--d-paper-sunk);
-    --ink-soft: var(--d-ink-soft);
+    --bg: #171114;
+    --surface: #201820;
+    --surface-warm: #2a1f14;
+    --surface-invert: var(--plum-900);
+    --text-primary: #f6ede6;
+    --text-secondary: #c4b6bc;
+    --text-muted: #8b8087;
+    --text-on-invert: #f6ede6;
+    --border: #322a31;
+    --border-strong: #463b44;
+    --primary: var(--plum-400);
+    --primary-hover: var(--plum-300);
+    --on-primary: #2a0a17;
+    --primary-text: var(--plum-300);
+    --primary-subtle: #3a0b1d;
+    --warm: var(--gold-300);
+    --warm-text: var(--gold-300);
+    --warm-subtle: #2a1f14;
+    --focus-ring: 0 0 0 2px #171114, 0 0 0 4px var(--gold-300);
 
     color-scheme: dark;
   }
@@ -111,12 +188,11 @@ html {
 
 body {
   min-height: 100svh;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--bg);
+  color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 1.0625rem;
-  line-height: 1.65;
-  font-optical-sizing: auto;
+  font-size: 1rem;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background 240ms var(--ease), color 240ms var(--ease);
@@ -180,7 +256,7 @@ em {
 a {
   color: inherit;
   text-decoration: underline;
-  text-decoration-color: var(--accent);
+  text-decoration-color: var(--primary);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;
   transition: text-decoration-thickness 120ms var(--ease);
@@ -200,16 +276,21 @@ a:hover {
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--dim);
+  color: var(--text-secondary);
   font-weight: 400;
 }
 
 /* ─── Focus ──────────────────────────────────────────────────────────────── */
 
+/*
+  The brand focus ring: a neutral halo, then plum. Plum because focus is
+  interactive. Note the console input opts out in console.css — it carries its
+  own indicator, and a ring around it fights the hairline-and-caret.
+*/
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-  border-radius: 1px;
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
 }
 
 .visually-hidden {
@@ -231,8 +312,8 @@ a:hover {
   left: var(--frame-inset);
   z-index: 100;
   transform: translateY(-200%);
-  background: var(--paper);
-  border: 1px solid var(--rule);
+  background: var(--bg);
+  border: 1px solid var(--border);
   padding: 0.5rem 0.85rem;
   text-decoration: none;
 }
@@ -256,7 +337,7 @@ a:hover {
 
 .frame__rule {
   position: absolute;
-  background: var(--rule);
+  background: var(--warm);
 }
 
 .frame__rule--top,
@@ -289,7 +370,7 @@ a:hover {
   position: absolute;
   width: 13px;
   height: 13px;
-  color: var(--accent);
+  color: var(--warm);
 }
 
 .frame__mark--tl {
