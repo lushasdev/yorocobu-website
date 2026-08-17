@@ -1,0 +1,196 @@
+{
+  "entries": [
+    {
+      "id": "company",
+      "title": "Yorocobu",
+      "aliases": [
+        "yorocobu llc",
+        "the company",
+        "what is yorocobu",
+        "who are you",
+        "what do you do"
+      ],
+      "status": "active",
+      "kind": "about",
+      "summary": "Yorocobu LLC finds holes in niche markets and builds apps to fill them.",
+      "links": [
+        {
+          "label": "Email Yorocobu",
+          "url": "mailto:yorocobu.llc@gmail.com"
+        }
+      ]
+    },
+    {
+      "id": "name",
+      "title": "About the Name",
+      "aliases": [
+        "what does yorocobu mean",
+        "name meaning",
+        "japanese",
+        "why yorocobu",
+        "喜",
+        "yorokobu",
+        "pronunciation"
+      ],
+      "status": "active",
+      "kind": "about",
+      "summary": "Yorocobu means \"to have joy\" in Japanese. Helping people find happiness drives everything the company does.",
+      "links": []
+    },
+    {
+      "id": "founders",
+      "title": "Founders",
+      "aliases": [
+        "who is behind this",
+        "team",
+        "ethan",
+        "bence",
+        "ethan gailushas",
+        "bence burton",
+        "who runs yorocobu",
+        "leadership"
+      ],
+      "status": "active",
+      "kind": "about",
+      "summary": "Yorocobu was founded by Ethan Gailushas and Bence Burton, both Co-Founders.",
+      "links": [
+        {
+          "label": "Email Yorocobu",
+          "url": "mailto:yorocobu.llc@gmail.com"
+        }
+      ]
+    },
+    {
+      "id": "stack",
+      "title": "Technology",
+      "aliases": [
+        "tech stack",
+        "what do you build with",
+        "technologies",
+        "languages",
+        "frameworks",
+        "do you do ios",
+        "do you do android",
+        "react",
+        "swift",
+        "flutter"
+      ],
+      "status": "active",
+      "kind": "capability",
+      "summary": "Yorocobu builds with React, React Native, Swift, SwiftUI, and Flutter, supported by a broader set of languages, services, and tools.",
+      "links": []
+    },
+    {
+      "id": "portfolio",
+      "title": "Work in Development",
+      "aliases": [
+        "portfolio",
+        "what have you shipped",
+        "what have you built",
+        "your work",
+        "projects",
+        "apps",
+        "what are you working on",
+        "email platform",
+        "family history app",
+        "mobile tool",
+        "scheduling program for institutions",
+        "marketplace tool"
+      ],
+      "status": "in development",
+      "kind": "portfolio",
+      "summary": "Five projects are in development. Each is published only as a category, with no name, description, or release date.",
+      "links": [
+        {
+          "label": "Email Yorocobu",
+          "url": "mailto:yorocobu.llc@gmail.com"
+        }
+      ],
+      "projects": [
+        {
+          "id": "email-platform",
+          "title": "Email Platform",
+          "status": "in development"
+        },
+        {
+          "id": "family-history-app",
+          "title": "Family History App",
+          "status": "in development"
+        },
+        {
+          "id": "mobile-tool",
+          "title": "Mobile Tool",
+          "status": "in development"
+        },
+        {
+          "id": "scheduling-program-for-institutions",
+          "title": "Scheduling Program for Institutions",
+          "status": "in development"
+        },
+        {
+          "id": "marketplace-tool",
+          "title": "Marketplace Tool",
+          "status": "in development"
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "title": "Client Work",
+      "aliases": [
+        "can you build an app for my org",
+        "client work",
+        "hire",
+        "work with us",
+        "do you take clients",
+        "build me an app",
+        "freelance",
+        "contract",
+        "nonprofit",
+        "my company",
+        "partner"
+      ],
+      "status": "open",
+      "kind": "service",
+      "summary": "Yorocobu takes on client projects. Anyone with a project in mind is invited to get in touch.",
+      "links": [
+        {
+          "label": "Email Yorocobu",
+          "url": "mailto:yorocobu.llc@gmail.com"
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "title": "Contact",
+      "aliases": [
+        "email",
+        "get in touch",
+        "reach out",
+        "how do i contact you",
+        "talk to someone",
+        "investors",
+        "linkedin",
+        "instagram",
+        "social"
+      ],
+      "status": "active",
+      "kind": "contact",
+      "summary": "Yorocobu can be reached at yorocobu.llc@gmail.com. That address is the way in for clients, investors, and partners alike.",
+      "links": [
+        {
+          "label": "Email Yorocobu",
+          "url": "mailto:yorocobu.llc@gmail.com"
+        },
+        {
+          "label": "LinkedIn",
+          "url": "https://linkedin.com/company/yorocobu"
+        },
+        {
+          "label": "Instagram",
+          "url": "https://www.instagram.com/yorocobu/"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+---
+/**
+ * The site's real content, server-rendered into the HTML.
+ *
+ * The AI layer sits on top of a real document; it does not replace it. These
+ * regions are always in the markup for crawlers, link previews, and anyone with
+ * JavaScript disabled. With JavaScript running they stay out of the way until the
+ * navigator surfaces the one that answers the question just asked.
+ */
+import knowledge from '../generated/knowledge.json'
+import Founders from './Founders.astro'
+
+const { entries } = knowledge
+---
+
+<div class="regions">
+  {
+    entries.map((entry) => (
+      <article class="region" id={`region-${entry.id}`} data-region={entry.id}>
+        <header class="region__head">
+          <p class="mono region__kicker">
+            {entry.status}
+            <span class="region__sep" aria-hidden="true">
+              /
+            </span>
+            updated {entry.last_updated}
+          </p>
+          <h2>{entry.title}</h2>
+        </header>
+        <div class="prose" set:html={entry.detailHtml} />
+        {entry.id === 'founders' && <Founders />}
+      </article>
+    ))
+  }
+</div>

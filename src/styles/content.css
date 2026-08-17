@@ -1,0 +1,243 @@
+/*
+  Typeset content: the surfaced regions on the home page, and the full index.
+  Body copy is Newsreader, headings are Instrument Serif, metadata is Plex Mono.
+  That split is the core typographic idea and it is visible on every screen.
+*/
+
+.prose {
+  max-width: var(--measure);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+
+.prose > * + * {
+  margin-top: 1em;
+}
+
+.prose ul {
+  list-style: none;
+  padding: 0;
+}
+
+.prose li {
+  position: relative;
+  padding-left: 1.15rem;
+  margin-top: 0.3em;
+}
+
+.prose li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.72em;
+  width: 4px;
+  height: 4px;
+  background: var(--shu);
+}
+
+.prose strong {
+  font-weight: 600;
+}
+
+/* ─── Regions on the home page ───────────────────────────────────────────── */
+
+.regions {
+  max-width: 46rem;
+  margin-inline: auto;
+  padding-inline: calc(var(--frame-inset) + 1.25rem);
+  padding-bottom: 8rem;
+}
+
+.region {
+  padding-top: clamp(3rem, 8vh, 4.5rem);
+}
+
+.region__head {
+  margin-bottom: 1.4rem;
+}
+
+.region__kicker {
+  margin-bottom: 0.7rem;
+}
+
+.region__sep {
+  margin-inline: 0.5rem;
+  color: var(--shu);
+}
+
+/*
+  With JavaScript running, regions wait until the navigator surfaces one. With
+  JavaScript off, the `js` class is never added and every region is simply visible,
+  which is what a crawler and a reader without scripts should get.
+*/
+/*
+  Scoped to `.regions`, which only the home page renders. The full index shares
+  the `.region` class but must always show every entry.
+*/
+:root.js .regions {
+  padding-bottom: 12rem;
+}
+
+:root.js .regions .region {
+  display: none;
+}
+
+:root.js[data-focus='company'] #region-company,
+:root.js[data-focus='name'] #region-name,
+:root.js[data-focus='founders'] #region-founders,
+:root.js[data-focus='stack'] #region-stack,
+:root.js[data-focus='portfolio'] #region-portfolio,
+:root.js[data-focus='services'] #region-services,
+:root.js[data-focus='contact'] #region-contact {
+  display: block;
+  animation: unmask 240ms var(--ease) both;
+}
+
+/* ─── The escape hatch ───────────────────────────────────────────────────── */
+
+.escape {
+  position: fixed;
+  right: calc(var(--frame-inset) + 1.4rem);
+  bottom: calc(var(--frame-inset) + 1.1rem);
+  z-index: 46;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-decoration: none;
+}
+
+.escape:hover {
+  color: var(--ink);
+}
+
+.escape__mark {
+  color: var(--shu);
+  margin-right: 0.35rem;
+}
+
+/* The bar owns the bottom of the viewport on small screens. */
+@media (max-width: 46rem) {
+  .escape {
+    right: auto;
+    left: calc(var(--frame-inset) + 0.9rem);
+    bottom: auto;
+    top: calc(var(--frame-inset) + 0.85rem);
+  }
+}
+
+/* ─── The full index ─────────────────────────────────────────────────────── */
+
+.index-page {
+  max-width: 46rem;
+  margin-inline: auto;
+  padding: clamp(4rem, 10vh, 7rem) calc(var(--frame-inset) + 1.25rem) 8rem;
+}
+
+.index-page__head {
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 1rem;
+}
+
+.index-page__lede {
+  margin-top: 1.4rem;
+  max-width: var(--measure);
+  font-size: 1.2rem;
+  color: var(--ink-soft);
+}
+
+.index-page__jp {
+  color: var(--shu);
+  font-size: 0.9em;
+  margin-left: 0.3em;
+}
+
+.index-page .region {
+  display: block;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: clamp(2.5rem, 6vh, 3.5rem);
+}
+
+.index-page .region:last-of-type {
+  border-bottom: 0;
+}
+
+.toc {
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.toc a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--dim);
+}
+
+.toc a:hover {
+  color: var(--ink);
+}
+
+.toc__n {
+  color: var(--shu);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 3.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--dim);
+}
+
+.back:hover {
+  color: var(--ink);
+}
+
+.back__mark {
+  color: var(--shu);
+}
+
+/* ─── Founders ───────────────────────────────────────────────────────────── */
+
+.people {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1.75rem;
+  margin-top: 1.75rem;
+  max-width: var(--measure);
+}
+
+.person img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.04);
+  border: 1px solid var(--rule);
+}
+
+.person__name {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  margin-top: 0.8rem;
+  line-height: 1.2;
+}
+
+.person__title {
+  margin-top: 0.15rem;
+}
