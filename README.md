@@ -1,215 +1,190 @@
-# yorocobu LLC Website
+# yorocobu.org
 
-A modern, professional 3-page website for yorocobu LLC - an app development company building applications for underserved markets.
+The Yorocobu site. Navigation happens by asking an onboard navigator rather than
+by using a nav bar, and the whole thing sits on top of a real, server-rendered
+document so that crawlers, link previews, and anyone who would rather just read
+are all first-class.
 
-## 🚀 Overview
-
-yorocobu LLC is preparing for investor fundraising and portfolio launch in Q3 2026. This website showcases our mission, technology stack, and team while providing a professional online presence for credibility and investor outreach.
-
-**Company Name:** yorocobu LLC
-**Meaning:** "To have joy" in Japanese
-**Founders:** Ethan Gailushas and Bence Burton
-**Focus:** React, Swift, Flutter, and major platforms
-
-## 📱 Website Structure
-
-### Page 1: Home
-- **Hero Section** - Full-screen hero with company logo, name, and tagline
-- **Mission Section** - Clear statement of our mission to fill market gaps
-- **About the Name** - Story behind "Yorocobu" and our commitment to joy
-- **Call to Action** - Links to other pages
-
-### Page 2: Tech & Portfolio
-- **Tech Stack** - Visual showcase of primary technologies (React, Swift, Flutter)
-- **Additional Technologies** - Grid of supporting tech and tools
-- **Portfolio** - Placeholder for Q3 2026 app launches
-
-### Page 3: Contact & Investors
-- **Investor Interest** - Information for strategic investors
-- **Founders** - Team profiles with photo placeholders
-- **Contact** - Email and social media placeholders
-
-## 🛠️ Tech Stack
-
-This website is built with:
-- **React** - UI framework
-- **Vite** - Build tool and dev server
-- **React Router** - Client-side routing
-- **CSS3** - Modern styling with custom properties
-- **Inter Font** - Clean, modern typography
-
-## 📦 Installation & Setup
-
-### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
-
-### Install Dependencies
-```bash
-npm install
-```
-
-### Run Development Server
-```bash
-npm run dev
-```
-The site will be available at `http://localhost:5173`
-
-### Build for Production
-```bash
-npm run build
-```
-Production files will be generated in the `dist/` directory.
-
-### Preview Production Build
-```bash
-npm run preview
-```
-
-## 🚀 Deployment
-
-### Deploy to Netlify
-
-1. **Connect to Git:**
-   - Push your code to GitHub
-   - Go to [Netlify](https://netlify.com)
-   - Click "Add new site" → "Import an existing project"
-   - Connect your GitHub repository
-
-2. **Build Settings:**
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-   - Click "Deploy site"
-
-3. **Custom Domain (Optional):**
-   - Go to Site settings → Domain management
-   - Add your custom domain
-
-### Deploy to Vercel
-
-1. **Connect to Git:**
-   - Push your code to GitHub
-   - Go to [Vercel](https://vercel.com)
-   - Click "New Project"
-   - Import your GitHub repository
-
-2. **Configure:**
-   - Framework Preset: Vite
-   - Build command: `npm run build`
-   - Output directory: `dist`
-   - Click "Deploy"
-
-3. **Custom Domain (Optional):**
-   - Go to Project Settings → Domains
-   - Add your custom domain
-
-## 🎨 Customization Guide
-
-### Update Company Logo
-Replace the placeholder logo in these locations:
-- `src/components/Navigation.jsx` - Line 28 (logo-placeholder div)
-- `src/pages/Home.jsx` - Line 11 (hero-logo-large)
-- Add logo image to `public/` folder
-- Update `index.html` favicon
-
-### Update Contact Email
-Email has been updated to `yorocobu.llc@gmail.com` in:
-- `src/pages/Contact.jsx` - Lines 74 and 147
-
-### Update Founder Photos
-Replace founder placeholders in:
-- `src/pages/Contact.jsx` - Lines 69-77 (founder-image-placeholder)
-- Add actual photos to `public/images/` folder
-- Update the component to use `<img>` tags
-
-### Update Social Links
-Replace placeholder links in:
-- `src/pages/Contact.jsx` - Lines 19-23
-- Change `url: '#'` to actual social media URLs
-- Remove `placeholder: true` when links are active
-
-### Update Portfolio Screenshots
-Replace app placeholders when apps launch:
-- `src/pages/TechPortfolio.jsx` - Lines 30-35
-- Add screenshots to `public/images/apps/`
-- Update the portfolio grid with real app data
-
-### Color Scheme
-The color palette is defined in `src/index.css` using CSS variables:
-```css
---primary: #1e40af;      /* Deep blue */
---accent: #06b6d4;       /* Bright cyan */
-```
-Update these variables to change the entire site's color scheme.
-
-## 📝 Design Features
-
-- **Modern & Clean** - Inspired by Stripe, Linear, and Vercel
-- **Fully Responsive** - Mobile-first design
-- **Fast Loading** - Optimized with Vite
-- **Smooth Animations** - Fade-in effects and transitions
-- **Sticky Navigation** - Always accessible menu
-- **Professional Typography** - Inter font family
-- **Gradient Backgrounds** - Modern visual effects
-- **Card-based Layout** - Clean, organized content
-
-## 🎯 Key Features
-
-✅ Three-page structure with smooth routing
-✅ Sticky navigation with mobile menu
-✅ Full-screen hero section
-✅ Visual tech stack showcase
-✅ Portfolio section with placeholders
-✅ Founder profiles with placeholders
-✅ Investor-focused messaging
-✅ Contact information and social links
-✅ Fully responsive design
-✅ Production-ready build
-✅ Easy to deploy
-✅ Simple to customize
-
-## 📂 Project Structure
-
-```
-yorocobu-website/
-├── public/              # Static assets
-├── src/
-│   ├── components/      # Reusable components
-│   │   ├── Navigation.jsx
-│   │   └── Navigation.css
-│   ├── pages/          # Page components
-│   │   ├── Home.jsx
-│   │   ├── Home.css
-│   │   ├── TechPortfolio.jsx
-│   │   ├── TechPortfolio.css
-│   │   ├── Contact.jsx
-│   │   └── Contact.css
-│   ├── App.jsx         # Main app component
-│   ├── App.css
-│   ├── main.jsx        # Entry point
-│   └── index.css       # Global styles
-├── index.html          # HTML template
-├── vite.config.js      # Vite configuration
-└── package.json        # Dependencies
-```
-
-## 🔧 Browser Support
-
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
-- Mobile browsers (iOS Safari, Chrome Mobile)
-
-## 📄 License
-
-Copyright © 2025 yorocobu LLC. All rights reserved.
-
-## 🤝 Support
-
-For questions or support, contact: yorocobu.llc@gmail.com
+**Company:** yorocobu LLC · **Mark:** 喜 · **Contact:** yorocobu.llc@gmail.com
 
 ---
 
-**Built with ❤️ by yorocobu LLC**
-*Building apps for underserved markets*
+## Running it
+
+```bash
+npm install
+npm run dev      # http://localhost:4321
+npm run build    # static output in dist/
+npm run preview  # serve the built output
+```
+
+`dev` and `build` both run `npm run knowledge` first, which compiles `/knowledge/`
+into `src/generated/`. That directory is generated, never committed.
+
+Requires Node 22 or newer (Netlify is pinned to 22 in `netlify.toml`).
+
+---
+
+## Changing what the site says
+
+**Everything the site knows lives in `/knowledge/`, one Markdown file per subject.**
+Updating the site is a text edit and a deploy, not a code change. There is no model
+training involved anywhere; this is the whole loop.
+
+Each entry looks like this:
+
+```yaml
+---
+id: services            # must match the filename
+order: 6                # reading order on the full index
+title: Client Work
+aliases: [hire, work with us, can you build an app for my org]
+status: open
+summary: One or two sentences the navigator can quote back nearly verbatim.
+links:
+  - label: Email Yorocobu
+    url: mailto:yorocobu.llc@gmail.com
+do_not_claim:
+  - Things that are NOT true and must never be implied.
+last_updated: 2026-08-17
+---
+
+The fuller explanation, in Markdown. This becomes the body of the section on
+the full index and the detail the navigator draws on.
+```
+
+### `do_not_claim` is the important field
+
+Models fill gaps. Giving them explicit negative facts is the cheapest guard against
+that, so **the build fails if any entry has an empty `do_not_claim`.** Write the
+things that are not true, not public, or not decided:
+
+> - No pricing, rates, or minimum project size are public. Never state or estimate any.
+> - No launch dates are public for any project.
+
+These fields never reach the browser. `build-knowledge.mjs` emits a trimmed
+`knowledge-client.json` for the bundle with the guidance stripped out.
+
+### What is generated from the entries
+
+Nothing about the knowledge base is hardcoded anywhere else:
+
+| Generated | From |
+|---|---|
+| The boot sequence status lines and their counts | every entry, plus `portfolio.projects` and `services.status` |
+| The full index, its contents list and reading order | every entry, ordered by `order` |
+| The content regions the navigator surfaces | every entry |
+| The context passed to the model (phase 3) | `src/generated/knowledge-context.md` |
+
+Add an entry and the boot line count goes up on its own. Change a project's status
+and the boot line follows. There are no dates in the interface to go stale.
+
+---
+
+## How it fits together
+
+```
+knowledge/*.md                  what the site knows, hand-edited
+  └── scripts/build-knowledge.mjs
+        └── src/generated/      JSON for the site, trimmed JSON for the browser,
+                                one concatenated document for the model
+
+src/pages/index.astro           the navigator over server-rendered regions
+src/pages/full-index.astro      the escape hatch: everything, typeset to read
+src/components/BootSequence.astro   the calibration sequence
+src/components/Console.jsx      the one React island on the site
+src/lib/navigator.js            deterministic matcher, and the API fallback
+```
+
+Astro renders everything to static HTML. React is loaded for the console and
+nothing else.
+
+### The document underneath
+
+The AI layer sits on top of a real document; it does not replace it.
+
+- Every knowledge entry is server-rendered into `index.html` as a `<section>` with a
+  proper heading, whether or not anyone asks a question.
+- With JavaScript disabled, every region is visible and the console is not offered
+  at all, rather than sitting there as a dead input.
+- `/full-index` carries the same material laid out to read, reachable from the
+  `◎ full index` control in the corner.
+
+### Refusals
+
+The navigator declines rather than guesses, and the refusals are the point, not a
+shortfall. It will not state pricing, timelines, availability, client names, founder
+biographies, or what any of the five in-development projects actually does — because
+none of that is public. Each refusal says so in one line and offers the contact
+action.
+
+The refusal guards in `src/lib/navigator.js` mirror the `do_not_claim` fields.
+**When you add a `do_not_claim` rule that should hold offline too, add a guard
+there as well.**
+
+---
+
+## Checks
+
+```bash
+npm i -D playwright           # not a project dependency, to keep deploy builds lean
+node scripts/check-ui.mjs     # against a running `npm run preview`
+```
+
+Covers the boot sequence contract (1.6s budget, skippable, once per session,
+reduced-motion), keyboard operability, the live region, region surfacing, and the
+refusal cases.
+
+---
+
+## Deployment
+
+Netlify, from `netlify.toml`. Build `npm run build`, publish `dist`, Node 22.
+
+Permanent redirects carry the previous site's routes forward:
+
+| Old | New |
+|---|---|
+| `/tech-portfolio` | `/full-index#stack` |
+| `/contact` | `/full-index#contact` |
+| `/index` | `/full-index` |
+
+`/images/yweb1.png` and `/images/yweb2.png` keep resolving; the favicon and the
+Open Graph image both point at the former.
+
+---
+
+## Design
+
+The concept is a precision instrument that is glad to see you. Yorocobu comes from
+喜ぶ, *to be glad*, so the design is a machine calibrating itself on warm paper
+rather than a terminal in a basement. No neon, no glow, no scanlines, no glitch.
+
+| Token | Light | Role |
+|---|---|---|
+| `--paper` | `#F4F1EA` | base, the colour of washi |
+| `--ink` | `#14110F` | text |
+| `--shu` | `#E24A26` | accent, the vermilion of torii gates |
+| `--dim` | `#8A8175` | metadata, timestamps, labels |
+| `--rule` | `#DDD8CD` | hairlines and frames |
+
+Dark mode swaps paper and ink and leaves the vermilion untouched. It follows
+`prefers-color-scheme` with a manual override in the corner.
+
+The accent appears in small quantities only: the caret, the registration marks, the
+streaming hairline, link underlines, list bullets. Never a vermilion button the size
+of a brick.
+
+**Type is split by voice.** Instrument Serif for display and headings, Newsreader for
+body copy, IBM Plex Mono for the machine voice — boot lines, metadata, the input,
+the transcript. Serif is content, mono is the machine. That split should be visible
+on every screen. IBM Plex Sans JP is loaded subset to the single glyph 喜.
+
+**Content arrives by unmasking**, never by fading or sliding: `clip-path` wipes left
+to right at 180ms on `cubic-bezier(0.2, 0, 0, 1)`. The registration marks and frame
+persist for the whole session, so the page always reads as a sheet held in place by
+a machine.
+
+---
+
+Copyright © 2026 yorocobu LLC.
