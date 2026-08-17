@@ -276,10 +276,12 @@ const { bootLines } = knowledge
     text-transform: uppercase;
   }
 
+  /* Explicit margins: the tracking on the label swallows literal spaces. */
   .boot__line--title dt::after {
-    content: ' // ';
+    content: '//';
     color: var(--dim);
     letter-spacing: 0;
+    margin-inline: 0.5em 0.6em;
   }
 
   .boot__line--title dd .jp {

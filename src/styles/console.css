@@ -131,8 +131,19 @@
   border-bottom-color: var(--rule);
 }
 
+/*
+  The field carries its own focus indicator: the rule goes vermilion and doubles
+  in weight. box-shadow rather than border-width so nothing shifts. The generic
+  focus ring is suppressed here because a 2px pill around the input fights the
+  hairline-and-caret the console is built on.
+*/
 .field:focus-within {
   border-bottom-color: var(--shu);
+  box-shadow: 0 1px 0 var(--shu);
+}
+
+.field__input:focus-visible {
+  outline: none;
 }
 
 .field__input,

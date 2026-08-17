@@ -19,10 +19,12 @@
   --paper-sunk: #ece8df;
   --ink-soft: #443e38;
 
-  --font-display: 'Instrument Serif', 'Times New Roman', serif;
-  --font-body: 'Newsreader', Georgia, 'Times New Roman', serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --font-jp: 'IBM Plex Sans JP', var(--font-body);
+  /*
+    --font-display, --font-body, --font-mono and --font-jp are defined by Astro's
+    font pipeline (see astro.config.mjs). Each resolves to the real family, then a
+    metric-compatible fallback derived from that font's own metrics, then a system
+    face — so nothing shifts when the file lands.
+  */
 
   --frame-inset: 22px;
   --measure: 34rem;
