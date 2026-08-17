@@ -1,0 +1,360 @@
+---
+/**
+ * The calibration sequence.
+ *
+ * The site draws itself the way a press registers a sheet before it prints:
+ * marks snap in, a hairline sweeps and leaves the frame behind it, status lines
+ * type in, then everything dims back except the console.
+ *
+ * Total 1500ms. Skippable on any input. Once per session. Fully skipped under
+ * prefers-reduced-motion. The resolved interface is laid out underneath the whole
+ * time, so nothing shifts when this resolves, and nothing is communicated only here.
+ */
+import knowledge from '../generated/knowledge.json'
+
+const { bootLines } = knowledge
+---
+
+<div class="boot" data-boot aria-hidden="true">
+  <div class="boot__marks">
+    {
+      ['tl', 'tr', 'bl', 'br'].map((corner, i) => (
+        <svg
+          class={`boot__mark boot__mark--${corner}`}
+          style={`--i:${i}`}
+          viewBox="0 0 13 13"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1"
+        >
+          <path d="M6.5 0v13M0 6.5h13" />
+          <circle cx="6.5" cy="6.5" r="3" />
+        </svg>
+      ))
+    }
+  </div>
+
+  <span class="boot__sweep"></span>
+
+  <div class="boot__rules">
+    <span class="boot__rule boot__rule--top"></span>
+    <span class="boot__rule boot__rule--right"></span>
+    <span class="boot__rule boot__rule--bottom"></span>
+    <span class="boot__rule boot__rule--left"></span>
+  </div>
+
+  <dl class="boot__status">
+    <div class="boot__line boot__line--title" style="--i:0">
+      <dt>Yorocobu</dt>
+      <dd><span class="jp">喜</span></dd>
+    </div>
+    {
+      bootLines.map((line, i) => (
+        <div class="boot__line" style={`--i:${i + 1}`}>
+          <dt>{line.label}</dt>
+          <dd>{line.value}</dd>
+        </div>
+      ))
+    }
+  </dl>
+
+  <p class="boot__skip mono">Press any key to skip</p>
+</div>
+
+<style>
+  /* Hidden entirely unless the head script decided this visit should calibrate. */
+  .boot {
+    display: none;
+  }
+
+  :root[data-booting] .boot {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: var(--paper);
+  }
+
+  /* The real frame stays out of the way until calibration hands off to it. */
+  :root[data-booting] :global(.frame),
+  :root[data-booting] :global(.theme) {
+    opacity: 0;
+  }
+
+  /* ── 1. Registration marks snap into the corners. 0–200ms ───────────────── */
+
+  .boot__marks {
+    position: absolute;
+    inset: var(--frame-inset);
+    color: var(--shu);
+  }
+
+  .boot__mark {
+    position: absolute;
+    width: 13px;
+    height: 13px;
+    opacity: 0;
+    animation: mark-snap 140ms var(--ease) both;
+    animation-delay: calc(var(--i) * 20ms);
+  }
+
+  .boot__mark--tl {
+    top: -6px;
+    left: -6px;
+  }
+  .boot__mark--tr {
+    top: -6px;
+    right: -6px;
+  }
+  .boot__mark--bl {
+    bottom: -6px;
+    left: -6px;
+  }
+  .boot__mark--br {
+    bottom: -6px;
+    right: -6px;
+  }
+
+  @keyframes mark-snap {
+    from {
+      opacity: 0;
+      transform: scale(2.4);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* ── 2. A hairline sweeps down and back, leaving the frame. 200–600ms ───── */
+
+  .boot__sweep {
+    position: absolute;
+    left: var(--frame-inset);
+    right: var(--frame-inset);
+    top: var(--frame-inset);
+    height: 1px;
+    background: var(--shu);
+    opacity: 0;
+    animation: sweep 400ms var(--ease) 200ms both;
+  }
+
+  @keyframes sweep {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(calc(100svh - var(--frame-inset) * 2 - 1px));
+    }
+    99% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(0);
+    }
+  }
+
+  .boot__rules {
+    position: absolute;
+    inset: var(--frame-inset);
+  }
+
+  .boot__rule {
+    position: absolute;
+    background: var(--rule);
+  }
+
+  /* Verticals are drawn by the downward pass, horizontals by the return. */
+  .boot__rule--left,
+  .boot__rule--right {
+    top: 0;
+    width: 1px;
+    height: 100%;
+    transform-origin: top;
+    transform: scaleY(0);
+    animation: draw-y 200ms var(--ease) 200ms both;
+  }
+  .boot__rule--left {
+    left: 0;
+  }
+  .boot__rule--right {
+    right: 0;
+  }
+
+  .boot__rule--top,
+  .boot__rule--bottom {
+    left: 0;
+    height: 1px;
+    width: 100%;
+    transform-origin: left;
+    transform: scaleX(0);
+    animation: draw-x 200ms var(--ease) 400ms both;
+  }
+  .boot__rule--top {
+    top: 0;
+  }
+  .boot__rule--bottom {
+    bottom: 0;
+  }
+
+  @keyframes draw-y {
+    to {
+      transform: scaleY(1);
+    }
+  }
+  @keyframes draw-x {
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  /* ── 3. Status lines type in, lower left. 600–1200ms ────────────────────── */
+
+  .boot__status {
+    position: absolute;
+    left: calc(var(--frame-inset) + 28px);
+    bottom: calc(var(--frame-inset) + 30px);
+    width: min(27rem, calc(100vw - var(--frame-inset) * 2 - 56px));
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.04em;
+    color: var(--dim);
+  }
+
+  .boot__line {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding-block: 0.16rem;
+    animation: unmask 150ms var(--ease) both;
+    animation-delay: calc(600ms + var(--i) * 90ms);
+  }
+
+  /* The dot leaders, drawn by the gap between label and value. */
+  .boot__line dt {
+    text-transform: uppercase;
+  }
+
+  .boot__line dt::after {
+    content: '';
+    display: inline-block;
+    width: 100%;
+  }
+
+  .boot__line dd {
+    margin: 0;
+    white-space: nowrap;
+    color: var(--ink-soft);
+  }
+
+  .boot__line dt {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .boot__line dt::after {
+    content: ' ....................................................................';
+    color: var(--rule);
+  }
+
+  /* The title reads as one lockup, so it opts out of the dot leader. */
+  .boot__line--title {
+    margin-bottom: 0.55rem;
+  }
+
+  .boot__line--title dt {
+    flex: none;
+    color: var(--ink);
+    font-size: 0.86rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .boot__line--title dt::after {
+    content: ' // ';
+    color: var(--dim);
+    letter-spacing: 0;
+  }
+
+  .boot__line--title dd .jp {
+    font-size: 1.15rem;
+    color: var(--shu);
+    line-height: 1;
+  }
+
+  /* ── 4. Everything dims back and hands off. 1200–1500ms ─────────────────── */
+
+  :root[data-booting='resolving'] .boot {
+    animation: boot-out 300ms var(--ease) both;
+  }
+
+  @keyframes boot-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  .boot__skip {
+    position: absolute;
+    right: calc(var(--frame-inset) + 28px);
+    bottom: calc(var(--frame-inset) + 30px);
+    font-size: 0.66rem;
+    animation: unmask 200ms var(--ease) 700ms both;
+  }
+
+  @media (max-width: 46rem) {
+    .boot__status {
+      left: calc(var(--frame-inset) + 16px);
+      font-size: 0.68rem;
+    }
+    .boot__skip {
+      right: calc(var(--frame-inset) + 16px);
+      bottom: calc(var(--frame-inset) + 12px);
+    }
+  }
+</style>
+
+<script>
+  const root = document.documentElement
+
+  if (root.dataset.booting === 'pending') {
+    const RESOLVE_AT = 1200
+    const DONE_AT = 1500
+    let finished = false
+
+    const events = ['keydown', 'pointerdown', 'touchstart', 'wheel']
+
+    const finish = (immediate = false) => {
+      if (finished) return
+      finished = true
+      for (const type of events) window.removeEventListener(type, skip)
+
+      try {
+        sessionStorage.setItem('yorocobu:booted', '1')
+      } catch {
+        /* private mode; the sequence will simply run again next navigation */
+      }
+
+      if (immediate) {
+        delete root.dataset.booting
+        return
+      }
+      root.dataset.booting = 'resolving'
+      window.setTimeout(() => delete root.dataset.booting, DONE_AT - RESOLVE_AT)
+    }
+
+    const skip = () => finish(true)
+
+    for (const type of events) {
+      window.addEventListener(type, skip, { once: true, passive: true })
+    }
+
+    window.setTimeout(() => finish(false), RESOLVE_AT)
+  }
+</script>
