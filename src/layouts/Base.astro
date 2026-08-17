@@ -1,0 +1,95 @@
+---
+import Frame from '../components/Frame.astro'
+import ThemeToggle from '../components/ThemeToggle.astro'
+import '../styles/global.css'
+
+interface Props {
+  title: string
+  description: string
+}
+
+const { title, description } = Astro.props
+const canonical = new URL(Astro.url.pathname, Astro.site).href
+
+const FONTS =
+  'https://fonts.googleapis.com/css2' +
+  '?family=Instrument+Serif:ital@0;1' +
+  '&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700' +
+  '&family=IBM+Plex+Mono:wght@400;500' +
+  '&display=swap'
+
+// The only Japanese glyph the site sets is the mark itself, so the JP face is
+// subset to that single character rather than loading a full CJK family.
+const FONT_JP =
+  'https://fonts.googleapis.com/css2' +
+  '?family=IBM+Plex+Sans+JP:wght@400' +
+  '&text=%E5%96%9C' +
+  '&display=swap'
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Yorocobu" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL('/images/yweb1.png', Astro.site).href} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL('/images/yweb1.png', Astro.site).href} />
+
+    <link rel="icon" type="image/png" href="/images/yweb1.png" />
+    <link rel="apple-touch-icon" href="/images/yweb1.png" />
+    <meta name="theme-color" content="#F4F1EA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#14110F" media="(prefers-color-scheme: dark)" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {/*
+      Loaded without blocking render. A render-blocking font stylesheet delays
+      first paint, which would eat into the calibration sequence's 1.6s budget
+      and push out LCP. font-display:swap handles the swap-in.
+    */}
+    <link rel="stylesheet" href={FONTS} media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href={FONT_JP} media="print" onload="this.media='all'" />
+    <noscript>
+      <link rel="stylesheet" href={FONTS} />
+      <link rel="stylesheet" href={FONT_JP} />
+    </noscript>
+
+    <script is:inline>
+      // Runs before first paint: no theme flash, and no flash of the resolved
+      // interface before the boot sequence decides whether to run.
+      ;(function () {
+        var root = document.documentElement
+        root.classList.add('js')
+        try {
+          var stored = localStorage.getItem('yorocobu:theme')
+          if (stored === 'dark' || stored === 'light') root.dataset.theme = stored
+        } catch (e) {}
+        try {
+          var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          var booted = sessionStorage.getItem('yorocobu:booted') === '1'
+          if (!reduced && !booted) root.dataset.booting = 'pending'
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <Frame />
+    <ThemeToggle />
+    <slot />
+  </body>
+</html>

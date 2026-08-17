@@ -36,3 +36,15 @@ pnpm-debug.log*
 # Vite
 dist-ssr
 *.local
+
+# Astro
+.astro
+dist
+
+# Environment — the Anthropic API key lives here in local dev and never in git
+.env
+.env.*
+!.env.example
+
+# Netlify
+.netlify

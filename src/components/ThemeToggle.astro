@@ -1,0 +1,87 @@
+---
+/**
+ * Manual light/dark override. Defaults to prefers-color-scheme; once the visitor
+ * chooses, the choice is stored and wins in both directions.
+ */
+---
+
+<button class="theme" type="button" data-theme-toggle aria-pressed="false">
+  <span class="theme__dot" aria-hidden="true"></span>
+  <span class="visually-hidden">Switch between light and dark</span>
+  <span class="theme__label mono" aria-hidden="true" data-theme-label>light</span>
+</button>
+
+<style>
+  .theme {
+    position: fixed;
+    top: calc(var(--frame-inset) + 14px);
+    right: calc(var(--frame-inset) + 16px);
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: none;
+    border: 0;
+    padding: 4px;
+    cursor: pointer;
+  }
+
+  .theme__dot {
+    width: 9px;
+    height: 9px;
+    border: 1px solid var(--dim);
+    border-radius: 50%;
+    background: linear-gradient(to right, var(--ink) 0 50%, transparent 50% 100%);
+  }
+
+  .theme__label {
+    font-size: 0.66rem;
+  }
+
+  .theme:hover .theme__dot {
+    border-color: var(--shu);
+  }
+
+  @media (max-width: 46rem) {
+    .theme__label {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  const KEY = 'yorocobu:theme'
+  const root = document.documentElement
+  const button = document.querySelector('[data-theme-toggle]')
+  const label = document.querySelector('[data-theme-label]')
+
+  const current = () =>
+    root.dataset.theme ??
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+
+  const sync = () => {
+    const theme = current()
+    if (label) label.textContent = theme
+    button?.setAttribute('aria-pressed', String(theme === 'dark'))
+  }
+
+  button?.addEventListener('click', () => {
+    const next = current() === 'dark' ? 'light' : 'dark'
+    root.dataset.theme = next
+    try {
+      localStorage.setItem(KEY, next)
+    } catch {
+      /* private mode; the choice simply will not persist */
+    }
+    sync()
+  })
+
+  // Track the system setting until the visitor overrides it.
+  window
+    .matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', () => {
+      if (!root.dataset.theme) sync()
+    })
+
+  sync()
+</script>

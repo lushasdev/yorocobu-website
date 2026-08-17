@@ -1,0 +1,29 @@
+---
+/**
+ * The fixed registration frame: four vermilion crosshairs and four hairlines,
+ * present for the whole session. Purely decorative, so it is hidden from
+ * assistive technology.
+ */
+---
+
+<div class="frame" aria-hidden="true" data-frame>
+  <span class="frame__rule frame__rule--top"></span>
+  <span class="frame__rule frame__rule--right"></span>
+  <span class="frame__rule frame__rule--bottom"></span>
+  <span class="frame__rule frame__rule--left"></span>
+
+  {
+    ['tl', 'tr', 'bl', 'br'].map((corner) => (
+      <svg
+        class={`frame__mark frame__mark--${corner}`}
+        viewBox="0 0 13 13"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1"
+      >
+        <path d="M6.5 0v13M0 6.5h13" />
+        <circle cx="6.5" cy="6.5" r="3" />
+      </svg>
+    ))
+  }
+</div>
