@@ -100,7 +100,12 @@ function toArray(value) {
  */
 function buildBootLines(entries) {
   const byId = Object.fromEntries(entries.map((e) => [e.id, e]))
-  const lines = [{ label: 'knowledge base', value: `${entries.length} entries` }]
+
+  // Deliberately not a count. A raw entry total is a number about the site's
+  // plumbing rather than about Yorocobu, and it invites the visitor to wonder
+  // what the missing entries would have been. Every other line below is a real
+  // derived figure that reads as information.
+  const lines = [{ label: 'knowledge base', value: 'indexed' }]
 
   const portfolio = byId.portfolio
   if (portfolio) {
@@ -119,6 +124,10 @@ function buildBootLines(entries) {
     const primary = toArray(byId.stack.primary).length
     const additional = toArray(byId.stack.additional).length
     lines.push({ label: 'stack', value: `${primary + additional} technologies` })
+  }
+  if (byId.founders) {
+    const count = toArray(byId.founders.people).length
+    if (count) lines.push({ label: 'founders', value: String(count) })
   }
 
   lines.push({ label: 'navigator', value: 'online' })
