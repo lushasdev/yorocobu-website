@@ -2,7 +2,12 @@
 id: portfolio
 order: 5
 title: Work in Development
-aliases: [portfolio, what have you shipped, what have you built, your work, projects, apps, what are you working on, email platform, family history app, mobile tool, scheduling program for institutions, marketplace tool]
+aliases:
+  [portfolio, what have you shipped, what have you built, your work, projects,
+   apps, what are you working on, what kind of apps, what sort of apps,
+   what apps do you make, what are you building, what kinds of projects,
+   what areas, email platform, family history app, mobile tool,
+   scheduling program for institutions, marketplace tool]
 status: in development
 kind: portfolio
 summary: Five projects are in development. Each is published only as a category, with no name, description, or release date.

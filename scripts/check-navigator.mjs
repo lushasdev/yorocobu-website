@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
- * Regression check for the offline navigator, covering both edges.
+ * Regression check for the offline navigator, covering three behaviours.
  *
- * Over-refusal is as much a defect as over-answering. An AI-first site that
- * cannot say what the company does is broken in the way that matters most, so
- * the broad identity questions are tested as hard as the refusals.
+ * Over-refusal is as much a defect as over-answering, and a refusal from the
+ * wrong guard is a third failure that a pass/fail test misses entirely: it looks
+ * like a correct refusal to a script and visibly broken to a person. So the
+ * decline cases assert *which* guard fired, not merely that one did.
  *
- * The cases here mirror knowledge-eval.md, which runs the same questions against
- * the model. Run this after any edit to /knowledge/ or to the matcher:
+ * These cases mirror knowledge-eval.md, which runs the same questions against
+ * the model. Run after any edit to /knowledge/ or to the matcher:
  *
  *   npm run knowledge && node scripts/check-navigator.mjs
  */
@@ -24,33 +25,44 @@ const MUST_ANSWER = [
   { q: 'what does the company do', section: 'company' },
   { q: 'tell me about yorocobu', section: 'company' },
   { q: 'what are you working on', section: null },
+
+  // Leadership. "in charge" is about who leads, and used to reach the pricing
+  // guard because "charge" was a bare keyword in it.
+  { q: 'who is in charge', section: 'founders' },
+  { q: 'who runs the company', section: 'founders' },
+  { q: 'who leads yorocobu', section: 'founders' },
+  { q: 'who is behind this', section: 'founders' },
+
+  // The categories are published. The console must never imply otherwise.
+  { q: 'what kind of apps do you make', section: 'portfolio' },
+  { q: 'what sort of apps', section: 'portfolio' },
+  { q: 'what are you building', section: 'portfolio' },
+  { q: 'what have you shipped', section: 'portfolio' },
+
   { q: 'do you take clients', section: 'services' },
   { q: 'can you build an app for my org', section: 'services' },
   { q: 'how do i contact you', section: 'contact' },
   { q: 'what do you build with', section: 'stack' },
   { q: 'what does the name mean', section: 'name' },
-  { q: 'who is behind this', section: 'founders' },
-  { q: 'what have you shipped', section: 'portfolio' },
+
   // The landing state: an empty submission is "well, what is this?".
   { q: '', section: 'company' },
   { q: 'hello', section: 'company' },
 ]
 
-/** Must decline, naming the gap, rather than answering. */
-const DECLINES =
-  /not published|not going to invent|no launch dates|does not publish|no bios are published|without guessing|none of that is public|do not have that one/i
-
+/** Must decline, and must decline for the right reason. */
 const MUST_DECLINE = [
-  'what does the marketplace tool do',
-  'what is the email platform',
-  'how much does an app cost',
-  'what are your rates',
-  'when does the family history app launch',
-  'who are your clients',
-  'what is ethan gailushas background',
-  'where did bence burton go to university',
-  'do you have an office in berlin',
-  'how much funding have you raised',
+  { q: 'what does the marketplace tool do', guard: null, focus: 'portfolio' },
+  { q: 'what is the email platform', guard: null, focus: 'portfolio' },
+  { q: 'how much does an app cost', guard: 'pricing' },
+  { q: 'what are your rates', guard: 'pricing' },
+  { q: 'what do you charge for an app', guard: 'pricing' },
+  { q: 'when does the family history app launch', guard: 'timeline' },
+  { q: 'who are your clients', guard: 'clients' },
+  { q: 'what is ethan gailushas background', guard: 'founder-bios' },
+  { q: 'where did bence burton go to university', guard: 'founder-bios' },
+  { q: 'do you have an office in berlin', guard: 'company-metrics' },
+  { q: 'how much funding have you raised', guard: 'company-metrics' },
 ]
 
 /** Must reach the unknown branch: real questions the knowledge base lacks. */
@@ -69,24 +81,34 @@ const report = (ok, line) => {
 console.log('\n  must answer')
 for (const { q, section } of MUST_ANSWER) {
   const r = resolve(q)
-  const ok = !r.unknown && (section === null || r.focus_section === section)
+  const ok = !r.unknown && !r.guard && (section === null || r.focus_section === section)
   report(
     ok,
-    `${JSON.stringify(q).padEnd(36)} -> ${r.unknown ? 'UNKNOWN' : r.focus_section}` +
+    `${JSON.stringify(q).padEnd(34)} -> ${r.unknown ? 'UNKNOWN' : r.focus_section}` +
+      (r.guard ? ` [refused by ${r.guard}]` : '') +
       (section && r.focus_section !== section && !r.unknown ? `  (wanted ${section})` : '')
   )
 }
 
-console.log('\n  must decline')
-for (const q of MUST_DECLINE) {
+console.log('\n  must decline, by the right guard')
+for (const { q, guard, focus } of MUST_DECLINE) {
   const r = resolve(q)
-  report(DECLINES.test(r.reply), `${JSON.stringify(q).padEnd(40)} ${r.reply.slice(0, 44)}`)
+  // A guarded refusal names its guard; a project refusal is identified by its
+  // focus, since it is handled ahead of the guards.
+  const ok = guard ? r.guard === guard : !r.guard && r.focus_section === focus && !r.unknown
+  report(
+    ok,
+    `${JSON.stringify(q).padEnd(38)} ${(r.guard ? `[${r.guard}]` : `<${r.focus_section}>`).padEnd(18)}` +
+      (ok ? '' : `  wanted ${guard ? `[${guard}]` : `<${focus}>`}`)
+  )
 }
 
-console.log('\n  must be unknown')
+console.log('\n  must be unknown, and must still offer something')
 for (const q of MUST_BE_UNKNOWN) {
   const r = resolve(q)
-  report(r.unknown, `${JSON.stringify(q).padEnd(44)} unknown=${r.unknown}`)
+  // Every unknown names what the assistant can help with instead.
+  const offers = /I can tell you about/i.test(r.reply) && r.followups.length > 0
+  report(r.unknown && offers, `${JSON.stringify(q).padEnd(42)} unknown=${r.unknown} offers=${offers}`)
 }
 
 const total = MUST_ANSWER.length + MUST_DECLINE.length + MUST_BE_UNKNOWN.length
