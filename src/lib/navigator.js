@@ -17,7 +17,9 @@
  * rule that this file should enforce offline, add a guard here too.
  */
 
-import knowledge from '../generated/knowledge-client.json'
+// The import attribute keeps this module loadable by plain Node as well as by
+// Vite, so the matcher can be exercised directly by scripts/check-navigator.mjs.
+import knowledge from '../generated/knowledge-client.json' with { type: 'json' }
 
 const entries = knowledge.entries
 const byId = Object.fromEntries(entries.map((e) => [e.id, e]))
@@ -37,6 +39,16 @@ const indexAction = { type: 'index', label: 'Open the full index', value: '/full
  * and routes onward, rather than hedging into a plausible-sounding answer.
  */
 const GUARDS = [
+  {
+    id: 'company-metrics',
+    test: /\b(funding|funded|raised|raise|investors in|valuation|revenue|profit|users|downloads|headcount|how many (people|employees|staff)|when (was|were) .* founded|founding date|where are you (based|located)|office|headquarters)\b/i,
+    reply:
+      'None of that is public. The site does not publish funding, figures, headcount, founding date, or location.',
+    focus: 'company',
+    actions: [contactAction('Ask directly')],
+    followups: ['what is yorocobu', 'who is behind this'],
+    used: ['company'],
+  },
   {
     id: 'pricing',
     test: /\b(pricing|price|prices|cost|costs|how much|rate|rates|quote|budget|fee|fees|charge|retainer|hourly|per hour|minimum project|expensive|cheap|afford)\b/i,
@@ -77,16 +89,6 @@ const GUARDS = [
     followups: ['what is yorocobu', 'how do i get in touch'],
     used: ['founders'],
   },
-  {
-    id: 'company-metrics',
-    test: /\b(funding|funded|raised|raise|investors in|valuation|revenue|profit|users|downloads|headcount|how many (people|employees|staff)|when (was|were) .* founded|founding date|where are you (based|located)|office|headquarters)\b/i,
-    reply:
-      'None of that is public. The site does not publish funding, figures, headcount, founding date, or location.',
-    focus: 'company',
-    actions: [contactAction('Ask directly')],
-    followups: ['what is yorocobu', 'who is behind this'],
-    used: ['company'],
-  },
 ]
 
 /** A question about what one of the five unnamed projects actually is. */
@@ -102,25 +104,69 @@ function matchProject(query) {
   })
 }
 
-/** Score an entry against the query by alias, title and id overlap. */
-function scoreEntry(entry, query) {
-  const q = ` ${query.toLowerCase().replace(/[^a-z0-9\s]/g, ' ')} `
-  let score = 0
+/*
+  Matching.
 
-  const candidates = [entry.title, entry.id.replace(/-/g, ' '), ...entry.aliases]
-  for (const candidate of candidates) {
-    const c = candidate.toLowerCase()
-    if (q.includes(` ${c} `)) score += c.split(/\s+/).length * 4
-    else if (c.length > 4 && q.includes(c)) score += 2
-  }
+  The question-scaffolding words below are stripped before comparison, so what is
+  left of a query is what it is actually about. "what do you build" reduces to
+  {build}; "what do you build with" reduces to {build, with}. That one extra token
+  is what separates the mission question from the technology question, which is
+  why "with" is not treated as noise.
 
-  for (const word of new Set(q.trim().split(/\s+/))) {
-    if (word.length < 4) continue
-    if (candidates.some((c) => c.toLowerCase().includes(word))) score += 1
-  }
+  A query that reduces to nothing at all — "who are you", "what do you do" — is
+  question scaffolding and no subject, which is exactly how people ask what a
+  company is. Those route to the overview rather than to a refusal.
+*/
+const SCAFFOLDING = new Set([
+  'what', 'whats', 'is', 'are', 'was', 'be', 'do', 'does', 'did', 'you', 'your',
+  'yours', 'the', 'a', 'an', 'me', 'my', 'about', 'tell', 'of', 'for', 'i', 'can',
+  'could', 'would', 'how', 'who', 'and', 'to', 'it', 'this', 'that', 'these',
+  'there', 'guys', 'folks', 'exactly', 'actually', 'really', 'please', 'hi',
+  'hello', 'hey', 'so', 'ok', 'okay', 'on', 'at', 'in', 'up', 'yorocobus',
+])
 
-  return score
+const normalize = (text) =>
+  (text ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+
+const subject = (text) => normalize(text).filter((w) => !SCAFFOLDING.has(w))
+
+/**
+ * Overlap of what a query is about with what a candidate phrase is about,
+ * symmetric so that neither a short query nor a long alias is penalised for
+ * simply being short or long.
+ */
+function overlap(queryWords, candidateWords) {
+  if (queryWords.length === 0 || candidateWords.length === 0) return 0
+  const candidate = new Set(candidateWords)
+  const shared = queryWords.filter((w) => candidate.has(w)).length
+  if (shared === 0) return 0
+  const union = new Set([...queryWords, ...candidateWords]).size
+  return shared / union
 }
+
+/**
+ * Score an entry against a query. 10 for an exact alias, otherwise scaled
+ * subject overlap against the best-matching alias.
+ */
+function scoreEntry(entry, query) {
+  const queryWords = subject(query)
+  const queryPhrase = normalize(query).join(' ')
+  const candidates = [entry.title, entry.id.replace(/-/g, ' '), ...entry.aliases]
+
+  let best = 0
+  for (const candidate of candidates) {
+    if (normalize(candidate).join(' ') === queryPhrase) return 10
+    best = Math.max(best, overlap(queryWords, subject(candidate)))
+  }
+  return best * 10
+}
+
+/** Enough shared subject matter to be confident, roughly a third of the words. */
+const MATCH_THRESHOLD = 3.3
 
 const FOLLOWUPS_BY_ENTRY = {
   company: ['what does the name mean', 'what is in development'],
@@ -155,17 +201,9 @@ function fromEntry(entry, reply) {
 export function resolve(query) {
   const trimmed = (query ?? '').trim()
 
-  if (!trimmed) {
-    return {
-      reply: 'Ask me anything about what Yorocobu builds.',
-      focus_section: null,
-      actions: [],
-      followups: [],
-      unknown: false,
-      used_entries: [],
-      source: 'local',
-    }
-  }
+  // The landing state. An empty submission is someone asking "well, what is
+  // this?", so it gets the overview rather than a shrug.
+  if (!trimmed) return overview()
 
   // A project asked about by category, before anything else can guess at it.
   const project = matchProject(trimmed)
@@ -211,21 +249,46 @@ export function resolve(query) {
 
   const ranked = entries
     .map((entry) => ({ entry, score: scoreEntry(entry, trimmed) }))
-    .sort((a, b) => b.score - a.score)
+    // Ties break toward the entry that reads first on the full index, which puts
+    // the overview ahead of the more specific entries.
+    .sort((a, b) => b.score - a.score || (a.entry.order ?? 99) - (b.entry.order ?? 99))
 
-  if (ranked[0] && ranked[0].score >= 4) {
+  if (ranked[0] && ranked[0].score >= MATCH_THRESHOLD) {
     return fromEntry(ranked[0].entry)
   }
 
+  /*
+    Nothing matched strongly. Before refusing, check whether this is a broad
+    question about what Yorocobu is, because those are always answerable and
+    refusing one is the worst failure this interface has. Unknown is for
+    specifics the knowledge base genuinely lacks.
+  */
+  if (subject(trimmed).length === 0 || IDENTITY.test(trimmed)) return overview()
+
   return {
-    reply: `I do not have that yet. Want me to pass the question to Ethan?`,
+    reply: 'I do not have that one. Want me to send the question to Ethan?',
     focus_section: null,
-    actions: [contactAction('Send the question'), indexAction],
-    followups: ['what is yorocobu', 'what is in development', 'who is behind this'],
+    // The assistant sends it. The mailto stays available for anyone who would
+    // rather use their own mail client, but it is no longer the primary action.
+    actions: [
+      { type: 'ask', label: 'Send the question', value: trimmed },
+      contactAction('Or email directly'),
+      indexAction,
+    ],
+    followups: ['what is yorocobu', 'what is in development', 'do you take clients'],
     unknown: true,
     used_entries: [],
     source: 'local',
   }
+}
+
+/** Broad, identity-shaped questions that survive stripping the scaffolding. */
+const IDENTITY =
+  /\b(yorocobu|the company|this (site|company|place)|you (guys|all)|overview|introduce|what.*(company|business|startup|agency)|who.*(behind|runs|owns))\b/i
+
+/** The company overview: the answer to "what is this". */
+function overview() {
+  return fromEntry(byId.company)
 }
 
 /** Suggested prompts, rotated per visit so the input is never blank. */

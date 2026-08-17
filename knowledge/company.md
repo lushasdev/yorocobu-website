@@ -2,7 +2,10 @@
 id: company
 order: 1
 title: Yorocobu
-aliases: [yorocobu llc, the company, what is yorocobu, who are you, what do you do]
+aliases:
+  [yorocobu llc, the company, what is yorocobu, what is this, who are you,
+   what do you do, what do you build, what does the company do, what do you make,
+   tell me about yorocobu, what are you working on, overview, mission]
 status: active
 kind: about
 summary: Yorocobu LLC finds holes in niche markets and builds apps to fill them.
