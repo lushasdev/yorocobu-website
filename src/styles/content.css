@@ -32,7 +32,7 @@
   top: 0.72em;
   width: 4px;
   height: 4px;
-  background: var(--shu);
+  background: var(--accent);
 }
 
 .prose strong {
@@ -62,7 +62,7 @@
 
 .region__sep {
   margin-inline: 0.5rem;
-  color: var(--shu);
+  color: var(--accent);
 }
 
 /*
@@ -113,7 +113,7 @@
 }
 
 .escape__mark {
-  color: var(--shu);
+  color: var(--accent);
   margin-right: 0.35rem;
 }
 
@@ -149,7 +149,7 @@
 }
 
 .index-page__jp {
-  color: var(--shu);
+  color: var(--accent);
   font-size: 0.9em;
   margin-left: 0.3em;
 }
@@ -189,7 +189,7 @@
 }
 
 .toc__n {
-  color: var(--shu);
+  color: var(--accent);
 }
 
 .back {
@@ -210,7 +210,7 @@
 }
 
 .back__mark {
-  color: var(--shu);
+  color: var(--accent);
 }
 
 /* ─── Founders ───────────────────────────────────────────────────────────── */
