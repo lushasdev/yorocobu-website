@@ -44,8 +44,121 @@ function useStreamedReply() {
   return { text, streaming, stream, setText }
 }
 
+/**
+ * The inline send field, shown when the navigator could not answer and the
+ * visitor takes it up on the offer. It stays in the console, in the same type
+ * and hairline treatment: no modal, no jump to a contact page, no mail client.
+ *
+ * The assistant offers to send the question, and then it sends it. Handing over
+ * a mailto and making the visitor do the work would read as broken.
+ */
+function Compose({ question, onDone }) {
+  const [email, setEmail] = useState('')
+  const [honeypot, setHoneypot] = useState('')
+  const [state, setState] = useState('ready') // ready | sending | sent | error
+  const [error, setError] = useState('')
+  const [replying, setReplying] = useState(false)
+  const fieldRef = useRef(null)
+
+  useEffect(() => fieldRef.current?.focus(), [])
+
+  const submit = async (event) => {
+    event.preventDefault()
+    if (state === 'sending') return
+    setState('sending')
+    setError('')
+
+    try {
+      const response = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ question, email, company: honeypot, source: 'unknown' }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error ?? 'that did not go through')
+      setReplying(Boolean(data.replying))
+      setState('sent')
+    } catch (caught) {
+      setError(caught.message)
+      setState('error')
+    }
+  }
+
+  if (state === 'sent') {
+    return (
+      <div className="compose compose--sent unmask" role="status">
+        <p className="compose__note mono">
+          Sent.{' '}
+          {replying
+            ? 'Ethan will reply to that address.'
+            : 'No address given, so this one is a note for Ethan rather than a reply to you.'}
+        </p>
+        <button type="button" className="chip" onClick={onDone}>
+          <span className="chip__bullet" aria-hidden="true" />
+          close
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form className="compose unmask" onSubmit={submit}>
+      <p className="compose__note mono">
+        Sending: <span className="compose__q">{question}</span>
+      </p>
+
+      <label className="compose__label mono" htmlFor="compose-email">
+        Your email, if you would like a reply
+      </label>
+      <div className="field compose__field">
+        <input
+          id="compose-email"
+          ref={fieldRef}
+          className="field__input"
+          type="email"
+          value={email}
+          autoComplete="email"
+          placeholder="optional"
+          onChange={(event) => setEmail(event.target.value)}
+        />
+      </div>
+
+      {/* Bots fill this in; people never see it. */}
+      <input
+        className="compose__trap"
+        type="text"
+        name="company"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        value={honeypot}
+        onChange={(event) => setHoneypot(event.target.value)}
+      />
+
+      <div className="compose__controls">
+        <button type="submit" className="action action--button" disabled={state === 'sending'}>
+          {state === 'sending' ? 'Sending' : 'Send it'}
+        </button>
+        <button type="button" className="chip" onClick={onDone}>
+          <span className="chip__bullet" aria-hidden="true" />
+          never mind
+        </button>
+      </div>
+
+      {state === 'error' && (
+        <p className="compose__error mono" role="alert">
+          {error}. You can also email {CONTACT_EMAIL} directly.
+        </p>
+      )}
+    </form>
+  )
+}
+
+const CONTACT_EMAIL = 'yorocobu.llc@gmail.com'
+
 export default function Console() {
   const [value, setValue] = useState('')
+  const [compose, setCompose] = useState({ open: false, question: '' })
   const [engaged, setEngaged] = useState(false)
   const [transcript, setTranscript] = useState([])
   const [active, setActive] = useState(null)
@@ -127,7 +240,7 @@ export default function Console() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Track the caret position so the vermilion block sits after the typed text.
+  // Track the caret position so the accent block sits after the typed text.
   useEffect(() => {
     if (mirrorRef.current) setCaretX(mirrorRef.current.offsetWidth)
   }, [value])
@@ -135,13 +248,16 @@ export default function Console() {
   const ask = useCallback(
     (query) => {
       const trimmed = query.trim()
-      if (!trimmed) return
-
       const result = resolve(trimmed)
-      const item = { n: transcript.length + 1, query: trimmed, result }
+      const item = {
+        n: transcript.length + 1,
+        query: trimmed || 'what is yorocobu',
+        result,
+      }
 
       setTranscript((prev) => [...prev, item])
       setActive(item)
+      setCompose({ open: false, question: '' })
       setEngaged(true)
       setValue('')
       setHighlight(-1)
@@ -153,6 +269,7 @@ export default function Console() {
   const restore = useCallback(
     (item) => {
       setActive(item)
+      setCompose({ open: false, question: '' })
       stream(item.result.reply, { instant: true })
     },
     [stream]
@@ -177,7 +294,7 @@ export default function Console() {
 
   return (
     <div className="console" data-engaged={engaged || undefined}>
-      {/* Streaming indicator: a vermilion hairline across the very top of the viewport. */}
+      {/* Streaming indicator: an accent hairline across the very top of the viewport. */}
       <div
         className="console__progress"
         data-streaming={streaming || undefined}
@@ -213,19 +330,38 @@ export default function Console() {
 
             {!streaming && active.result.actions.length > 0 && (
               <div className="answer__actions unmask">
-                {active.result.actions.map((action) => (
-                  <a
-                    key={action.label}
-                    className="action"
-                    href={action.value}
-                    {...(action.type === 'link'
-                      ? { target: '_blank', rel: 'noopener noreferrer' }
-                      : {})}
-                  >
-                    {action.label}
-                  </a>
-                ))}
+                {active.result.actions.map((action) =>
+                  action.type === 'ask' ? (
+                    <button
+                      key={action.label}
+                      type="button"
+                      className="action action--button"
+                      onClick={() => setCompose({ open: true, question: action.value })}
+                      aria-expanded={compose.open}
+                    >
+                      {action.label}
+                    </button>
+                  ) : (
+                    <a
+                      key={action.label}
+                      className="action"
+                      href={action.value}
+                      {...(action.type === 'link'
+                        ? { target: '_blank', rel: 'noopener noreferrer' }
+                        : {})}
+                    >
+                      {action.label}
+                    </a>
+                  )
+                )}
               </div>
+            )}
+
+            {!streaming && compose.open && (
+              <Compose
+                question={compose.question}
+                onDone={() => setCompose({ open: false, question: '' })}
+              />
             )}
 
             {!streaming && active.result.followups.length > 0 && (
@@ -256,7 +392,7 @@ export default function Console() {
           </label>
           {/*
             The hint sits above the rule rather than inside the field, so the
-            vermilion block caret has the line to itself.
+            accent block caret has the line to itself.
           */}
           <p className="bar__hint mono">{engaged ? 'ask another' : PLACEHOLDER}</p>
           <div className="field">

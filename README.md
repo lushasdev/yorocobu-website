@@ -124,16 +124,63 @@ there as well.**
 
 ---
 
+## The gaps queue
+
+When the navigator cannot answer, it offers to send the question, and then it
+sends it — an inline field in the console, not a mailto handed back to the
+visitor. `netlify/functions/ask.mjs` (`POST /api/ask`) writes every submission to
+the `questions` Netlify Blobs store.
+
+**The gaps log and the visitor questions are the same data**, so there is one
+store, not two. A question with no reply address is still recorded: the gap is
+worth knowing about even when there is nobody to answer.
+
+Every entry that store accumulates is an entry worth writing. That is the whole
+training loop — there is no model training anywhere in this project.
+
+### What is and is not recorded
+
+Recorded: the question, an optional reply address, a timestamp, and whether it has
+been answered. **Not recorded: IP addresses, user agents, or anything else that
+identifies the person asking.** Rate limiting has to recognise a repeat caller, so
+it keys on a salted daily hash of the address which is stored in a separate
+`rate-limits` store, never alongside a question, and cannot be reversed.
+
+Abuse controls: a honeypot field (a filled trap returns the same `200` a real
+submission does, so a bot learns nothing from the difference), 5 submissions per
+caller per hour, a 2000 character cap, and email validation.
+
+### Environment variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `RESEND_API_KEY` | no | Email notification on each question. Without it, submissions are still recorded and the weekly digest still carries them. |
+| `GAPS_EMAIL_TO` | no | Where notifications go. |
+| `GAPS_EMAIL_FROM` | no | Defaults to Resend's onboarding sender. |
+| `RATE_LIMIT_SALT` | recommended | Any random string. Salts the rate-limit hash. |
+| `OPENAI_API_KEY` | phase 3 | Never in the repo, never in the client bundle. |
+
+---
+
 ## Checks
 
 ```bash
-npm i -D playwright           # not a project dependency, to keep deploy builds lean
-node scripts/check-ui.mjs     # against a running `npm run preview`
+node scripts/check-navigator.mjs   # 30 cases: must answer, must decline, must be unknown
+node scripts/check-contrast.mjs    # WCAG contrast over the palette tokens
+
+npm i -D playwright                # not a project dependency, to keep deploy builds lean
+node scripts/check-ui.mjs          # against a running `npm run preview`
 ```
 
-Covers the boot sequence contract (1.6s budget, skippable, once per session,
-reduced-motion), keyboard operability, the live region, region surfacing, and the
-refusal cases.
+`check-navigator.mjs` is the one to run after any edit to `/knowledge/`. It mirrors
+`knowledge-eval.md` and costs nothing, because it exercises the offline matcher
+rather than the model. **It tests both edges**: over-refusing is as much a defect
+as over-answering, so the broad identity questions are checked as hard as the
+refusals.
+
+`check-ui.mjs` covers the boot sequence contract (1.6s budget, skippable, once per
+session, reduced motion), keyboard operability, the live region, and region
+surfacing.
 
 ---
 
@@ -157,23 +204,36 @@ Open Graph image both point at the former.
 ## Design
 
 The concept is a precision instrument that is glad to see you. Yorocobu comes from
-喜ぶ, *to be glad*, so the design is a machine calibrating itself on warm paper
-rather than a terminal in a basement. No neon, no glow, no scanlines, no glitch.
+喜ぶ, *to be glad*, so the design is a machine calibrating itself on a sheet of
+paper rather than a terminal in a basement. No neon, no glow, no scanlines, no
+glitch.
 
-| Token | Light | Role |
-|---|---|---|
-| `--paper` | `#F4F1EA` | base, the colour of washi |
-| `--ink` | `#14110F` | text |
-| `--shu` | `#E24A26` | accent, the vermilion of torii gates |
-| `--dim` | `#8A8175` | metadata, timestamps, labels |
-| `--rule` | `#DDD8CD` | hairlines and frames |
+| Token | Light | Dark | Role |
+|---|---|---|---|
+| `--paper` | `#F6F7F8` | `#0B0B0C` | base |
+| `--ink` | `#0B0B0C` | `#F6F7F8` | text |
+| `--accent` | `#1E50A2` | `#5B8DEF` | ruri-iro 瑠璃色, lapis |
+| `--dim` | `#6D7277` | `#757A7F` | metadata, timestamps, labels |
+| `--rule` | `#DDE1E5` | `#24262A` | hairlines and frames |
 
-Dark mode swaps paper and ink and leaves the vermilion untouched. It follows
-`prefers-color-scheme` with a manual override in the corner.
+Dark mode swaps paper and ink; the accent lifts, because `#1E50A2` disappears
+against black. It follows `prefers-color-scheme` with a manual override in the
+corner.
+
+**Changing the palette is one edit.** Every colour resolves to a token and every
+hex appears exactly once in `src/styles/global.css`; the dark values live in a
+`--d-*` set referenced by both dark blocks. Nothing else in the codebase carries a
+colour.
+
+`--dim` is not the same value in both modes. A single value cannot clear WCAG AA
+against both `#F6F7F8` and `#0B0B0C`, and `--dim` carries all the small mono
+metadata, so each mode gets the nearest value that passes. `node
+scripts/check-contrast.mjs` parses the tokens out of the stylesheet and checks
+every pairing.
 
 The accent appears in small quantities only: the caret, the registration marks, the
-streaming hairline, link underlines, list bullets. Never a vermilion button the size
-of a brick.
+streaming hairline, link underlines, list bullets, the focus rule. No fills, no
+gradients, no second accent, and never a blue button the size of a brick.
 
 **Type is split by voice.** Instrument Serif for display and headings, Newsreader for
 body copy, IBM Plex Mono for the machine voice — boot lines, metadata, the input,
