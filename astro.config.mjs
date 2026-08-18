@@ -98,8 +98,13 @@ export default defineConfig({
   ],
 
   build: {
-    // One stylesheet rather than a per-page waterfall; the site is two pages.
-    inlineStylesheets: 'auto',
+    /*
+      Inlined, not linked. At ~22KB across two pages the transfer cost is
+      trivial, and it removes the render-blocking stylesheet request entirely —
+      which is what was queueing behind 63KB of preloaded fonts and holding up
+      first paint.
+    */
+    inlineStylesheets: 'always',
   },
 
   image: {

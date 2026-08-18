@@ -41,13 +41,16 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href
 
     {/*
       Self-hosted, so there is no third-party request and nothing render-blocking
-      on another origin. The display face and the mono are preloaded because both
-      are set during the calibration sequence; Newsreader is not, since body copy
-      only appears once an answer resolves.
+      on another origin.
+
+      Only the display face is preloaded: it carries the largest text on the
+      page and is what LCP measures. The others load normally and swap in behind
+      the metric-compatible fallbacks, which is what those fallbacks are for.
+      Preloading all three put 63KB at High priority ahead of everything else.
     */}
     <Font cssVariable="--font-display" preload />
-    <Font cssVariable="--font-mono" preload />
-    <Font cssVariable="--font-jp" preload />
+    <Font cssVariable="--font-mono" />
+    <Font cssVariable="--font-jp" />
     <Font cssVariable="--font-body" />
 
     <script is:inline>
