@@ -392,6 +392,40 @@ export default function Console() {
       const destination = DESTINATIONS.find((d) => d.query === trimmed)
       const isNavigation = navigate || Boolean(destination)
 
+      /*
+        Navigation never asks the model. A chip is a site-map link: the region
+        IS the content, so Joy's part is one pointer line, not a speech. Sending
+        the chip's query through the model produced a full answer AND the
+        surfaced region — the exact duplication the surfacing rule exists to
+        prevent, rebuilt on the one path where the region is meant to show.
+        Skipping the call is also instant and free.
+      */
+      if (isNavigation) {
+        const local = resolve(destination?.query ?? trimmed)
+        const result = {
+          ...local,
+          reply: 'Everything the site publishes on this is just below.',
+          pointer: true,
+        }
+        setActive({ n, query: label, result: null })
+        setCompose({ open: false, seed: '' })
+        setEngaged(true)
+        setValue('')
+        setHighlight(-1)
+        setWaiting(false)
+        stream(result.reply, { instant: reducedMotion })
+        const item = {
+          n,
+          query: label,
+          result,
+          navigate: true,
+          forcedFocus: destination?.id ?? local.focus_section,
+        }
+        setTranscript((prev) => [...prev, item])
+        setActive(item)
+        return
+      }
+
       // The question and the migration land immediately; the answer follows.
       setActive({ n, query: label, result: null })
       setCompose({ open: false, seed: '' })

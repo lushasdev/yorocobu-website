@@ -116,6 +116,10 @@ a direct answer from an entry keeps it down, because the region would be the sam
 entry again at four times the length. The full index is where everything reads at
 length.
 
+Chips never call the model. A chip is a site-map link: the region is the content,
+so Joy answers with one pointer line and the region rises — instant, free, and
+never a restatement of what is about to unmask underneath it.
+
 ### Refusals
 
 The navigator declines rather than guesses, and the refusals are the point, not a

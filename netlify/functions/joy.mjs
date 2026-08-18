@@ -79,7 +79,14 @@ const ANSWER_SCHEMA = {
         },
       },
     },
-    followups: { type: 'array', maxItems: 3, items: { type: 'string' } },
+    followups: {
+      type: 'array',
+      maxItems: 3,
+      items: { type: 'string' },
+      description:
+        'Two or three natural next questions, phrased as a visitor would type ' +
+        'them. Leave empty only when nothing sensibly follows.',
+    },
     unknown: { type: 'boolean' },
     used_entries: { type: 'array', items: { type: 'string', enum: ENTRY_IDS } },
   },
@@ -221,17 +228,23 @@ function guaranteeOffer(result, mode) {
   if (!result || mode === 'compose') return result
 
   /*
-    Originally this fired on result.unknown — which is the model's own report of
-    whether it knew. When the model wrongly believed it knew something, the
-    wrong answer AND the missing offer both got through, because the safety net
-    depended on the very self-report that had failed. Now it keys on what is
-    observable in the output, the way the closed action enum and the label
-    rewrite do: an answer that leaves the visitor nowhere to go — no actions,
-    no followups — gets the offer attached, whatever the model believed about
-    itself. Unknowns keep their stronger guarantee of both.
+    Two failed keys before this one. result.unknown is the model's self-report,
+    and it fails exactly when the model wrongly believes it knows. Keying on
+    empty actions+followups then fired on almost every answer, because a good
+    complete answer frequently carries neither — emptiness turned out to be no
+    signal at all.
+
+    What actually distinguishes "this left the visitor nowhere" from "this was
+    complete" is what the reply SAYS. A refusal or a gap announces itself: not
+    published, not covered, I don't have that. Those words are observable
+    output the model cannot be wrong about — if the reply says the site does
+    not have it, the visitor experienced a dead end whatever the unknown flag
+    claimed. So the offer attaches on unknown OR a gap-shaped reply, and a
+    complete answer that simply ends is left alone.
   */
-  const bare = !result.actions?.length && !result.followups?.length
-  if (!result.unknown && !bare) return result
+  const GAP_SHAPED =
+    /\b(not (public|published|covered)|(does|do)(n't| not) (publish|cover|say|describe|explain|have)|i (do not|don't) (have|know)|isn'?t (public|published)|nothing (is )?(public|published)|no [a-z ]{0,24}(is|are) public)\b/i
+  if (!result.unknown && !GAP_SHAPED.test(result.reply ?? '')) return result
 
   const offers = knowledge.destinations.slice(0, 3)
   return {
