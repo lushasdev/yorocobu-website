@@ -124,6 +124,26 @@ there as well.**
 
 ---
 
+## Running the model eval
+
+```bash
+npm run knowledge                                  # required first, see below
+OPENAI_API_KEY=sk-... node scripts/eval-knowledge.mjs
+```
+
+**`npm run knowledge` has to run first.** `src/generated/` is not committed, and
+the eval imports the Netlify function, which imports the compiled knowledge base.
+Without it the run fails before reaching the model.
+
+The eval costs real money, so it is not wired into `npm run check`. It reports
+first-token latency with p50 and p95 and suggests a `FIRST_TOKEN_TIMEOUT` for
+`src/lib/joy.js`, read back against the value currently set there.
+
+`OPENAI_BASE_URL` points the whole thing at a different endpoint, which is how
+the harness gets exercised without spending anything.
+
+---
+
 ## The gaps queue
 
 When the navigator cannot answer, it offers to send the question, and then it
@@ -165,8 +185,12 @@ caller per hour, a 2000 character cap, and email validation.
 ## Checks
 
 ```bash
-node scripts/check-navigator.mjs   # 30 cases: must answer, must decline, must be unknown
+npm run check                      # navigator, contrast, secrets and CSP drift
+
+node scripts/check-navigator.mjs   # 53 cases: answer, decline, unknown, reachability
 node scripts/check-contrast.mjs    # WCAG contrast over the palette tokens
+node scripts/check-secrets.mjs     # key material in the built output (needs a build)
+node scripts/build-csp.mjs --check # netlify.toml CSP against the built inline scripts
 
 npm i -D playwright                # not a project dependency, to keep deploy builds lean
 node scripts/check-ui.mjs          # against a running `npm run preview`
