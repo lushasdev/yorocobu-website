@@ -113,10 +113,17 @@ The AI layer sits on top of a real document; it does not replace it.
 ### Refusals
 
 The navigator declines rather than guesses, and the refusals are the point, not a
-shortfall. It will not state pricing, timelines, availability, client names, founder
-biographies, or what any of the five in-development projects actually does — because
-none of that is public. Each refusal says so in one line and offers the contact
-action.
+shortfall. It will not state pricing, timelines, availability, client names, funding
+or revenue figures, anything personal about either founder beyond the published bios,
+or what any of the five in-development projects actually does — because none of that
+is public. Each refusal says so in one line and offers to pass the question along.
+
+**What is public moves, and the guards have to move with it.** Publishing founder
+bios turned "what is Ethan's background" from a refusal into an answer, and the
+guard it used to hit was renamed and rewritten to cover the edge the bios invite
+instead. Whenever an entry gains material, check `scripts/check-navigator.mjs` and
+`knowledge-eval.md` in the same commit: a decline case that has quietly become an
+answer case either fails on correct behaviour or stops testing anything.
 
 The refusal guards in `src/lib/navigator.js` mirror the `do_not_claim` fields.
 **When you add a `do_not_claim` rule that should hold offline too, add a guard
@@ -232,37 +239,51 @@ The concept is a precision instrument that is glad to see you. Yorocobu comes fr
 paper rather than a terminal in a basement. No neon, no glow, no scanlines, no
 glitch.
 
+**Two accents, and they never swap jobs.** Plum is interactive — links, buttons,
+the caret, active states, focus. Gold is atmosphere — hairlines, the calibration
+marks, the mark itself. If it is clickable it is plum; if it is structure or light
+it is gold. Roughly 82% neutral, 12% plum, 6% gold.
+
 | Token | Light | Dark | Role |
 |---|---|---|---|
-| `--paper` | `#F6F7F8` | `#0B0B0C` | base |
-| `--ink` | `#0B0B0C` | `#F6F7F8` | text |
-| `--accent` | `#1E50A2` | `#5B8DEF` | ruri-iro 瑠璃色, lapis |
-| `--dim` | `#6D7277` | `#757A7F` | metadata, timestamps, labels |
-| `--rule` | `#DDE1E5` | `#24262A` | hairlines and frames |
+| `--bg` | `--n-50` | `#171114` | warm paper |
+| `--text-primary` | `--n-900` | `#f6ede6` | ink, a faint plum cast |
+| `--text-secondary` | `--n-600` | `#c4b6bc` | metadata, labels, the machine voice |
+| `--primary` | `--plum-500` | `--plum-400` | 紅梅 kobai plum, everything interactive |
+| `--warm` | `--gold-400` | `--gold-300` | 山吹 yamabuki gold, rules and marks |
+| `--border` | `--n-200` | `#322a31` | hairlines and frames |
+| `--surface-invert` | `--plum-800` | `--plum-900` | the band the 喜 sits on |
 
-Dark mode swaps paper and ink; the accent lifts, because `#1E50A2` disappears
-against black. It follows `prefers-color-scheme` with a manual override in the
-corner.
+Dark mode is not an inversion: it is a second set of values, because a single one
+cannot clear WCAG AA against both grounds. It follows `prefers-color-scheme` with a
+manual override in the corner.
+
+**Gold is never text.** At `--gold-400` it measures about 1.9:1 on paper. Where gold
+has to carry type it uses `--warm-text`; the one exception is gold at display size on
+`--surface-invert`, which measures about 8:1, and the boot sequence's 喜 is the single
+place that earns it. `--text-muted` exists as a brand token and is not a text colour
+here at all — `check-contrast.mjs` **fails** if it is ever applied to a text property.
 
 **Changing the palette is one edit.** Every colour resolves to a token and every
-hex appears exactly once in `src/styles/global.css`; the dark values live in a
-`--d-*` set referenced by both dark blocks. Nothing else in the codebase carries a
-colour.
+hex appears exactly once in `src/styles/global.css`: brand scales at the top,
+semantic tokens mapped onto them below, dark values redefined in both the
+`[data-theme='dark']` block and the `prefers-color-scheme` one. Nothing else in the
+codebase carries a colour.
 
-`--dim` is not the same value in both modes. A single value cannot clear WCAG AA
-against both `#F6F7F8` and `#0B0B0C`, and `--dim` carries all the small mono
-metadata, so each mode gets the nearest value that passes. `node
-scripts/check-contrast.mjs` parses the tokens out of the stylesheet and checks
-every pairing.
+`node scripts/check-contrast.mjs` parses the tokens out of the stylesheet, resolves
+each `var()` chain to a real hex, and measures every pairing against its threshold.
+Run it after any palette edit; it is part of `npm run check`.
 
-The accent appears in small quantities only: the caret, the registration marks, the
+Both accents appear in small quantities only: the caret, the registration marks, the
 streaming hairline, link underlines, list bullets, the focus rule. No fills, no
-gradients, no second accent, and never a blue button the size of a brick.
+gradients, and never a plum button the size of a brick.
 
-**Type is split by voice.** Instrument Serif for display and headings, Newsreader for
-body copy, IBM Plex Mono for the machine voice — boot lines, metadata, the input,
-the transcript. Serif is content, mono is the machine. That split should be visible
-on every screen. IBM Plex Sans JP is loaded subset to the single glyph 喜.
+**Type is split by voice.** Instrument Serif for display and headings, Instrument
+Sans for body copy, JetBrains Mono for the machine voice — boot lines, metadata, the
+input, the transcript. Serif is content, mono is the machine. That split should be
+visible on every screen. Zen Old Mincho is subset to the single glyph 喜, which takes
+it from 1.8MB to 1.1KB. All four are self-hosted through Astro's font pipeline with
+metric-compatible fallbacks, so nothing shifts when the files land.
 
 **Content arrives by unmasking**, never by fading or sliding: `clip-path` wipes left
 to right at 180ms on `cubic-bezier(0.2, 0, 0, 1)`. The registration marks and frame
