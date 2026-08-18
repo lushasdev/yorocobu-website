@@ -1,6 +1,7 @@
 ---
 id: portfolio
 order: 5
+nav: in development
 title: Work in Development
 aliases:
   [portfolio, what have you shipped, what have you built, your work, projects,

@@ -1,8 +1,12 @@
 ---
 id: services
 order: 6
+nav: working together
 title: Client Work
-aliases: [can you build an app for my org, client work, hire, work with us, do you take clients, build me an app, freelance, contract, nonprofit, my company, partner]
+aliases:
+  [can you build an app for my org, client work, working together, hire,
+   work with us, do you take clients, build me an app, freelance, contract,
+   nonprofit, my company, partner]
 status: open
 kind: service
 summary: Yorocobu takes on client projects. Anyone with a project in mind is invited to get in touch.

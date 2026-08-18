@@ -1,6 +1,7 @@
 ---
 id: founders
 order: 3
+nav: who runs it
 title: Founders
 aliases: [who is behind this, team, ethan, bence, ethan gailushas, bence burton, who runs yorocobu, leadership]
 status: active

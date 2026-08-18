@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { resolve, pickSuggestions } from '../lib/navigator.js'
+import { resolve, DESTINATIONS } from '../lib/navigator.js'
+import { askJoy } from '../lib/joy.js'
+import { COMPOSE_QUESTIONS } from '../lib/compose-fallback.js'
 
-const PLACEHOLDER = 'ask me about what we build'
+const PLACEHOLDER = 'ask Joy for anything on this site'
 
 /** Reveal a reply progressively. A response that appears all at once reads as a page load. */
 function useStreamedReply() {
@@ -40,39 +42,106 @@ function useStreamedReply() {
     [stop]
   )
 
+  /** A delta straight from the model: already arriving, no simulation needed. */
+  const live = useCallback(
+    (partial) => {
+      stop()
+      setStreaming(true)
+      setText(partial)
+    },
+    [stop]
+  )
+
+  const settle = useCallback(() => setStreaming(false), [])
+
   useEffect(() => stop, [stop])
-  return { text, streaming, stream, setText }
+  return { text, streaming, stream, live, settle, setText }
 }
 
 /**
- * The inline send field, shown when the navigator could not answer and the
- * visitor takes it up on the offer. It stays in the console, in the same type
- * and hairline treatment: no modal, no jump to a contact page, no mail client.
+ * Compose mode: a short guided exchange that ends in a drafted message.
  *
- * The assistant offers to send the question, and then it sends it. Handing over
- * a mailto and making the visitor do the work would read as broken.
+ * Joy asks at most three short questions, one at a time, drafts from what the
+ * visitor said, and shows the draft editable in place. Nothing is ever sent
+ * without an explicit send — there is no auto-send on the last answer.
+ *
+ * Without the model this degrades to the same questions and a template draft.
+ * It is the only conversion path on the site, so it has to work when the API
+ * does not.
  */
-function Compose({ question, onDone }) {
-  const [email, setEmail] = useState('')
+function Compose({ seed, onClose }) {
+  const [turns, setTurns] = useState([])
+  const [value, setValue] = useState('')
+  const [prompt, setPrompt] = useState(null)
+  const [note, setNote] = useState('')
+  const [draft, setDraft] = useState(null)
   const [honeypot, setHoneypot] = useState('')
-  const [state, setState] = useState('ready') // ready | sending | sent | error
+  const [state, setState] = useState('starting') // starting | asking | thinking | drafted | sending | sent | error
   const [error, setError] = useState('')
   const [replying, setReplying] = useState(false)
   const fieldRef = useRef(null)
+  const draftRef = useRef(null)
 
-  useEffect(() => fieldRef.current?.focus(), [])
+  const advance = useCallback(
+    async (answer, history) => {
+      setState('thinking')
+      const result = await askJoy({
+        mode: 'compose',
+        question: answer,
+        turns: history,
+        seed,
+        onDelta: setNote,
+      })
+      setNote(result.reply ?? '')
+      if (result.done && result.draft) {
+        setDraft(result.draft)
+        setState('drafted')
+      } else {
+        setPrompt(result.next_question ?? COMPOSE_QUESTIONS[0].ask)
+        setState('asking')
+      }
+    },
+    [seed]
+  )
 
-  const submit = async (event) => {
+  // Always open on the first question. The seed is what the visitor typed to get
+  // here; it is carried into the draft as their own words, but it is not an
+  // answer to anything, so it is not counted as one.
+  useEffect(() => {
+    advance('', [])
+  }, [advance])
+
+  useEffect(() => {
+    if (state === 'asking') fieldRef.current?.focus()
+    if (state === 'drafted') draftRef.current?.focus()
+  }, [state])
+
+  const answer = (event) => {
     event.preventDefault()
+    const said = value.trim()
+    if (!said || state !== 'asking') return
+    // `turns` is the history BEFORE this answer; the answer travels separately as
+    // the question. Including it in both counts it twice.
+    const prior = [...turns, { role: 'assistant', content: prompt ?? '' }]
+    setTurns([...prior, { role: 'user', content: said }])
+    setValue('')
+    advance(said, prior)
+  }
+
+  const send = async () => {
     if (state === 'sending') return
     setState('sending')
     setError('')
-
     try {
       const response = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question, email, company: honeypot, source: 'unknown' }),
+        body: JSON.stringify({
+          question: draft,
+          email: extractEmail([...turns.map((t) => t.content), draft].join(' ')),
+          company: honeypot,
+          source: 'compose',
+        }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error ?? 'that did not go through')
@@ -90,10 +159,10 @@ function Compose({ question, onDone }) {
         <p className="compose__note mono">
           Sent.{' '}
           {replying
-            ? 'Ethan will reply to that address.'
-            : 'No address given, so this one is a note for Ethan rather than a reply to you.'}
+            ? 'Ethan will reply to the address you gave.'
+            : 'No address in there, so this one is a note for Ethan rather than a reply to you.'}
         </p>
-        <button type="button" className="chip" onClick={onDone}>
+        <button type="button" className="chip" onClick={onClose}>
           <span className="chip__bullet" aria-hidden="true" />
           close
         </button>
@@ -102,26 +171,67 @@ function Compose({ question, onDone }) {
   }
 
   return (
-    <form className="compose unmask" onSubmit={submit}>
-      <p className="compose__note mono">
-        Sending: <span className="compose__q">{question}</span>
-      </p>
+    <div className="compose unmask">
+      {note && <p className="compose__note mono">{note}</p>}
 
-      <label className="compose__label mono" htmlFor="compose-email">
-        Your email, if you would like a reply
-      </label>
-      <div className="field compose__field">
-        <input
-          id="compose-email"
-          ref={fieldRef}
-          className="field__input"
-          type="email"
-          value={email}
-          autoComplete="email"
-          placeholder="optional"
-          onChange={(event) => setEmail(event.target.value)}
-        />
-      </div>
+      {(state === 'asking' || state === 'thinking') && (
+        <form onSubmit={answer}>
+          <label className="compose__label mono" htmlFor="compose-answer">
+            {prompt ?? COMPOSE_QUESTIONS[0].ask}
+          </label>
+          <div className="field compose__field">
+            <input
+              id="compose-answer"
+              ref={fieldRef}
+              className="field__input"
+              type="text"
+              value={value}
+              autoComplete="off"
+              disabled={state === 'thinking'}
+              onChange={(event) => setValue(event.target.value)}
+            />
+          </div>
+          <div className="compose__controls">
+            <button type="submit" className="action action--button" disabled={state === 'thinking'}>
+              {state === 'thinking' ? 'One moment' : 'Next'}
+            </button>
+            <button type="button" className="chip" onClick={onClose}>
+              <span className="chip__bullet" aria-hidden="true" />
+              never mind
+            </button>
+          </div>
+        </form>
+      )}
+
+      {(state === 'drafted' || state === 'sending' || state === 'error') && (
+        <>
+          <label className="compose__label mono" htmlFor="compose-draft">
+            Your message, edit anything
+          </label>
+          <textarea
+            id="compose-draft"
+            ref={draftRef}
+            className="compose__draft"
+            rows={5}
+            value={draft ?? ''}
+            onChange={(event) => setDraft(event.target.value)}
+          />
+          <div className="compose__controls">
+            <button
+              type="button"
+              className="action action--button"
+              onClick={send}
+              disabled={state === 'sending' || !draft?.trim()}
+            >
+              {state === 'sending' ? 'Sending' : 'Send it'}
+            </button>
+            <button type="button" className="chip" onClick={onClose}>
+              <span className="chip__bullet" aria-hidden="true" />
+              never mind
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Bots fill this in; people never see it. */}
       <input
@@ -135,39 +245,31 @@ function Compose({ question, onDone }) {
         onChange={(event) => setHoneypot(event.target.value)}
       />
 
-      <div className="compose__controls">
-        <button type="submit" className="action action--button" disabled={state === 'sending'}>
-          {state === 'sending' ? 'Sending' : 'Send it'}
-        </button>
-        <button type="button" className="chip" onClick={onDone}>
-          <span className="chip__bullet" aria-hidden="true" />
-          never mind
-        </button>
-      </div>
-
       {state === 'error' && (
         <p className="compose__error mono" role="alert">
-          {error}. You can also email {CONTACT_EMAIL} directly.
+          {error}. The address is on the full index if you would rather write directly.
         </p>
       )}
-    </form>
+    </div>
   )
 }
 
-const CONTACT_EMAIL = 'yorocobu.llc@gmail.com'
+/** The reply-to address, if the visitor happened to give one. */
+function extractEmail(text) {
+  return text.match(/[^\s<>@]+@[^\s<>@.]+\.[^\s<>@]+/)?.[0] ?? ''
+}
 
 export default function Console() {
   const [value, setValue] = useState('')
-  const [compose, setCompose] = useState({ open: false, question: '' })
+  const [compose, setCompose] = useState({ open: false, seed: '' })
   const [engaged, setEngaged] = useState(false)
   const [transcript, setTranscript] = useState([])
   const [active, setActive] = useState(null)
   const [highlight, setHighlight] = useState(-1)
-  const [suggestions, setSuggestions] = useState([])
   const inputRef = useRef(null)
   const mirrorRef = useRef(null)
   const [caretX, setCaretX] = useState(0)
-  const { text, streaming, stream } = useStreamedReply()
+  const { text, streaming, stream, live, settle } = useStreamedReply()
 
   const reducedMotion = useMemo(
     () =>
@@ -175,8 +277,6 @@ export default function Console() {
       window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     []
   )
-
-  useEffect(() => setSuggestions(pickSuggestions(4)), [])
 
   // Take the caret once calibration has handed off, but only where there is a
   // real pointer: focusing on touch would throw up the soft keyboard on arrival.
@@ -200,7 +300,7 @@ export default function Console() {
   // Surface the matching server-rendered region alongside the prose answer.
   useEffect(() => {
     const root = document.documentElement
-    if (active?.result.focus_section) root.dataset.focus = active.result.focus_section
+    if (active?.result?.focus_section) root.dataset.focus = active.result.focus_section
     else delete root.dataset.focus
   }, [active])
 
@@ -246,30 +346,37 @@ export default function Console() {
   }, [value])
 
   const ask = useCallback(
-    (query) => {
+    async (query) => {
       const trimmed = query.trim()
-      const result = resolve(trimmed)
-      const item = {
-        n: transcript.length + 1,
-        query: trimmed || 'what is yorocobu',
-        result,
-      }
+      const label = trimmed || 'what is yorocobu'
+      const n = transcript.length + 1
 
-      setTranscript((prev) => [...prev, item])
-      setActive(item)
-      setCompose({ open: false, question: '' })
+      // The question and the migration land immediately; the answer follows.
+      setActive({ n, query: label, result: null })
+      setCompose({ open: false, seed: '' })
       setEngaged(true)
       setValue('')
       setHighlight(-1)
-      stream(result.reply, { instant: reducedMotion })
+      live('')
+
+      const result = await askJoy({ mode: 'answer', question: trimmed, onDelta: live })
+
+      // A degraded answer is replayed through the simulated stream so it still
+      // arrives rather than appearing all at once.
+      if (result.degraded) stream(result.reply, { instant: reducedMotion })
+      else settle()
+
+      const item = { n, query: label, result }
+      setTranscript((prev) => [...prev, item])
+      setActive(item)
     },
-    [transcript.length, stream, reducedMotion]
+    [transcript.length, stream, live, settle, reducedMotion]
   )
 
   const restore = useCallback(
     (item) => {
       setActive(item)
-      setCompose({ open: false, question: '' })
+      setCompose({ open: false, seed: '' })
       stream(item.result.reply, { instant: true })
     },
     [stream]
@@ -281,14 +388,15 @@ export default function Console() {
       setHighlight(-1)
       return
     }
-    if (engaged || suggestions.length === 0) return
+    if (engaged || DESTINATIONS.length === 0) return
 
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       const delta = event.key === 'ArrowDown' ? 1 : -1
-      const next = (highlight + delta + suggestions.length + 1) % (suggestions.length + 1)
-      setHighlight(next === suggestions.length ? -1 : next)
-      setValue(next === suggestions.length ? '' : suggestions[next] ?? '')
+      const count = DESTINATIONS.length
+      const next = (highlight + delta + count + 1) % (count + 1)
+      setHighlight(next === count ? -1 : next)
+      setValue(next === count ? '' : DESTINATIONS[next]?.query ?? '')
     }
   }
 
@@ -328,15 +436,15 @@ export default function Console() {
             <p className="answer__q mono">{active.query}</p>
             <p className="answer__text">{text}</p>
 
-            {!streaming && active.result.actions.length > 0 && (
+            {!streaming && active.result?.actions?.length > 0 && (
               <div className="answer__actions unmask">
                 {active.result.actions.map((action) =>
-                  action.type === 'ask' ? (
+                  action.type === 'compose' ? (
                     <button
                       key={action.label}
                       type="button"
                       className="action action--button"
-                      onClick={() => setCompose({ open: true, question: action.value })}
+                      onClick={() => setCompose({ open: true, seed: action.value })}
                       aria-expanded={compose.open}
                     >
                       {action.label}
@@ -358,13 +466,10 @@ export default function Console() {
             )}
 
             {!streaming && compose.open && (
-              <Compose
-                question={compose.question}
-                onDone={() => setCompose({ open: false, question: '' })}
-              />
+              <Compose seed={compose.seed} onClose={() => setCompose({ open: false, seed: '' })} />
             )}
 
-            {!streaming && active.result.followups.length > 0 && (
+            {!streaming && active.result?.followups?.length > 0 && (
               <div className="answer__followups unmask">
                 {active.result.followups.map((followup) => (
                   <button key={followup} type="button" className="chip" onClick={() => ask(followup)}>
@@ -390,6 +495,23 @@ export default function Console() {
           <label className="visually-hidden" htmlFor="console-input">
             Ask about Yorocobu
           </label>
+          {/*
+            The introduction. The console replaced the nav bar, so it has to do a
+            nav bar's job and say what it is.
+
+            Arrival only: once the first query resolves and the console migrates
+            to the bottom, the whole block goes. Nothing this bold survives being
+            read fifteen times.
+          */}
+          {!engaged && (
+            <div className="intro">
+              <p className="intro__status mono">JOY // NAVIGATOR // ready</p>
+              <p className="intro__claim">This is the future of websites.</p>
+              <p className="intro__proof">No menus. No hunting. Just a guide.</p>
+              <p className="intro__body">This is Joy. She can help you find anything here.</p>
+            </div>
+          )}
+
           {/*
             The hint sits above the rule rather than inside the field, so the
             accent block caret has the line to itself.
@@ -422,21 +544,27 @@ export default function Console() {
           </button>
         </div>
 
-        {!engaged && suggestions.length > 0 && (
-          <div className="suggestions">
-            {suggestions.map((suggestion, i) => (
+        {/*
+          The site map, not example questions. A visitor arriving at a site with
+          no menu needs to see its shape immediately; rotating examples show range
+          but hide structure. Fixed, and derived from /knowledge/ so they cannot
+          drift from what the site actually holds.
+        */}
+        {!engaged && (
+          <nav className="suggestions" aria-label="Everything on this site">
+            {DESTINATIONS.map((destination, i) => (
               <button
-                key={suggestion}
+                key={destination.id}
                 type="button"
                 className="chip"
                 data-highlight={highlight === i || undefined}
-                onClick={() => ask(suggestion)}
+                onClick={() => ask(destination.query)}
               >
                 <span className="chip__bullet" aria-hidden="true" />
-                {suggestion}
+                {destination.label}
               </button>
             ))}
-          </div>
+          </nav>
         )}
       </form>
     </div>

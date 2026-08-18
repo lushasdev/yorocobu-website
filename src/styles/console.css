@@ -463,3 +463,80 @@
     font-size: 1.25rem;
   }
 }
+
+/* ─── The introduction ───────────────────────────────────────────────────── */
+/*
+  Shown on arrival only. The claim comes first and the proof sits one line under
+  it, both verifiable within four seconds. It does not survive the first answer.
+*/
+
+.intro {
+  margin-bottom: 2.4rem;
+}
+
+.intro__status {
+  margin-bottom: 1.1rem;
+}
+
+.intro__claim {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6.2vw, 4.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.intro__proof {
+  font-family: var(--font-display);
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+  line-height: 1.15;
+  margin-top: 0.35rem;
+  color: var(--text-secondary);
+  text-wrap: balance;
+}
+
+.intro__body {
+  margin-top: 1.3rem;
+  color: var(--text-secondary);
+  max-width: 30rem;
+}
+
+/* The introduction needs the width the console does not. */
+.console:not([data-engaged]) .bar__inner {
+  max-width: 44rem;
+}
+
+.console:not([data-engaged]) .suggestions {
+  max-width: 44rem;
+}
+
+@media (max-width: 46rem) {
+  .intro {
+    margin-bottom: 1.8rem;
+  }
+  .intro__body {
+    font-size: 0.95rem;
+  }
+}
+
+/* The drafted message, editable in place. */
+.compose__draft {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.75rem 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.compose__draft:focus {
+  outline: none;
+  border-bottom-color: var(--primary);
+  box-shadow: 0 1px 0 var(--primary);
+}

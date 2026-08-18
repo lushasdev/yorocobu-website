@@ -104,6 +104,9 @@
   --primary-text: var(--plum-700); /* plum as small text on light */
   --primary-subtle: var(--plum-50);
   --warm: var(--gold-400); /* fills, rules, the sun, the mark */
+  /* The registration marks are the one gold element doing structural work, so
+     they are switchable independently of the hairlines. */
+  --warm-mark: var(--gold-400);
   --warm-text: var(--gold-700); /* gold as text, never gold-400 */
   --warm-subtle: var(--gold-50);
   --focus-ring: 0 0 0 2px var(--n-50), 0 0 0 4px var(--plum-500);
@@ -130,6 +133,7 @@
   --primary-text: var(--plum-300);
   --primary-subtle: #3a0b1d;
   --warm: var(--gold-300);
+  --warm-mark: var(--gold-300);
   --warm-text: var(--gold-300);
   --warm-subtle: #2a1f14;
   --focus-ring: 0 0 0 2px #171114, 0 0 0 4px var(--gold-300);
@@ -156,6 +160,7 @@
     --primary-text: var(--plum-300);
     --primary-subtle: #3a0b1d;
     --warm: var(--gold-300);
+    --warm-mark: var(--gold-300);
     --warm-text: var(--gold-300);
     --warm-subtle: #2a1f14;
     --focus-ring: 0 0 0 2px #171114, 0 0 0 4px var(--gold-300);
@@ -370,7 +375,7 @@ a:hover {
   position: absolute;
   width: 13px;
   height: 13px;
-  color: var(--warm);
+  color: var(--warm-mark);
 }
 
 .frame__mark--tl {

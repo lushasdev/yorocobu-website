@@ -1,6 +1,7 @@
 ---
 id: name
 order: 2
+nav: the name
 title: About the Name
 aliases: [what does yorocobu mean, name meaning, japanese, why yorocobu, 喜, yorokobu, pronunciation]
 status: active

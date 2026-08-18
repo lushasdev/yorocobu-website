@@ -180,6 +180,16 @@ function today() {
 
 const entries = readEntries()
 const bootLines = buildBootLines(entries)
+
+/*
+  The site map. With no nav bar, a visitor needs to see the shape of the site
+  without having to ask for it, so these are fixed destinations rather than
+  rotating examples. Derived from the `nav` label on each entry: give an entry a
+  nav label and it appears here, remove one and it does not.
+*/
+const destinations = entries
+  .filter((e) => e.nav)
+  .map((e) => ({ id: e.id, label: e.nav, query: e.nav }))
 const context = buildContext(entries)
 
 // What the browser needs to run the offline navigator: enough to match a question
@@ -198,11 +208,11 @@ const clientEntries = entries.map((e) => ({
 mkdirSync(OUT_DIR, { recursive: true })
 writeFileSync(
   join(OUT_DIR, 'knowledge.json'),
-  `${JSON.stringify({ entries, bootLines, generated: today() }, null, 2)}\n`
+  `${JSON.stringify({ entries, bootLines, destinations, generated: today() }, null, 2)}\n`
 )
 writeFileSync(
   join(OUT_DIR, 'knowledge-client.json'),
-  `${JSON.stringify({ entries: clientEntries }, null, 2)}\n`
+  `${JSON.stringify({ entries: clientEntries, destinations }, null, 2)}\n`
 )
 writeFileSync(join(OUT_DIR, 'knowledge-context.md'), context)
 
@@ -210,7 +220,7 @@ writeFileSync(join(OUT_DIR, 'knowledge-context.md'), context)
 // the whole base as context and revisit only past ~30k tokens.
 const estimatedTokens = Math.round(context.length / 4)
 console.log(
-  `  knowledge: ${entries.length} entries -> src/generated/ ` +
+  `  knowledge: ${entries.length} entries, ${destinations.length} destinations -> src/generated/ ` +
     `(context ~${estimatedTokens.toLocaleString()} tokens)`
 )
 if (estimatedTokens > 30000) {

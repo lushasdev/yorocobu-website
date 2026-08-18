@@ -24,12 +24,15 @@ import knowledge from '../generated/knowledge-client.json' with { type: 'json' }
 const entries = knowledge.entries
 const byId = Object.fromEntries(entries.map((e) => [e.id, e]))
 
-const EMAIL = 'yorocobu.llc@gmail.com'
-
-const contactAction = (label = 'Send an email') => ({
-  type: 'email',
+/*
+  Contact happens inside the console. The email address is not offered here at
+  all any more — it lives in plain text on the full index, for anyone who would
+  rather use their own client.
+*/
+const composeAction = (label = 'Send a message', seed = '') => ({
+  type: 'compose',
   label,
-  value: `mailto:${EMAIL}`,
+  value: seed,
 })
 
 const indexAction = { type: 'index', label: 'Open the full index', value: '/full-index' }
@@ -125,7 +128,7 @@ const GUARDS = [
     reply:
       'None of that is public. The site does not publish funding, figures, headcount, founding date, or location. What it does say is what Yorocobu builds and who the two founders are.',
     focus: 'company',
-    actions: [contactAction('Ask directly')],
+    actions: [composeAction('Ask directly')],
     followups: ['what is yorocobu', 'who is behind this'],
     used: ['company'],
   },
@@ -140,7 +143,7 @@ const GUARDS = [
     reply:
       'Yorocobu has not published pricing, and I am not going to invent a number. What I can tell you is that it does take on client work, and what a project costs is a conversation with Ethan and Bence.',
     focus: 'services',
-    actions: [contactAction('Ask about a project')],
+    actions: [composeAction('Ask about a project')],
     followups: ['can you build an app for my org', 'what do you build with'],
     used: ['services'],
   },
@@ -151,7 +154,7 @@ const GUARDS = [
     reply:
       'No launch dates are public. What the site does say is that five projects are in development, and Yorocobu is happy to hear from anyone who wants to know when that changes.',
     focus: 'portfolio',
-    actions: [contactAction('Ask to be kept posted')],
+    actions: [composeAction('Ask to be kept posted')],
     followups: ['what kind of apps do you make', 'who is behind this'],
     used: ['portfolio'],
   },
@@ -164,7 +167,7 @@ const GUARDS = [
     reply:
       'Yorocobu does not publish client names or case studies, so I have nothing to point you to there. It does take on client work, and that conversation starts with an email.',
     focus: 'services',
-    actions: [contactAction('Ask about client work')],
+    actions: [composeAction('Ask about client work')],
     followups: ['do you take clients', 'what do you build with'],
     used: ['services'],
   },
@@ -179,7 +182,7 @@ const GUARDS = [
     reply:
       'The site lists Ethan Gailushas and Bence Burton as Co-Founders, and nothing further. No bios are published, so anything more is best asked of them directly.',
     focus: 'founders',
-    actions: [contactAction('Ask them directly')],
+    actions: [composeAction('Ask them directly')],
     followups: ['what is yorocobu', 'how do i get in touch'],
     used: ['founders'],
   },
@@ -297,11 +300,16 @@ function fromEntry(entry, reply) {
   return {
     reply: reply ?? REPLY_OVERRIDE[entry.id]?.() ?? entry.summary,
     focus_section: entry.id,
-    actions: entry.links.map((link) =>
-      link.url.startsWith('mailto:')
-        ? { type: 'email', label: link.label, value: link.url }
-        : { type: 'link', label: link.label, value: link.url }
-    ),
+    actions: [
+      // Contact and client-work answers lead into compose rather than out to a
+      // mail client.
+      ...(entry.id === 'contact' || entry.id === 'services'
+        ? [composeAction('Send a message')]
+        : []),
+      ...entry.links
+        .filter((link) => !link.url.startsWith('mailto:'))
+        .map((link) => ({ type: 'link', label: link.label, value: link.url })),
+    ],
     followups: FOLLOWUPS_BY_ENTRY[entry.id] ?? [],
     unknown: false,
     used_entries: [entry.id],
@@ -330,7 +338,7 @@ export function resolve(query) {
     return {
       reply: `${project.title} is in development. The site publishes the category and nothing more, so I cannot tell you what it does without guessing, and I would rather not.`,
       focus_section: 'portfolio',
-      actions: [contactAction('Ask about it')],
+      actions: [composeAction('Ask about it')],
       followups: ['what is in development', 'can you build an app for my org'],
       unknown: false,
       used_entries: ['portfolio'],
@@ -359,7 +367,7 @@ export function resolve(query) {
     return {
       reply: `Nothing has shipped yet. Five projects are in development: ${projectTitles()}.`,
       focus_section: 'portfolio',
-      actions: [contactAction('Ask to be kept posted')],
+      actions: [composeAction('Ask to be kept posted')],
       followups: ['what do you build with', 'can you build an app for my org'],
       unknown: false,
       used_entries: ['portfolio'],
@@ -402,11 +410,10 @@ export function resolve(query) {
         .map((entry) => OFFER_PHRASE[entry.id] ?? entry.title.toLowerCase())
         .join(' or ')}, or I can send your question to Ethan.`,
     focus_section: null,
-    // The assistant sends it. The mailto stays available for anyone who would
-    // rather use their own mail client, but it is no longer the primary action.
+    // Joy sends it, inside the console. The address is on the full index for
+    // anyone who would rather use their own mail client.
     actions: [
-      { type: 'ask', label: 'Send the question', value: trimmed },
-      contactAction('Or email directly'),
+      composeAction('Send the question', trimmed),
       indexAction,
     ],
     followups: offers.map((entry) => OFFER_QUERY[entry.id] ?? entry.title.toLowerCase()),
@@ -446,23 +453,10 @@ function overview() {
   return fromEntry(byId.company)
 }
 
-/** Suggested prompts, rotated per visit so the input is never blank. */
-export const SUGGESTIONS = [
-  'what is yorocobu',
-  'can you build an app for my org',
-  'who is behind this',
-  'what is in development',
-  'what do you build with',
-  'what does the name mean',
-  'how do i get in touch',
-  'what have you shipped',
-]
-
-export function pickSuggestions(count = 4) {
-  const pool = [...SUGGESTIONS]
-  const picked = []
-  while (picked.length < count && pool.length) {
-    picked.push(...pool.splice(Math.floor(Math.random() * pool.length), 1))
-  }
-  return picked
-}
+/*
+  The site map: fixed destinations covering everything the site holds, generated
+  from the `nav` label on each knowledge entry. Not rotating examples — with no
+  menu, seeing what exists without having to ask for it is the one thing a
+  visitor loses, and this is what gives it back.
+*/
+export const DESTINATIONS = knowledge.destinations ?? []

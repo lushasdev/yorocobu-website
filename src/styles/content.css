@@ -1,7 +1,8 @@
 /*
   Typeset content: the surfaced regions on the home page, and the full index.
-  Body copy is Newsreader, headings are Instrument Serif, metadata is Plex Mono.
-  That split is the core typographic idea and it is visible on every screen.
+  Headings are Instrument Serif, body copy is Instrument Sans, metadata is
+  JetBrains Mono. That serif/sans/mono split is the core typographic idea and it
+  is visible on every screen.
 */
 
 .prose {
@@ -223,12 +224,20 @@
   max-width: var(--measure);
 }
 
+/*
+  In colour. The palette frames the photograph and never touches it: no duotone,
+  no wash, no tint. Brand colour over skin tones always looks wrong.
+*/
+.person {
+  background: var(--surface-warm);
+  padding: 0.5rem;
+}
+
 .person img {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  filter: grayscale(1) contrast(1.04);
-  border: 1px solid var(--border);
+  border: 1px solid var(--warm);
 }
 
 .person__name {
@@ -240,4 +249,16 @@
 
 .person__title {
   margin-top: 0.15rem;
+}
+
+/*
+  The one place the address appears in plain text. Contact happens inside the
+  console everywhere else.
+*/
+.index-page__direct {
+  margin-top: 3rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--border);
+  max-width: var(--measure);
+  color: var(--text-secondary);
 }

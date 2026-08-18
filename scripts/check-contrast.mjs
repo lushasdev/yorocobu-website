@@ -13,6 +13,8 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { readdirSync } from 'node:fs'
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const css = readFileSync(join(root, 'src/styles/global.css'), 'utf8')
 
@@ -101,7 +103,50 @@ const PAIRINGS = [
   { fg: 'border-strong', bg: 'bg', min: 0, what: 'stronger hairlines' },
 ]
 
+/*
+  --text-muted is 2.42:1 on light. It is a brand token used beyond this site, so
+  the value stays as it is; instead the trap is made unsettable. A comment saying
+  "do not use for text" gets ignored by whoever is moving fast. A failing check
+  does not.
+
+  Scanned across every stylesheet and component, not just the token file.
+*/
+const TEXT_PROPERTIES =
+  /(^|[;{\s])(color|-webkit-text-fill-color|text-decoration-color|caret-color)\s*:\s*var\(--text-muted\)/
+
+function styleSources() {
+  const dirs = ['src/styles', 'src/components', 'src/layouts', 'src/pages']
+  const found = []
+  for (const dir of dirs) {
+    let names = []
+    try {
+      names = readdirSync(join(root, dir))
+    } catch {
+      continue
+    }
+    for (const name of names) {
+      if (/\.(css|astro|jsx|tsx)$/.test(name)) found.push(join(dir, name))
+    }
+  }
+  return found
+}
+
+const misuse = []
+for (const file of styleSources()) {
+  const text = readFileSync(join(root, file), 'utf8')
+  text.split('\n').forEach((line, i) => {
+    if (TEXT_PROPERTIES.test(line)) misuse.push(`${file}:${i + 1}  ${line.trim()}`)
+  })
+}
+
 let failures = []
+if (misuse.length) {
+  failures.push(
+    `--text-muted applied to a text property in ${misuse.length} place(s) — ` +
+      `it is 2.42:1 on light and cannot carry type`
+  )
+}
+
 for (const theme of ['light', 'dark']) {
   const map = tokensFor(theme)
   console.log(`\n  ${theme}`)
@@ -119,8 +164,14 @@ for (const theme of ['light', 'dark']) {
   }
 }
 
+if (misuse.length) {
+  console.log('\n  --text-muted used as a text colour:')
+  for (const m of misuse) console.log(`    ${m}`)
+}
+
 if (failures.length === 0) {
-  console.log('\n  every enforced pairing clears its threshold\n')
+  console.log('\n  every enforced pairing clears its threshold')
+  console.log('  --text-muted is not applied to any text property\n')
 } else {
   console.log(`\n  ${failures.length} below threshold:`)
   for (const f of failures) console.log(`    ${f}`)
