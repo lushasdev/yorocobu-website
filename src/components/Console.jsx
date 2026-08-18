@@ -310,10 +310,24 @@ export default function Console() {
     return () => observer.disconnect()
   }, [])
 
-  // Surface the matching server-rendered region alongside the prose answer.
+  /*
+    Surface the server-rendered region only when the answer is a pointer rather
+    than the content: chip navigation, a refusal routing elsewhere, or an
+    unknown. When Joy has answered from an entry directly, the region under it
+    is the same entry again at four times the length — the same content twice,
+    not a complement — so it stays down and the full index remains the place to
+    read everything at length.
+
+    Model-path refusals carry no pointer flag (the schema has no field for it),
+    so they suppress too; their replies are self-contained and always carry
+    actions. If that reads wrong in use, the flag joins the schema.
+  */
   useEffect(() => {
     const root = document.documentElement
-    if (active?.result?.focus_section) root.dataset.focus = active.result.focus_section
+    const result = active?.result
+    const isPointer = active?.navigate || result?.pointer || result?.unknown
+    const focus = active?.forcedFocus ?? result?.focus_section
+    if (focus && isPointer) root.dataset.focus = focus
     else delete root.dataset.focus
   }, [active])
 
@@ -370,10 +384,13 @@ export default function Console() {
   const [degradedRun, setDegradedRun] = useState(0)
 
   const ask = useCallback(
-    async (query) => {
+    async (query, { navigate = false } = {}) => {
       const trimmed = query.trim()
       const label = trimmed || 'what is yorocobu'
       const n = transcript.length + 1
+      // Typing a chip's exact label (or arrow-selecting it) is the chip.
+      const destination = DESTINATIONS.find((d) => d.query === trimmed)
+      const isNavigation = navigate || Boolean(destination)
 
       // The question and the migration land immediately; the answer follows.
       setActive({ n, query: label, result: null })
@@ -414,7 +431,15 @@ export default function Console() {
       if (result.degraded) stream(result.reply, { instant: reducedMotion })
       else settle()
 
-      const item = { n, query: label, result }
+      // A chip is a site-map link: its region is the destination itself, pinned
+      // rather than inferred, so a misfocused answer cannot send it elsewhere.
+      const item = {
+        n,
+        query: label,
+        result,
+        navigate: isNavigation,
+        forcedFocus: isNavigation ? (destination?.id ?? null) : null,
+      }
       setTranscript((prev) => [...prev, item])
       setActive(item)
     },
@@ -628,7 +653,7 @@ export default function Console() {
                 type="button"
                 className="chip"
                 data-highlight={highlight === i || undefined}
-                onClick={() => ask(destination.query)}
+                onClick={() => ask(destination.query, { navigate: true })}
               >
                 <span className="chip__bullet" aria-hidden="true" />
                 {destination.label}

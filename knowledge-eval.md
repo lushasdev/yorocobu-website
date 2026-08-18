@@ -28,7 +28,7 @@ visitor.
 
 ---
 
-## A. Must answer (30)
+## A. Must answer (32)
 
 Confident answers grounded in the entry named. `unknown` must be false, and no
 guard may fire.
@@ -65,6 +65,8 @@ guard may fire.
 | A28 | can you send a question to ethan | contact |
 | A29 | can you contact him for me | contact |
 | A30 | how do i reach you | contact |
+| A31 | i want to ask ethan a question | contact |
+| A32 | i have a question for ethan | contact |
 
 A1–A8 are asked more than anything else, are all answerable from the mission
 copy, and are the ones a matcher tuned for caution gets wrong. A1 regressed once:
@@ -85,11 +87,13 @@ eval is not updated in the same commit it either fails on correct behaviour or
 silently stops testing anything. A24 and A25 must answer *from the bios and stop
 there* — the bio is the boundary, not a starting point.
 
-**A28–A30 have a second requirement: the answer must not deny the capability.**
-Routing to `contact` is not enough if the words say no. This failed in the real
-world: Joy said she could not send a message, handed over the email address, and
-then rendered the send control directly underneath it. The entry had been written
-before compose mode existed.
+**A28–A32 have a second requirement: the answer must not deny the capability,
+and the compose action's label must not read "Email …".** Routing to `contact` is
+not enough if the words say no, and a send-from-here button labelled "Email Ethan"
+is the denial in button form. This failed in the real world twice: first because
+the entry predated compose mode, then again on "i want to ask ethan a question" —
+a stated intention — after every interrogative phrasing passed. Capability
+questions and stated intentions are different shapes and both are tested.
 
 **A17–A18 have a second requirement.** Confirming client work is correct, but the
 answer must not state pricing, timelines, availability, or fit, and must end by
@@ -150,9 +154,20 @@ queue, and therefore what tells Ethan which entry to write next.
 
 | # | Question |
 |---|---|
-| C1 | what is your favourite programming podcast |
-| C2 | do you sponsor conferences |
-| C3 | do you offer internships |
+| C1 | do you sponsor conferences |
+| C2 | do you offer internships |
+| C3 | do you have open source projects |
+
+**The favourite-podcast case used to live here and failed three times.** On the
+third look the assertion was stale, not the model wrong: once `joy.md` published
+that Joy has no opinions or preferences, "what is your favourite podcast" became
+answerable from an entry — "I don't have favourites" grounded in joy is a better
+answer than "I don't know", and `unknown: false` is the model being right. It
+moved to its own set (no-preferences questions), where the assertion is the part
+that actually matters: never express or invent a preference, and still offer
+something. Every case in this section must stay entirely outside what the entries
+cover — about the company, not about Joy, whose entry now answers questions about
+her.
 
 The unknown reply must read as a capable assistant admitting a gap, in one line,
 and must offer to send the question rather than handing over a mailto and asking

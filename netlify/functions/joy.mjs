@@ -69,7 +69,13 @@ const ANSWER_SCHEMA = {
         properties: {
           // A closed set. There is deliberately no url field.
           type: { type: 'string', enum: ['compose', 'index'] },
-          label: { type: 'string' },
+          label: {
+            type: 'string',
+            description:
+              'What the control does. For compose, it opens the message form ' +
+              'right here — label it that way ("Send it to Ethan from here"), ' +
+              'never "Email …": the visitor is not leaving the site.',
+          },
         },
       },
     },
@@ -110,7 +116,17 @@ How you speak:
   preferences, feelings or life outside this site, and you never invent any.
 - You never speak for Ethan or Bence. You never commit Yorocobu to work, prices,
   timelines, availability, or whether something is a good fit. A named guide
-  makes it easy to slip into speaking for the company; hold that line harder.`
+  makes it easy to slip into speaking for the company; hold that line harder.
+
+What you can do, and must never deny doing:
+- Answer from the knowledge base below.
+- Take a message for Ethan right here. The compose action opens a short exchange
+  in this console, drafts the message, and nothing is sent until the visitor
+  presses send. Whenever someone wants to reach Ethan or Bence, ask them
+  something, or leave a message — however they phrase it — offer the compose
+  action. NEVER say you cannot send, pass on, or take a message; that is false.
+  The email address exists for people who prefer their own mail client, not as
+  the only route, so never present it as the way and yourself as unable.`
 
 const GROUNDING = `Answer only from the knowledge base below. It is the complete
 and only source of truth about Yorocobu. Do not use outside knowledge about the
@@ -183,8 +199,39 @@ has been sent.`
   nothing attached, the offer is added here, from the same site map the chips are
   built from. It cannot be missed regardless of what the model returns.
 */
+/*
+  A compose action labelled "Email Ethan" is the denial in button form: the
+  control sends the message from right here, and a label that says email
+  teaches the visitor the opposite. The schema description asks the model not
+  to; this makes it not matter if it does anyway.
+*/
+function fixComposeLabels(result) {
+  if (!result?.actions?.length) return result
+  return {
+    ...result,
+    actions: result.actions.map((a) =>
+      a?.type === 'compose' && /\b(e-?mail|mail)\b/i.test(a.label ?? '')
+        ? { ...a, label: 'Send it to Ethan from here' }
+        : a
+    ),
+  }
+}
+
 function guaranteeOffer(result, mode) {
-  if (!result || mode === 'compose' || !result.unknown) return result
+  if (!result || mode === 'compose') return result
+
+  /*
+    Originally this fired on result.unknown — which is the model's own report of
+    whether it knew. When the model wrongly believed it knew something, the
+    wrong answer AND the missing offer both got through, because the safety net
+    depended on the very self-report that had failed. Now it keys on what is
+    observable in the output, the way the closed action enum and the label
+    rewrite do: an answer that leaves the visitor nowhere to go — no actions,
+    no followups — gets the offer attached, whatever the model believed about
+    itself. Unknowns keep their stronger guarantee of both.
+  */
+  const bare = !result.actions?.length && !result.followups?.length
+  if (!result.unknown && !bare) return result
 
   const offers = knowledge.destinations.slice(0, 3)
   return {
@@ -195,6 +242,60 @@ function guaranteeOffer(result, mode) {
     followups: result.followups?.length ? result.followups : offers.map((d) => d.query),
   }
 }
+
+/**
+ * The exact message array sent to the model — exported so it can be inspected
+ * offline (`node scripts/print-model-input.mjs "question"`) instead of reasoned
+ * about. What this returns for a given question IS what production sends, byte
+ * for byte, at the same commit of /knowledge.
+ */
+export function buildModelInput({ mode, question, turns = [], seed = '' }) {
+  const asked = turns.filter((t) => t.role === 'assistant').length
+  const forceDraft = mode === 'compose' && asked >= MAX_COMPOSE_TURNS
+
+  return [
+    { role: 'system', content: mode === 'compose' ? COMPOSE_PROMPT : ANSWER_PROMPT },
+    ...(mode === 'compose' && seed
+      ? [
+          {
+            role: 'system',
+            content:
+              `The visitor arrived at this from: "${seed}". Those are their words; ` +
+              `you may use them in the draft, but do not treat them as an answer ` +
+              `to a question you have not asked yet.`,
+          },
+        ]
+      : []),
+    ...turns.map((t) => ({
+      role: t.role === 'assistant' ? 'assistant' : 'user',
+      content: String(t.content ?? '').slice(0, MAX_QUESTION),
+    })),
+    ...(question ? [{ role: 'user', content: question }] : []),
+    ...(forceDraft
+      ? [
+          {
+            role: 'system',
+            content:
+              'You have asked enough. Set next_question to null and write the draft now, ' +
+              'using only what the visitor has already told you.',
+          },
+        ]
+      : []),
+  ]
+}
+
+/*
+  Which knowledge this function is answering from, as a fingerprint: the newest
+  last_updated across entries plus a hash of the compiled context. Logged on
+  every request, so "which knowledge did the model see" is read from the
+  function log and compared with `print-model-input.mjs --fingerprint` locally,
+  instead of inferred from dates on rendered pages.
+*/
+import { createHash } from 'node:crypto'
+export const KNOWLEDGE_FINGERPRINT = `${knowledge.entries
+  .map((e) => e.last_updated)
+  .sort()
+  .at(-1)}#${createHash('sha256').update(context).digest('hex').slice(0, 8)}`
 
 /** Server-sent events, so the reply arrives as it is written. */
 function sse(stream) {
@@ -255,7 +356,9 @@ export default async (req) => {
   const seed = String(body.seed ?? '').trim().slice(0, MAX_QUESTION)
 
   // Logged before anything can fail, so an arriving request is always on record.
-  console.log(`joy: request mode=${mode} qlen=${question.length} turns=${turns.length}`)
+  console.log(
+    `joy: request mode=${mode} qlen=${question.length} turns=${turns.length} knowledge=${KNOWLEDGE_FINGERPRINT}`
+  )
 
   if (mode === 'answer' && !question) {
     trace(started, 'rejected, no question')
@@ -267,38 +370,7 @@ export default async (req) => {
     return json(429, { error: 'a few too many just now. Try again a little later.' })
   }
 
-  const asked = turns.filter((t) => t.role === 'assistant').length
-  const forceDraft = mode === 'compose' && asked >= MAX_COMPOSE_TURNS
-
-  const input = [
-    { role: 'system', content: mode === 'compose' ? COMPOSE_PROMPT : ANSWER_PROMPT },
-    ...(mode === 'compose' && seed
-      ? [
-          {
-            role: 'system',
-            content:
-              `The visitor arrived at this from: "${seed}". Those are their words; ` +
-              `you may use them in the draft, but do not treat them as an answer ` +
-              `to a question you have not asked yet.`,
-          },
-        ]
-      : []),
-    ...turns.map((t) => ({
-      role: t.role === 'assistant' ? 'assistant' : 'user',
-      content: String(t.content ?? '').slice(0, MAX_QUESTION),
-    })),
-    ...(question ? [{ role: 'user', content: question }] : []),
-    ...(forceDraft
-      ? [
-          {
-            role: 'system',
-            content:
-              'You have asked enough. Set next_question to null and write the draft now, ' +
-              'using only what the visitor has already told you.',
-          },
-        ]
-      : []),
-  ]
+  const input = buildModelInput({ mode, question, turns, seed })
 
   let upstream
   try {
@@ -413,7 +485,7 @@ export default async (req) => {
         } catch {
           console.error('joy: model output was not valid json')
         }
-        const finished = guaranteeOffer(result, mode)
+        const finished = fixComposeLabels(guaranteeOffer(result, mode))
         send({ done: true, result: finished, source: 'model' })
         trace(
           started,

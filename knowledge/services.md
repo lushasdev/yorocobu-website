@@ -27,9 +27,7 @@ do_not_claim:
 last_updated: 2026-08-18
 ---
 
-Yorocobu takes on client work alongside its own projects, building with the same
-stack: React and React Native, Swift and SwiftUI, Flutter, and the supporting tools
-listed under Technology.
+Yorocobu takes on client work alongside its own projects.
 
 What a project would cost, how long it would take, and whether Yorocobu has room for
 it right now are all conversations rather than published figures. To start one,

@@ -110,6 +110,12 @@ The AI layer sits on top of a real document; it does not replace it.
 - `/full-index` carries the same material laid out to read, reachable from the
   `◎ full index` control in the corner.
 
+**The region under an answer surfaces only when it complements the answer.** Chip
+navigation, refusals that route elsewhere, and unknowns raise the matching region;
+a direct answer from an entry keeps it down, because the region would be the same
+entry again at four times the length. The full index is where everything reads at
+length.
+
 ### Refusals
 
 The navigator declines rather than guesses, and the refusals are the point, not a
@@ -143,17 +149,50 @@ the eval imports the Netlify function, which imports the compiled knowledge base
 Without it the run fails before reaching the model.
 
 The eval costs real money, so it is not wired into `npm run check`. It reports
-first-token latency with p50 and p95 and suggests a `FIRST_TOKEN_TIMEOUT` for
-`src/lib/joy.js`, read back against the value currently set there.
+first-token latency with p50 and p95 as a floor for the browser budgets — it
+deliberately does not suggest a budget, because an in-process "suggestion" was
+once installed as the browser budget and cut the model off for every visitor.
 
 `OPENAI_BASE_URL` points the whole thing at a different endpoint, which is how
 the harness gets exercised without spending anything.
 
 **The eval does not measure the browser path.** It imports the function and calls
 it in-process, so its latency numbers exclude TLS, the function's cold start, and
-the trip back to the browser — they are a floor, not a budget. `FIRST_TOKEN_TIMEOUT`
-in `src/lib/joy.js` is spent on the *browser's* clock, so leave headroom over what
-the eval reports.
+the trip back to the browser — they are a floor, not a budget. The budgets in
+`src/lib/joy.js` are spent on the *browser's* clock and are set from
+`__joyTiming()` data, never from here.
+
+### Seeing exactly what the model is sent
+
+Never reason about which commit is where — print the input:
+
+```bash
+npm run knowledge
+node scripts/print-model-input.mjs "i want to ask ethan a question"   # the full input, byte for byte
+node scripts/print-model-input.mjs --fingerprint                       # e.g. 2026-08-18#72d77fa0
+```
+
+Every production request logs `knowledge=<fingerprint>` in the `joy: request`
+line. If the log's fingerprint matches `--fingerprint` locally, production's
+model context is byte-identical to what the script just printed. If it does not,
+the deploys page names the commit production built from; borrow its knowledge and
+print again:
+
+```bash
+git checkout <deploy-sha> -- knowledge && npm run knowledge
+node scripts/print-model-input.mjs "the question"
+git checkout HEAD -- knowledge && npm run knowledge
+```
+
+To check which knowledge a deploy *renders* (a coarser signal — mixed dates are
+normal, entries update independently):
+
+```bash
+curl -sL https://yorocobu.org/full-index | grep -o "updated 2026-[0-9-]*" | sort | uniq -c
+```
+
+The `-L` matters: `/full-index` 301s to its canonical form, and without it curl
+greps an empty redirect body and prints nothing.
 
 ### When the console says "answering from the offline index"
 
@@ -171,7 +210,15 @@ an error. This exists because the opposite failed in practice: the offline index
 answered well enough that a completely dead model path read as a working site for
 several rounds, and the one quiet line was easy to read past.
 
-### Setting `FIRST_TOKEN_TIMEOUT` from data
+### The two first-token budgets, and setting them from data
+
+`src/lib/joy.js` carries two budgets: `FIRST_REQUEST_TIMEOUT` (8000ms) for a
+session's first request, which pays TLS, the function's cold start, and the
+model's first-token tail all at once, and `SETTLED_TIMEOUT` (5000ms) for every
+request after. Set from measured browser sessions (first request 2959ms, warm
+748–1650ms, desktop wifi) over the in-process model spread (warm p95 2462ms,
+max 3940ms), with headroom for phones on cell data. Tighten them only with
+`__joyTiming()` data from real sessions, ideally including mobile.
 
 Every request records its browser-side first-token time. In DevTools:
 

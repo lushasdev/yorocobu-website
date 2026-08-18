@@ -98,6 +98,16 @@ const MUST_OFFER_TO_SEND = [
   'how do i reach you',
   'can you pass on a message',
   'can you take a message',
+
+  /*
+    Stated intentions, not capability questions. "i want to ask ethan a
+    question" got a live denial that "can you send a question to ethan" did
+    not, because the set only covered the interrogative shape.
+  */
+  'i want to ask ethan a question',
+  'i have a question for ethan',
+  'can i send ethan a message',
+  'i would like to get a message to ethan',
 ]
 
 /** Must reach the unknown branch: real questions the knowledge base lacks. */
@@ -193,6 +203,7 @@ const total =
   MUST_ANSWER.length +
   MUST_DECLINE.length +
   MUST_BE_UNKNOWN.length +
+  MUST_OFFER_TO_SEND.length +
   DESTINATIONS.length +
   knowledge.entries.length
 console.log(`\n  ${total - failures}/${total} passed\n`)

@@ -380,6 +380,8 @@ export function resolve(query) {
   if (project && PROJECT_DETAIL.test(trimmed)) {
     return {
       reply: `${project.title} is in development. The site publishes the category and nothing more, so I cannot tell you what it does without guessing, and I would rather not.`,
+      // A refusal that routes somewhere is a pointer: the region complements it.
+      pointer: true,
       focus_section: 'portfolio',
       actions: [composeAction('Ask about it')],
       followups: ['what is in development', 'can you build an app for my org'],
@@ -401,6 +403,7 @@ export function resolve(query) {
       // Which guard fired, not merely that one did. A refusal from the wrong
       // guard passes a pass/fail test while being visibly broken to a reader.
       guard: guard.id,
+      pointer: true,
       source: 'local',
     }
   }

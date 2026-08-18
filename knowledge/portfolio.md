@@ -41,7 +41,7 @@ do_not_claim:
   - No clients, partners, or customers are associated with any project.
   - No links, screenshots, demos, waitlists, or app store pages exist for any project.
   - If asked what any of the five is, confirm only that it is in development, say the site does not describe it further, and offer the contact action.
-last_updated: 2026-08-17
+last_updated: 2026-08-18
 ---
 
 Five projects are in development across multiple sectors:
@@ -52,6 +52,5 @@ Five projects are in development across multiple sectors:
 - **Scheduling Program for Institutions** — in development
 - **Marketplace Tool** — in development
 
-These are the categories Yorocobu has chosen to publish. Product names, descriptions,
-and release dates are not public yet. Anyone who wants to hear more as these move
-toward release is welcome to get in touch.
+Product names, descriptions, and release dates are not public yet. Anyone who wants
+to hear more as these move toward release is welcome to get in touch.
