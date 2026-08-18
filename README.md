@@ -149,6 +149,21 @@ first-token latency with p50 and p95 and suggests a `FIRST_TOKEN_TIMEOUT` for
 `OPENAI_BASE_URL` points the whole thing at a different endpoint, which is how
 the harness gets exercised without spending anything.
 
+**The eval does not measure the browser path.** It imports the function and calls
+it in-process, so its latency numbers exclude TLS, the function's cold start, and
+the trip back to the browser — they are a floor, not a budget. `FIRST_TOKEN_TIMEOUT`
+in `src/lib/joy.js` is spent on the *browser's* clock, so leave headroom over what
+the eval reports.
+
+### When the console says "answering from the offline index"
+
+Every failure renders that one line, so start from the logs rather than the screen.
+`joy` logs `joy: request …` the moment a request arrives and one `joy: … in Nms`
+line when it leaves, whatever happened. No `joy: request` line for an answer you
+just asked for means the request never reached the function at all — check the
+path, not the key. The browser console carries the other half: the HTTP status
+`/api/joy` returned, or the timeout it hit.
+
 ---
 
 ## The gaps queue

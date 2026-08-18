@@ -207,10 +207,37 @@ function sse(stream) {
   })
 }
 
+/*
+  One line when a request arrives and one when it leaves, whatever happens to it.
+
+  The browser falls back to the offline index on *any* failure, and every failure
+  looks identical from the transcript: "answering from the offline index". That
+  covers a request that reached the function and gave up, and a request that never
+  reached it at all — a 404 on an undeployed function reads exactly like a stalled
+  model. Without these lines the two are indistinguishable, and the whole first
+  round of that diagnosis is guesswork.
+
+  Question text is never logged, only its length. It lives in the gaps store if it
+  needs to be read.
+*/
+const stamp = () => Date.now()
+function trace(started, outcome, extra = '') {
+  console.log(`joy: ${outcome} in ${Date.now() - started}ms${extra ? ` ${extra}` : ''}`)
+}
+
 export default async (req) => {
-  if (req.method !== 'POST') return json(405, { error: 'method not allowed' })
+  const started = stamp()
+
+  if (req.method !== 'POST') {
+    trace(started, `rejected ${req.method} not POST`)
+    return json(405, { error: 'method not allowed' })
+  }
   if (!process.env.OPENAI_API_KEY) {
-    console.error('joy: OPENAI_API_KEY is not set')
+    console.error(
+      'joy: OPENAI_API_KEY is not set on this site. The request arrived and is ' +
+        'falling back to the offline index. Nothing was asked of the model.'
+    )
+    trace(started, 'refused, not configured')
     return json(503, { error: 'navigator not configured', kind: 'config' })
   }
 
@@ -218,6 +245,7 @@ export default async (req) => {
   try {
     body = await req.json()
   } catch {
+    trace(started, 'rejected, body was not json')
     return json(400, { error: 'expected json' })
   }
 
@@ -226,9 +254,16 @@ export default async (req) => {
   const turns = Array.isArray(body.turns) ? body.turns.slice(-6) : []
   const seed = String(body.seed ?? '').trim().slice(0, MAX_QUESTION)
 
-  if (mode === 'answer' && !question) return json(400, { error: 'question is required' })
+  // Logged before anything can fail, so an arriving request is always on record.
+  console.log(`joy: request mode=${mode} qlen=${question.length} turns=${turns.length}`)
+
+  if (mode === 'answer' && !question) {
+    trace(started, 'rejected, no question')
+    return json(400, { error: 'question is required' })
+  }
 
   if (await overRateLimit(callerId(req), 'joy', RATE_LIMIT, RATE_WINDOW_MS)) {
+    trace(started, 'rate limited')
     return json(429, { error: 'a few too many just now. Try again a little later.' })
   }
 
@@ -290,6 +325,7 @@ export default async (req) => {
     })
   } catch (error) {
     console.error('joy: upstream unreachable', error)
+    trace(started, 'failed, upstream unreachable')
     return json(502, { error: 'navigator unreachable' })
   }
 
@@ -310,6 +346,7 @@ export default async (req) => {
             `available to this account. This will not recover on its own. ${detail}`
         : `joy: upstream returned ${upstream.status} ${detail}`
     )
+    trace(started, `failed, upstream ${upstream.status}`, configError ? '(config)' : '(transient)')
     return json(502, {
       error: configError ? `model "${MODEL}" is not available to this key` : 'navigator unreachable',
       kind: configError ? 'config' : 'transient',
@@ -332,6 +369,14 @@ export default async (req) => {
 
       let buffer = ''
       let full = ''
+      /*
+        Server-side first-token latency. The eval measures this by calling the
+        handler in-process; the browser also pays TLS, cold start, and the trip
+        home, and only this number appears in production logs. If it is
+        comfortably under the client's FIRST_TOKEN_TIMEOUT and the browser still
+        falls back, the overhead outside this function is what to look at.
+      */
+      let firstToken = null
       try {
         for await (const chunk of upstream.body) {
           buffer += decoder.decode(chunk, { stream: true })
@@ -351,6 +396,7 @@ export default async (req) => {
             }
 
             if (event.type === 'response.output_text.delta' && event.delta) {
+              if (firstToken === null) firstToken = Date.now() - started
               full += event.delta
               send({ delta: event.delta })
             } else if (event.type === 'response.output_text.done' && event.text) {
@@ -367,9 +413,17 @@ export default async (req) => {
         } catch {
           console.error('joy: model output was not valid json')
         }
-        send({ done: true, result: guaranteeOffer(result, mode), source: 'model' })
+        const finished = guaranteeOffer(result, mode)
+        send({ done: true, result: finished, source: 'model' })
+        trace(
+          started,
+          'answered',
+          `first_token=${firstToken ?? 'never'}ms mode=${mode}` +
+            (mode === 'answer' ? ` unknown=${Boolean(finished?.unknown)}` : '')
+        )
       } catch (error) {
         console.error('joy: stream failed', error)
+        trace(started, 'failed mid-stream', `first_token=${firstToken ?? 'never'}ms`)
         send({ error: 'stream failed' })
       } finally {
         controller.close()

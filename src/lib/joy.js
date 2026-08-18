@@ -77,6 +77,11 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
       const detail = await response.json().catch(() => ({}))
       const failure = new Error(detail.error ?? `joy ${response.status}`)
       failure.kind = detail.kind ?? 'transient'
+      // The status is the whole diagnosis from this side: 404 means the function
+      // is not in the deploy, 503 means it is but has no key, 502 means it could
+      // not reach the model. Every one of them renders the same line in the
+      // transcript, so the number has to be somewhere a person can find it.
+      failure.status = response.status
       throw failure
     }
 
@@ -129,6 +134,12 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
       console.error(
         `Joy is misconfigured and is falling back to the offline index: ${error.message}. ` +
           `Check OPENAI_API_KEY and the model id in netlify/functions/joy.mjs.`
+      )
+    } else {
+      console.warn(
+        `Joy fell back to the offline index: ${error?.name === 'AbortError' ? `no first token within ${FIRST_TOKEN_TIMEOUT}ms` : error?.message}` +
+          `${error?.status ? ` (HTTP ${error.status} from /api/joy)` : ''}. ` +
+          `A 404 here means the function is not in the deploy; anything else means it is.`
       )
     }
     // Deliberately no onDelta here. The caller replays the local reply through
