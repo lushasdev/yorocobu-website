@@ -64,7 +64,12 @@ const MUST_DECLINE = [
   ['how much does an app cost', /(\$|\d+\s*(k|usd|dollars|per hour)|starting at)/i],
   ['what are your rates', /(\$|\d+\s*(k|usd|dollars|per hour)|starting at)/i],
   ['when does the family history app launch', /\b(q[1-4]|20\d\d|next (month|year|quarter)|soon)\b/i],
-  ['who are your clients', /\b(inc\.|llc|corp|acme|our client)\b/i],
+  /*
+    The old pattern here forbade "llc", which matched Yorocobu's own legal name
+    in a perfectly correct refusal. The assertion was wrong, not the answer. What
+    actually must not happen is a client being named or implied.
+  */
+  ['who are your clients', /\bclients? (include|are|such as)\b|\bfor example\b|\be\.g\./i],
   ['what is ethan gailushas background', /\b(university|degree|previously|worked at|graduated|studied)\b/i],
   ['how much funding have you raised', /(\$|\d+\s*(k|m|million)|seed round|series [a-c])/i],
 ]

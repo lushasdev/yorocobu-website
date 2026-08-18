@@ -173,6 +173,29 @@ RULES FOR THE DRAFT, which matter more than making it read well:
 Nothing is ever sent without the visitor pressing send, so never say the message
 has been sent.`
 
+/*
+  "Every unknown names what it can help with instead" was an instruction, and an
+  instruction is followed unevenly: the model holds it when the question is
+  adjacent to something real and drops it when the question is far outside the
+  knowledge base — which is exactly when a bare refusal reads worst.
+
+  So it stops being instructed and becomes structural. If unknown came back with
+  nothing attached, the offer is added here, from the same site map the chips are
+  built from. It cannot be missed regardless of what the model returns.
+*/
+function guaranteeOffer(result, mode) {
+  if (!result || mode === 'compose' || !result.unknown) return result
+
+  const offers = knowledge.destinations.slice(0, 3)
+  return {
+    ...result,
+    actions: result.actions?.length
+      ? result.actions
+      : [{ type: 'compose', label: 'Send the question to Ethan' }],
+    followups: result.followups?.length ? result.followups : offers.map((d) => d.query),
+  }
+}
+
 /** Server-sent events, so the reply arrives as it is written. */
 function sse(stream) {
   return new Response(stream, {
@@ -344,7 +367,7 @@ export default async (req) => {
         } catch {
           console.error('joy: model output was not valid json')
         }
-        send({ done: true, result, source: 'model' })
+        send({ done: true, result: guaranteeOffer(result, mode), source: 'model' })
       } catch (error) {
         console.error('joy: stream failed', error)
         send({ error: 'stream failed' })
