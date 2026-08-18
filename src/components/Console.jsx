@@ -79,6 +79,7 @@ function Compose({ seed, onClose }) {
   const [state, setState] = useState('starting') // starting | asking | thinking | drafted | sending | sent | error
   const [error, setError] = useState('')
   const [replying, setReplying] = useState(false)
+  const [emailed, setEmailed] = useState(false)
   const fieldRef = useRef(null)
   const draftRef = useRef(null)
 
@@ -146,6 +147,7 @@ function Compose({ seed, onClose }) {
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error ?? 'that did not go through')
       setReplying(Boolean(data.replying))
+      setEmailed(Boolean(data.notified))
       setState('sent')
     } catch (caught) {
       setError(caught.message)
@@ -154,13 +156,23 @@ function Compose({ seed, onClose }) {
   }
 
   if (state === 'sent') {
+    /*
+      The confirmation says what happened, not what was hoped for. Email
+      notification can be switched off or unconfigured; the question is recorded
+      either way, and that is the part worth confirming. Telling someone it was
+      sent when nothing left the building is how a message goes quietly missing.
+    */
     return (
       <div className="compose compose--sent unmask" role="status">
         <p className="compose__note mono">
-          Sent.{' '}
-          {replying
-            ? 'Ethan will reply to the address you gave.'
-            : 'No address in there, so this one is a note for Ethan rather than a reply to you.'}
+          {emailed ? 'Sent.' : 'Recorded.'}{' '}
+          {emailed
+            ? replying
+              ? 'Ethan will reply to the address you gave.'
+              : 'No address in there, so this one is a note for Ethan rather than a reply to you.'
+            : replying
+              ? 'It is in the queue Ethan reads, and he will reply to the address you gave.'
+              : 'It is in the queue Ethan reads. There is no address in it, so treat it as a note rather than a conversation.'}
         </p>
         <button type="button" className="chip" onClick={onClose}>
           <span className="chip__bullet" aria-hidden="true" />

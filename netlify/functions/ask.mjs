@@ -23,13 +23,22 @@ const RATE_LIMIT = 5 // submissions per window, per caller
 const RATE_WINDOW_MS = 60 * 60 * 1000
 
 /**
- * Notify by email if a provider is configured. A missing key is not an error:
- * the question is already durably recorded, and the weekly digest will carry it.
+ * Notify by email if a provider is configured. A missing key is not an error —
+ * the question is already durably recorded and the weekly digest will carry it —
+ * but it is never silent. A gate that closes without a trace produced a "sent"
+ * confirmation, no email, and nothing in any log to explain the difference.
  */
 async function notify({ question, email, id }) {
   const key = process.env.RESEND_API_KEY
   const to = process.env.GAPS_EMAIL_TO
-  if (!key || !to) return { sent: false, reason: 'not configured' }
+  if (!key || !to) {
+    const missing = [!key && 'RESEND_API_KEY', !to && 'GAPS_EMAIL_TO'].filter(Boolean)
+    console.warn(
+      `ask: email not sent for ${id} — ${missing.join(' and ')} not set on this site.` +
+        ' The question is recorded; nothing was emailed.'
+    )
+    return { sent: false, reason: 'not configured' }
+  }
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -59,6 +68,7 @@ async function notify({ question, email, id }) {
     console.error('ask: email provider returned', response.status, await response.text())
     return { sent: false, reason: 'provider error' }
   }
+  console.log(`ask: emailed ${id} to GAPS_EMAIL_TO`)
   return { sent: true }
 }
 
@@ -113,7 +123,23 @@ export default async (req) => {
 
   if (result.sent) await store.setJSON(id, { ...record, notified: true })
 
-  return json(200, { ok: true, replying: Boolean(email) })
+  /*
+    One line per submission, whatever happened, so a question that arrives can
+    always be found in the logs and matched to the record by id. The question
+    text is not logged: it lives in the store, and function logs are the wrong
+    place for anything a visitor typed.
+  */
+  console.log(
+    `ask: recorded ${id} source=${record.source} reply_address=${Boolean(email)}` +
+      ` emailed=${result.sent}${result.sent ? '' : ` (${result.reason})`}`
+  )
+
+  /*
+    `notified` is reported because the console tells the visitor what actually
+    happened. Recorded-but-not-emailed is a true and reasonable outcome; calling
+    it "sent" is not.
+  */
+  return json(200, { ok: true, replying: Boolean(email), recorded: true, notified: result.sent })
 }
 
 export const config = { path: '/api/ask' }
