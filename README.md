@@ -161,6 +161,38 @@ the trip back to the browser — they are a floor, not a budget. `FIRST_TOKEN_TI
 in `src/lib/joy.js` is spent on the *browser's* clock, so leave headroom over what
 the eval reports.
 
+### Seeing exactly what the model is sent
+
+Never reason about which commit is where — print the input:
+
+```bash
+npm run knowledge
+node scripts/print-model-input.mjs "i want to ask ethan a question"   # the full input, byte for byte
+node scripts/print-model-input.mjs --fingerprint                       # e.g. 2026-08-18#72d77fa0
+```
+
+Every production request logs `knowledge=<fingerprint>` in the `joy: request`
+line. If the log's fingerprint matches `--fingerprint` locally, production's
+model context is byte-identical to what the script just printed. If it does not,
+the deploys page names the commit production built from; borrow its knowledge and
+print again:
+
+```bash
+git checkout <deploy-sha> -- knowledge && npm run knowledge
+node scripts/print-model-input.mjs "the question"
+git checkout HEAD -- knowledge && npm run knowledge
+```
+
+To check which knowledge a deploy *renders* (a coarser signal — mixed dates are
+normal, entries update independently):
+
+```bash
+curl -sL https://yorocobu.org/full-index | grep -o "updated 2026-[0-9-]*" | sort | uniq -c
+```
+
+The `-L` matters: `/full-index` 301s to its canonical form, and without it curl
+greps an empty redirect body and prints nothing.
+
 ### When the console says "answering from the offline index"
 
 Every failure renders that one line, so start from the logs rather than the screen.

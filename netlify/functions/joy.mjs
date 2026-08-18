@@ -230,6 +230,60 @@ function guaranteeOffer(result, mode) {
   }
 }
 
+/**
+ * The exact message array sent to the model — exported so it can be inspected
+ * offline (`node scripts/print-model-input.mjs "question"`) instead of reasoned
+ * about. What this returns for a given question IS what production sends, byte
+ * for byte, at the same commit of /knowledge.
+ */
+export function buildModelInput({ mode, question, turns = [], seed = '' }) {
+  const asked = turns.filter((t) => t.role === 'assistant').length
+  const forceDraft = mode === 'compose' && asked >= MAX_COMPOSE_TURNS
+
+  return [
+    { role: 'system', content: mode === 'compose' ? COMPOSE_PROMPT : ANSWER_PROMPT },
+    ...(mode === 'compose' && seed
+      ? [
+          {
+            role: 'system',
+            content:
+              `The visitor arrived at this from: "${seed}". Those are their words; ` +
+              `you may use them in the draft, but do not treat them as an answer ` +
+              `to a question you have not asked yet.`,
+          },
+        ]
+      : []),
+    ...turns.map((t) => ({
+      role: t.role === 'assistant' ? 'assistant' : 'user',
+      content: String(t.content ?? '').slice(0, MAX_QUESTION),
+    })),
+    ...(question ? [{ role: 'user', content: question }] : []),
+    ...(forceDraft
+      ? [
+          {
+            role: 'system',
+            content:
+              'You have asked enough. Set next_question to null and write the draft now, ' +
+              'using only what the visitor has already told you.',
+          },
+        ]
+      : []),
+  ]
+}
+
+/*
+  Which knowledge this function is answering from, as a fingerprint: the newest
+  last_updated across entries plus a hash of the compiled context. Logged on
+  every request, so "which knowledge did the model see" is read from the
+  function log and compared with `print-model-input.mjs --fingerprint` locally,
+  instead of inferred from dates on rendered pages.
+*/
+import { createHash } from 'node:crypto'
+export const KNOWLEDGE_FINGERPRINT = `${knowledge.entries
+  .map((e) => e.last_updated)
+  .sort()
+  .at(-1)}#${createHash('sha256').update(context).digest('hex').slice(0, 8)}`
+
 /** Server-sent events, so the reply arrives as it is written. */
 function sse(stream) {
   return new Response(stream, {
@@ -289,7 +343,9 @@ export default async (req) => {
   const seed = String(body.seed ?? '').trim().slice(0, MAX_QUESTION)
 
   // Logged before anything can fail, so an arriving request is always on record.
-  console.log(`joy: request mode=${mode} qlen=${question.length} turns=${turns.length}`)
+  console.log(
+    `joy: request mode=${mode} qlen=${question.length} turns=${turns.length} knowledge=${KNOWLEDGE_FINGERPRINT}`
+  )
 
   if (mode === 'answer' && !question) {
     trace(started, 'rejected, no question')
@@ -301,38 +357,7 @@ export default async (req) => {
     return json(429, { error: 'a few too many just now. Try again a little later.' })
   }
 
-  const asked = turns.filter((t) => t.role === 'assistant').length
-  const forceDraft = mode === 'compose' && asked >= MAX_COMPOSE_TURNS
-
-  const input = [
-    { role: 'system', content: mode === 'compose' ? COMPOSE_PROMPT : ANSWER_PROMPT },
-    ...(mode === 'compose' && seed
-      ? [
-          {
-            role: 'system',
-            content:
-              `The visitor arrived at this from: "${seed}". Those are their words; ` +
-              `you may use them in the draft, but do not treat them as an answer ` +
-              `to a question you have not asked yet.`,
-          },
-        ]
-      : []),
-    ...turns.map((t) => ({
-      role: t.role === 'assistant' ? 'assistant' : 'user',
-      content: String(t.content ?? '').slice(0, MAX_QUESTION),
-    })),
-    ...(question ? [{ role: 'user', content: question }] : []),
-    ...(forceDraft
-      ? [
-          {
-            role: 'system',
-            content:
-              'You have asked enough. Set next_question to null and write the draft now, ' +
-              'using only what the visitor has already told you.',
-          },
-        ]
-      : []),
-  ]
+  const input = buildModelInput({ mode, question, turns, seed })
 
   let upstream
   try {
