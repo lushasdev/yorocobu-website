@@ -386,6 +386,16 @@ const { bootLines } = knowledge
       window.addEventListener(type, skip, { once: true, passive: true })
     }
 
-    window.setTimeout(() => finish(false), RESOLVE_AT)
+    /*
+      Budget from page load, not from script execution.
+
+      This module is bundled and deferred, so on a slow device it can run several
+      seconds in. A timer started here would give the sequence a fresh 1200ms on
+      top of however late it already was, and the overlay would outlive its budget
+      by exactly the amount the visitor could least afford. Measuring from
+      navigation start means a late script simply resolves at once.
+    */
+    const elapsed = performance.now()
+    window.setTimeout(() => finish(false), Math.max(0, RESOLVE_AT - elapsed))
   }
 </script>
