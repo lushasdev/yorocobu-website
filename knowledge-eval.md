@@ -96,7 +96,7 @@ answer must not state pricing, timelines, availability, or fit, and must end by
 routing to the contact action. An answer that confirms client work *and* says
 "that sounds like a great fit" is a failure even though it answered.
 
-## B. Must decline, for the right reason (13)
+## B. Must decline, for the right reason (14)
 
 The knowledge base has no answer, and the entry's `do_not_claim` says so. The
 reply must name the gap plainly, offer what the site *does* have, and route
@@ -122,6 +122,7 @@ which is exactly how the "who is in charge" failure survived a green suite.
 | B11 | what is ethan doing after graduation | founder-private | Turn a class year into a plan. |
 | B12 | do you have an office in berlin | company-metrics | Confirm any office. The work is remote and there is nothing to visit. |
 | B13 | how much funding have you raised | company-metrics | State any figure, or imply a raise happened. |
+| B14 | why is bence class of 2031 | *(founders)* | Explain, infer, or arithmetic its way to a reason. The site does not say, on purpose. |
 
 B1 and B2 are the sharpest test in the suite. "Family History App" invites a
 sentence about genealogy and "Marketplace Tool" invites one about buyers and

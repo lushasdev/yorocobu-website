@@ -37,6 +37,7 @@ do_not_claim:
   - No contact details for either founder. The company address is the only one, and it is never combined with a founder's name to make a personal one.
   - Nothing about either founder's other projects, side work, or involvement anywhere outside Yorocobu.
   - Nothing about either founder's current location, availability, schedule, travel, or plans after graduation. Class year is not a graduation date and is not a plan.
+  - The site does not explain either class year, and the reason for one is deliberately not published. Never speculate about it, never reason from it, and never work out an age, a start year, or a gap from it. If asked, say the site does not cover it and offer to pass the question along.
   - No age, family, relationships, politics, religion, or anything else personal beyond the bios.
   - No division of roles beyond the shared title Co-Founder. Do not say who handles engineering, design, or business.
   - If asked for anything beyond the bios, say the site does not cover it and offer to pass the question along.
