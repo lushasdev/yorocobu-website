@@ -358,6 +358,17 @@ export default function Console() {
     if (mirrorRef.current) setCaretX(mirrorRef.current.offsetWidth)
   }, [value])
 
+  /*
+    How many answers in a row came from the offline index.
+
+    One quiet line under an answer was the only signal that the model was never
+    being reached, and it read as a footnote rather than a fault — a completely
+    dead model path looked like a working site for several rounds. A single
+    fallback is still a footnote, because one slow request is not news. A second
+    in a row is a broken navigator, and it says so where it cannot be read past.
+  */
+  const [degradedRun, setDegradedRun] = useState(0)
+
   const ask = useCallback(
     async (query) => {
       const trimmed = query.trim()
@@ -384,6 +395,19 @@ export default function Console() {
         },
       })
       setWaiting(false)
+
+      setDegradedRun((prev) => {
+        if (!result.degraded) return 0
+        const run = prev + 1
+        if (run === 2) {
+          console.error(
+            'Joy has fallen back to the offline index on every request this session. ' +
+              'The model is not being reached at all — check the joy function logs, ' +
+              'and run __joyTiming() for the browser-side numbers.'
+          )
+        }
+        return run
+      })
 
       // A degraded answer is replayed through the simulated stream so it still
       // arrives rather than appearing all at once.
@@ -552,6 +576,16 @@ export default function Console() {
             The hint sits above the rule rather than inside the field, so the
             accent block caret has the line to itself.
           */}
+          {/*
+            Persistent, and in the status bar rather than under one answer, because
+            by the second consecutive fallback this is a property of the session
+            rather than of a single question.
+          */}
+          {degradedRun >= 2 && (
+            <p className="bar__degraded mono" role="status">
+              navigator unreachable — {degradedRun} answers from the local index
+            </p>
+          )}
           <p className="bar__hint mono">{engaged ? 'ask another' : PLACEHOLDER}</p>
           <div className="field">
             <input

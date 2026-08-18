@@ -14,12 +14,56 @@ import { composeFallback } from './compose-fallback.js'
 /*
   Past this, the local answer is better than a spinner.
 
-  Set from a real eval run: p95 first-token was 1957ms, so this is p95 plus 25%
-  headroom. Falling back early is not free — the offline index answers worse than
-  the model — so if this trips during normal use, raise it rather than leaving
-  people waiting.
+  Provisional, and deliberately generous. The previous 2500ms came from the eval,
+  which calls the function in-process — no TLS, no cold start, no trip back to the
+  browser — so it was a floor for the function's own work being spent as a budget
+  for the whole round trip. The result was that the model was never once reached
+  from a browser while the site looked like it was working.
+
+  8000ms is set to stop cutting off answers that were on their way, not because
+  anything measured 8000ms. TIMING below records every real request so this can be
+  set from browser-side data instead of guessed a second time.
 */
-const FIRST_TOKEN_TIMEOUT = 2500
+const FIRST_TOKEN_TIMEOUT = 8000
+
+/*
+  Browser-side timing, recorded on every request whether it succeeds or falls back.
+
+  Kept per session and reachable from the console as `__joyTiming()`, because the
+  number that matters is the one measured on the visitor's clock and there was no
+  way to see it. The request index is part of each sample on purpose: if the first
+  request of a session is slow and the rest are quick, that is a cold start, and
+  the fix is a longer budget for the first request rather than for all of them.
+*/
+const TIMING = []
+
+function record(sample) {
+  TIMING.push(sample)
+  const label =
+    sample.firstTokenMs === null
+      ? `no first token in ${FIRST_TOKEN_TIMEOUT}ms — offline index (${sample.outcome})`
+      : `first token ${sample.firstTokenMs}ms — ${sample.outcome}`
+  console.info(`joy: request ${sample.n} · ${label}`)
+
+  if (typeof window !== 'undefined' && !window.__joyTiming) {
+    window.__joyTiming = () => {
+      const got = TIMING.filter((t) => t.firstTokenMs !== null).map((t) => t.firstTokenMs)
+      const rest = TIMING.slice(1).filter((t) => t.firstTokenMs !== null).map((t) => t.firstTokenMs)
+      const p = (xs, q) =>
+        xs.length ? [...xs].sort((a, b) => a - b)[Math.max(0, Math.ceil((q / 100) * xs.length) - 1)] : null
+      console.table(TIMING)
+      console.info(
+        `joy timing over ${TIMING.length} request(s): ` +
+          `first request ${TIMING[0]?.firstTokenMs ?? 'no first token'}ms, ` +
+          `rest p50 ${p(rest, 50) ?? '—'}ms / p95 ${p(rest, 95) ?? '—'}ms, ` +
+          `overall min ${got.length ? Math.min(...got) : '—'}ms max ${got.length ? Math.max(...got) : '—'}ms, ` +
+          `${TIMING.filter((t) => t.firstTokenMs === null).length} fell back`
+      )
+      return TIMING
+    }
+  }
+  return sample
+}
 
 /**
  * Pull the value of a string field out of JSON that is still being written.
@@ -65,6 +109,9 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
   // Nothing has streamed yet; give up and use the local answer.
   const timer = setTimeout(abort, FIRST_TOKEN_TIMEOUT)
   let sawDelta = false
+  const started = performance.now()
+  const n = TIMING.length + 1
+  let firstTokenMs = null
 
   try {
     const response = await fetch('/api/joy', {
@@ -77,6 +124,11 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
       const detail = await response.json().catch(() => ({}))
       const failure = new Error(detail.error ?? `joy ${response.status}`)
       failure.kind = detail.kind ?? 'transient'
+      // The status is the whole diagnosis from this side: 404 means the function
+      // is not in the deploy, 503 means it is but has no key, 502 means it could
+      // not reach the model. Every one of them renders the same line in the
+      // transcript, so the number has to be somewhere a person can find it.
+      failure.status = response.status
       throw failure
     }
 
@@ -105,6 +157,7 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
         if (event.delta) {
           if (!sawDelta) {
             sawDelta = true
+            firstTokenMs = Math.round(performance.now() - started)
             clearTimeout(timer)
           }
           raw += event.delta
@@ -116,7 +169,8 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
     }
 
     if (!final) throw new Error('no result')
-    return normalise(final, mode, question)
+    record({ n, mode, firstTokenMs, outcome: 'model', status: response.status })
+    return { ...normalise(final, mode, question), firstTokenMs }
   } catch (error) {
     // Any failure at all lands here, including an abort on the timeout.
     const fallback =
@@ -124,11 +178,25 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
     fallback.source = 'local'
     fallback.degraded = true
     fallback.degradedReason = error?.kind === 'config' ? 'config' : 'transient'
+    record({
+      n,
+      mode,
+      firstTokenMs,
+      outcome: error?.name === 'AbortError' ? 'timeout' : (error?.kind ?? 'transient'),
+      status: error?.status ?? null,
+      elapsedMs: Math.round(performance.now() - started),
+    })
     if (error?.kind === 'config') {
       // Loud, because it will not recover on its own.
       console.error(
         `Joy is misconfigured and is falling back to the offline index: ${error.message}. ` +
           `Check OPENAI_API_KEY and the model id in netlify/functions/joy.mjs.`
+      )
+    } else {
+      console.warn(
+        `Joy fell back to the offline index: ${error?.name === 'AbortError' ? `no first token within ${FIRST_TOKEN_TIMEOUT}ms` : error?.message}` +
+          `${error?.status ? ` (HTTP ${error.status} from /api/joy)` : ''}. ` +
+          `A 404 here means the function is not in the deploy; anything else means it is.`
       )
     }
     // Deliberately no onDelta here. The caller replays the local reply through
