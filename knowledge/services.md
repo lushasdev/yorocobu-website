@@ -24,7 +24,7 @@ do_not_claim:
   - No client names, past engagements, case studies, testimonials, or references are public.
   - No contract terms, engagement models, processes, or scoping steps are public.
   - Every answer about client work ends by routing to the contact action.
-last_updated: 2026-08-17
+last_updated: 2026-08-18
 ---
 
 Yorocobu takes on client work alongside its own projects, building with the same
@@ -32,5 +32,6 @@ stack: React and React Native, Swift and SwiftUI, Flutter, and the supporting to
 listed under Technology.
 
 What a project would cost, how long it would take, and whether Yorocobu has room for
-it right now are all conversations rather than published figures. The way to start
-one is to send an email describing what you have in mind.
+it right now are all conversations rather than published figures. To start one,
+describe what you have in mind — Joy can pass it along from here, or you can email
+yorocobu.llc@gmail.com directly.

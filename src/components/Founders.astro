@@ -1,30 +1,39 @@
 ---
 /**
- * The two founder cards, ported from the previous site. Names and titles only,
- * which is all that is public.
+ * The two founder cards.
+ *
+ * Names, titles, and bios come from knowledge/founders.md, so a correction is a
+ * text edit in one place rather than a hunt through components. Only the photo
+ * mapping lives here, because astro:assets needs static imports to optimise.
  *
  * The source photographs are 840KB and 1.6MB PNGs. astro:assets resizes them and
  * emits WebP with correct intrinsic dimensions, which is what actually moves the
  * Lighthouse number.
  */
 import { Image } from 'astro:assets'
+import knowledge from '../generated/knowledge.json'
 import ethan from '../assets/ethan-gailushas.png'
 import bence from '../assets/bence-burton.png'
 
-const people = [
-  { name: 'Ethan Gailushas', title: 'Co-Founder', image: ethan },
-  { name: 'Bence Burton', title: 'Co-Founder', image: bence },
-]
+const photos = { 'ethan-gailushas': ethan, 'bence-burton': bence }
+
+const people = (knowledge.entries.find((e) => e.id === 'founders')?.people ?? []).map((p) => ({
+  ...p,
+  photo: photos[p.image],
+}))
 ---
 
 <div class="people">
   {
-    people.map(({ name, title, image }) => (
+    people.map(({ name, title, bio, photo }) => (
       <figure class="person">
-        <Image src={image} alt={name} width={480} height={480} format="webp" quality={72} />
+        {photo && (
+          <Image src={photo} alt={name} width={480} height={480} format="webp" quality={72} />
+        )}
         <figcaption>
           <p class="person__name">{name}</p>
           <p class="person__title mono">{title}</p>
+          {bio && <p class="person__bio">{bio}</p>}
         </figcaption>
       </figure>
     ))

@@ -158,6 +158,20 @@ function buildContext(entries) {
         '',
         `**Summary.** ${e.summary}`,
         '',
+        /*
+          Structured people carry the published bios, so they have to reach the
+          model as text. Without this the bios exist on the page and the model
+          still believes no biography is published.
+        */
+        toArray(e.people).length
+          ? [
+              '**People.**',
+              ...toArray(e.people).map((p) =>
+                [`- ${p.name} — ${p.title}.`, p.bio].filter(Boolean).join(' ')
+              ),
+              '',
+            ].join('\n')
+          : null,
         e.detail,
         '',
         e.links.length
@@ -207,6 +221,9 @@ const clientEntries = entries.map((e) => ({
   summary: e.summary,
   links: e.links,
   ...(e.projects ? { projects: e.projects } : {}),
+  // Bios are published, so the offline navigator can quote them when the model
+  // is unreachable. Only do_not_claim and the long detail stay server-side.
+  ...(e.people ? { people: e.people } : {}),
 }))
 
 mkdirSync(OUT_DIR, { recursive: true })

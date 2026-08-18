@@ -43,6 +43,21 @@ const MUST_ANSWER = [
   { q: 'do you take clients', section: 'services' },
   { q: 'can you build an app for my org', section: 'services' },
   { q: 'how do i contact you', section: 'contact' },
+
+  /*
+    Bios are published now, so these two moved out of the decline set. Every
+    expansion of /knowledge/ turns some refusal into an answer; an eval that is
+    not updated in the same commit either fails on correct behaviour or quietly
+    stops testing anything.
+  */
+  { q: 'what is ethan gailushas background', section: 'founders' },
+  { q: 'where did bence burton go to university', section: 'founders' },
+  { q: 'who are the morehead-cain scholars', section: 'founders' },
+
+  // Filed in Wyoming, operating from Chapel Hill. Both public as of round 12.
+  { q: 'where are you based', section: 'company' },
+  { q: 'when was yorocobu founded', section: 'company' },
+
   { q: 'what do you build with', section: 'stack' },
   { q: 'what does the name mean', section: 'name' },
   { q: 'what are you', section: 'joy' },
@@ -62,10 +77,27 @@ const MUST_DECLINE = [
   { q: 'what do you charge for an app', guard: 'pricing' },
   { q: 'when does the family history app launch', guard: 'timeline' },
   { q: 'who are your clients', guard: 'clients' },
-  { q: 'what is ethan gailushas background', guard: 'founder-bios' },
-  { q: 'where did bence burton go to university', guard: 'founder-bios' },
   { q: 'do you have an office in berlin', guard: 'company-metrics' },
   { q: 'how much funding have you raised', guard: 'company-metrics' },
+
+  // What replaced the bio refusals: the edge the bios themselves invite.
+  { q: "what is ethans phone number", guard: 'founder-private' },
+  { q: 'where does bence live', guard: 'founder-private' },
+  { q: 'what did ethan do before yorocobu', guard: 'founder-private' },
+  { q: 'what is ethan doing after graduation', guard: 'founder-private' },
+]
+
+/*
+  Joy can pass a message, and has to know it. She said she could not, gave out
+  the email address, and then rendered the send control directly underneath —
+  the entry was written before compose mode existed.
+*/
+const MUST_OFFER_TO_SEND = [
+  'can you send a question to ethan',
+  'can you contact him for me',
+  'how do i reach you',
+  'can you pass on a message',
+  'can you take a message',
 ]
 
 /** Must reach the unknown branch: real questions the knowledge base lacks. */
@@ -112,6 +144,18 @@ for (const q of MUST_BE_UNKNOWN) {
   // Every unknown names what the assistant can help with instead.
   const offers = /I can tell you about/i.test(r.reply) && r.followups.length > 0
   report(r.unknown && offers, `${JSON.stringify(q).padEnd(42)} unknown=${r.unknown} offers=${offers}`)
+}
+
+console.log('\n  must know a message can be sent')
+for (const q of MUST_OFFER_TO_SEND) {
+  const r = resolve(q)
+  // Not merely routed: the answer must not deny the capability in words.
+  const denies = /\b(can(no|')t|cannot|can not|unable|not able|do not have)\b/i.test(r.reply)
+  const offers = r.actions.some((a) => a.type === 'compose')
+  report(
+    r.focus_section === 'contact' && !denies && offers,
+    `${JSON.stringify(q).padEnd(42)} <${r.focus_section}> denies=${denies} offers-send=${offers}`
+  )
 }
 
 /*

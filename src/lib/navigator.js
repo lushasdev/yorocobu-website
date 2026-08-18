@@ -77,8 +77,22 @@ const PHRASES = [
     ],
   },
   {
+    /*
+      Asking whether Joy can pass a message is a contact question, not a question
+      about Joy. It routed nowhere before compose mode existed, and a bare
+      "can you" reaching the guide entry produced the worst possible answer:
+      no, followed by the send control appearing underneath.
+    */
     to: 'contact',
-    patterns: [/\bget\s+in\s+touch\b/i, /\bcontact\s+you\b/i, /\breach\s+(you|out)\b/i],
+    patterns: [
+      /\bget\s+in\s+touch\b/i,
+      /\bcontact\s+you\b/i,
+      /\breach\s+(you|out)\b/i,
+      /\b(send|pass|forward|relay|give|get)\b.*\b(message|question|note|word)\b/i,
+      /\b(message|question|note)\b.*\bto\s+(ethan|bence|him|her|them|the founders?)\b/i,
+      /\b(contact|reach|email|ask|tell)\s+(ethan|bence|him|her|them)\b/i,
+      /\btake\s+a\s+message\b/i,
+    ],
   },
   {
     to: 'stack',
@@ -119,14 +133,46 @@ function matchPhrase(query) {
   stopping is what makes an assistant feel broken.
 */
 const GUARDS = [
+  /*
+    Person questions come first. They are the more specific reading: "what is
+    Ethan's phone number" is about Ethan, and answering it out of the company
+    guard would refuse correctly while talking about funding and Wyoming.
+  */
+  {
+    /*
+      Short bios are published now, so this guard no longer refuses biography as
+      a category — that would decline questions the site answers. It covers the
+      edge instead: how to reach either of them personally, where they are, what
+      they are doing outside Yorocobu or after it. Published detail invites
+      exactly these follow-ups, and they are the ones worth holding.
+    */
+    id: 'founder-private',
+    strong:
+      /\b(phone|cell number|personal email|home address|where does .*\b(live|stay)|where (is|are) (he|she|they|ethan|bence)\b.*\b(now|right now|based|living|these days)|how old|age of|birthday|married|girlfriend|boyfriend|partner of|salary|net worth|after (he|she|they) graduates?|after graduation|graduation plans|before yorocobu|previous (job|employer)|worked at|other (compan|project|startup|business)|side (project|business)|dm|text (him|her|them))\b/i,
+    weak: /\b(schedule|availability|free time|travel|reach (him|her|them)|contact (him|her|them)|meet (him|her|them)|where is he|where is she)\b/i,
+    // Only a person question, not a question about the company's own schedule.
+    corroborate:
+      /\b(ethan|bence|gailushas|burton|founders?|his|her|their|they|he|she|who|him)\b/i,
+    reply:
+      'The site publishes short bios for Ethan Gailushas and Bence Burton and stops there. Nothing about where either of them is, how to reach them personally, or what they are doing outside Yorocobu is public. I can pass a question along instead.',
+    focus: 'founders',
+    actions: [composeAction('Send a question')],
+    followups: ['who is behind this', 'how do i get in touch'],
+    used: ['founders'],
+  },
   {
     id: 'company-metrics',
+    /*
+      Where Yorocobu is and when it was filed are published now, so this guard
+      no longer covers them. What stays out is money, size, and any address you
+      could turn up at: the work is remote, and there is nothing to visit.
+    */
     strong:
-      /\b(funding|funded|raised|valuation|revenue|profit|headcount|how many (people|employees|staff)|founding date|headquarters|when (was|were) .* founded|where are you (based|located))\b/i,
-    weak: /\b(office|users|downloads|growth|investors|location)\b/i,
-    corroborate: /\b(how many|number|figure|based|located|city|country|have|do you|is there|any)\b/i,
+      /\b(funding|funded|raised|valuation|revenue|profit|headcount|how many (people|employees|staff)|street address|office address|mailing address|phone number)\b/i,
+    weak: /\b(office|users|downloads|growth|investors|address|visit)\b/i,
+    corroborate: /\b(how many|number|figure|have|do you|is there|any|where|your|drop by|come by)\b/i,
     reply:
-      'None of that is public. The site does not publish funding, figures, headcount, founding date, or location. What it does say is what Yorocobu builds and who the two founders are.',
+      'That part is not public. The site does not publish funding, revenue, user numbers, or headcount beyond the two founders, and there is no office to visit — the work is remote. What it does say is that Yorocobu was filed in Wyoming in 2025, operates from Chapel Hill, and what it is building.',
     focus: 'company',
     actions: [composeAction('Ask directly')],
     followups: ['what is yorocobu', 'who is behind this'],
@@ -170,21 +216,6 @@ const GUARDS = [
     actions: [composeAction('Ask about client work')],
     followups: ['do you take clients', 'what do you build with'],
     used: ['services'],
-  },
-  {
-    id: 'founder-bios',
-    strong:
-      /\b(bios?|biography|resume|cv|where did .* (study|work|go)|which (school|university|college)|degrees?|studied|how old|age of)\b/i,
-    weak: /\b(background|experience|previously|before this|career)\b/i,
-    // Only a person question, not a question about the company's experience.
-    corroborate:
-      /\b(ethan|bence|gailushas|burton|founders?|his|her|their|they|he|she|who)\b/i,
-    reply:
-      'The site lists Ethan Gailushas and Bence Burton as Co-Founders, and nothing further. No bios are published, so anything more is best asked of them directly.',
-    focus: 'founders',
-    actions: [composeAction('Ask them directly')],
-    followups: ['what is yorocobu', 'how do i get in touch'],
-    used: ['founders'],
   },
 ]
 
@@ -285,7 +316,19 @@ const FOLLOWUPS_BY_ENTRY = {
 }
 
 /** Entries whose summary alone would undersell what is genuinely published. */
+/** Both bios in one line, so the offline answer is the published record too. */
+const founderLine = () =>
+  (byId.founders?.people ?? [])
+    .map((p) => `${p.name}, ${p.title}. ${p.bio ?? ''}`.trim())
+    .join(' ')
+
 const REPLY_OVERRIDE = {
+  /*
+    The summary names the two of them; this adds what the site actually says
+    about each. Without it the offline path answers "who runs it" with less than
+    the page directly underneath it is showing.
+  */
+  founders: () => `Yorocobu was founded by two Co-Founders. ${founderLine()}`,
   portfolio: () =>
     `Five projects are in development: ${projectTitles()}. Those are the categories ` +
     `Yorocobu publishes; the product names and descriptions are not public yet.`,
