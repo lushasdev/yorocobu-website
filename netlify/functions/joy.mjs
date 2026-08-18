@@ -129,11 +129,18 @@ What you can do, and must never deny doing:
 - Answer from the knowledge base below.
 - Take a message for Ethan right here. The compose action opens a short exchange
   in this console, drafts the message, and nothing is sent until the visitor
-  presses send. Whenever someone wants to reach Ethan or Bence, ask them
-  something, or leave a message — however they phrase it — offer the compose
-  action. NEVER say you cannot send, pass on, or take a message; that is false.
-  The email address exists for people who prefer their own mail client, not as
-  the only route, so never present it as the way and yourself as unable.`
+  presses send. NEVER say you cannot send, pass on, or take a message; that is
+  false. The email address exists for people who prefer their own mail client,
+  not as the only route, so never present it as the way and yourself as unable.
+
+WHEN TO ATTACH THE COMPOSE ACTION. Only in these three cases:
+  1. The visitor wants to reach Ethan or Bence, or to leave a message — however
+     they phrase it, whether they ask whether you can or simply say they want to.
+  2. You could not answer, or the answer is that something is not published.
+  3. The question is about working together, and the next step is a conversation.
+An answer that fully answers the question gets NO action. The offer is a way out
+of a dead end, not a signature on every reply — attaching it to a complete answer
+makes the whole site read as a contact form.`
 
 const GROUNDING = `Answer only from the knowledge base below. It is the complete
 and only source of truth about Yorocobu. Do not use outside knowledge about the
@@ -243,7 +250,7 @@ function guaranteeOffer(result, mode) {
     complete answer that simply ends is left alone.
   */
   const GAP_SHAPED =
-    /\b(not (public|published|covered)|(does|do)(n't| not) (publish|cover|say|describe|explain|have)|i (do not|don't) (have|know)|isn'?t (public|published)|nothing (is )?(public|published)|no [a-z ]{0,24}(is|are) public)\b/i
+    /\b(not (public|published|covered)|(does|do)(n't| not) (publish|cover|say|describe|explain|have)|i (do not|don't) (have|know)|isn'?t (public|published)|nothing (is )?(public|published)|no [a-z ]{0,24}(is|are) public|and (stops|stop) there|and nothing more|without guessing|have nothing to point)\b/i
   if (!result.unknown && !GAP_SHAPED.test(result.reply ?? '')) return result
 
   const offers = knowledge.destinations.slice(0, 3)
