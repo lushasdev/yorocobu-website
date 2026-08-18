@@ -11,8 +11,15 @@
 import { resolve } from './navigator.js'
 import { composeFallback } from './compose-fallback.js'
 
-/** Past this, the local answer is better than a spinner. */
-const FIRST_TOKEN_TIMEOUT = 4000
+/*
+  Past this, the local answer is better than a spinner.
+
+  Set from a real eval run: p95 first-token was 1957ms, so this is p95 plus 25%
+  headroom. Falling back early is not free — the offline index answers worse than
+  the model — so if this trips during normal use, raise it rather than leaving
+  people waiting.
+*/
+const FIRST_TOKEN_TIMEOUT = 2500
 
 /**
  * Pull the value of a string field out of JSON that is still being written.
