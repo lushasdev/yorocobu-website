@@ -218,7 +218,20 @@ function fixComposeLabels(result) {
 }
 
 function guaranteeOffer(result, mode) {
-  if (!result || mode === 'compose' || !result.unknown) return result
+  if (!result || mode === 'compose') return result
+
+  /*
+    Originally this fired on result.unknown — which is the model's own report of
+    whether it knew. When the model wrongly believed it knew something, the
+    wrong answer AND the missing offer both got through, because the safety net
+    depended on the very self-report that had failed. Now it keys on what is
+    observable in the output, the way the closed action enum and the label
+    rewrite do: an answer that leaves the visitor nowhere to go — no actions,
+    no followups — gets the offer attached, whatever the model believed about
+    itself. Unknowns keep their stronger guarantee of both.
+  */
+  const bare = !result.actions?.length && !result.followups?.length
+  if (!result.unknown && !bare) return result
 
   const offers = knowledge.destinations.slice(0, 3)
   return {

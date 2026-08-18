@@ -154,9 +154,20 @@ queue, and therefore what tells Ethan which entry to write next.
 
 | # | Question |
 |---|---|
-| C1 | what is your favourite programming podcast |
-| C2 | do you sponsor conferences |
-| C3 | do you offer internships |
+| C1 | do you sponsor conferences |
+| C2 | do you offer internships |
+| C3 | do you have open source projects |
+
+**The favourite-podcast case used to live here and failed three times.** On the
+third look the assertion was stale, not the model wrong: once `joy.md` published
+that Joy has no opinions or preferences, "what is your favourite podcast" became
+answerable from an entry — "I don't have favourites" grounded in joy is a better
+answer than "I don't know", and `unknown: false` is the model being right. It
+moved to its own set (no-preferences questions), where the assertion is the part
+that actually matters: never express or invent a preference, and still offer
+something. Every case in this section must stay entirely outside what the entries
+cover — about the company, not about Joy, whose entry now answers questions about
+her.
 
 The unknown reply must read as a capable assistant admitting a gap, in one line,
 and must offer to send the question rather than handing over a mailto and asking
