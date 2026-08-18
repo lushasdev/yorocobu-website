@@ -69,7 +69,13 @@ const ANSWER_SCHEMA = {
         properties: {
           // A closed set. There is deliberately no url field.
           type: { type: 'string', enum: ['compose', 'index'] },
-          label: { type: 'string' },
+          label: {
+            type: 'string',
+            description:
+              'What the control does. For compose, it opens the message form ' +
+              'right here — label it that way ("Send it to Ethan from here"), ' +
+              'never "Email …": the visitor is not leaving the site.',
+          },
         },
       },
     },
@@ -110,7 +116,17 @@ How you speak:
   preferences, feelings or life outside this site, and you never invent any.
 - You never speak for Ethan or Bence. You never commit Yorocobu to work, prices,
   timelines, availability, or whether something is a good fit. A named guide
-  makes it easy to slip into speaking for the company; hold that line harder.`
+  makes it easy to slip into speaking for the company; hold that line harder.
+
+What you can do, and must never deny doing:
+- Answer from the knowledge base below.
+- Take a message for Ethan right here. The compose action opens a short exchange
+  in this console, drafts the message, and nothing is sent until the visitor
+  presses send. Whenever someone wants to reach Ethan or Bence, ask them
+  something, or leave a message — however they phrase it — offer the compose
+  action. NEVER say you cannot send, pass on, or take a message; that is false.
+  The email address exists for people who prefer their own mail client, not as
+  the only route, so never present it as the way and yourself as unable.`
 
 const GROUNDING = `Answer only from the knowledge base below. It is the complete
 and only source of truth about Yorocobu. Do not use outside knowledge about the
@@ -183,6 +199,24 @@ has been sent.`
   nothing attached, the offer is added here, from the same site map the chips are
   built from. It cannot be missed regardless of what the model returns.
 */
+/*
+  A compose action labelled "Email Ethan" is the denial in button form: the
+  control sends the message from right here, and a label that says email
+  teaches the visitor the opposite. The schema description asks the model not
+  to; this makes it not matter if it does anyway.
+*/
+function fixComposeLabels(result) {
+  if (!result?.actions?.length) return result
+  return {
+    ...result,
+    actions: result.actions.map((a) =>
+      a?.type === 'compose' && /\b(e-?mail|mail)\b/i.test(a.label ?? '')
+        ? { ...a, label: 'Send it to Ethan from here' }
+        : a
+    ),
+  }
+}
+
 function guaranteeOffer(result, mode) {
   if (!result || mode === 'compose' || !result.unknown) return result
 
@@ -413,7 +447,7 @@ export default async (req) => {
         } catch {
           console.error('joy: model output was not valid json')
         }
-        const finished = guaranteeOffer(result, mode)
+        const finished = fixComposeLabels(guaranteeOffer(result, mode))
         send({ done: true, result: finished, source: 'model' })
         trace(
           started,

@@ -81,6 +81,15 @@ const MUST_NOT_DENY = [
   'can you send a question to ethan',
   'can you contact him for me',
   'can you pass a message to the founders',
+
+  /*
+    Stated intentions. The interrogative cases above all passed while
+    "i want to ask ethan a question" produced a live denial with an
+    "Email Ethan" button — the intent shape has to be tested separately.
+  */
+  'i want to ask ethan a question',
+  'i have a question for ethan',
+  'can i leave a message for the founders',
 ]
 const DENIAL = /\b(can(no|')t|cannot|can not|unable|not able|do not have the ability|i do not send)\b/i
 
@@ -211,10 +220,12 @@ console.log('\n  must not deny what it can do')
 for (const q of MUST_NOT_DENY) {
   const r = await call(q)
   const denies = DENIAL.test(r.reply ?? '')
-  const offers = (r.actions ?? []).some((a) => a.type === 'compose')
+  const compose = (r.actions ?? []).filter((a) => a.type === 'compose')
+  // "Email Ethan" on the send-from-here control is the denial in button form.
+  const badLabel = compose.some((a) => /\b(e-?mail|mail)\b/i.test(a.label ?? ''))
   report(
-    !r.error && !denies && offers,
-    `${JSON.stringify(q).padEnd(42)} denies=${denies} offers-send=${offers}`
+    !r.error && !denies && compose.length > 0 && !badLabel,
+    `${JSON.stringify(q).padEnd(42)} denies=${denies} offers-send=${compose.length > 0} label-ok=${!badLabel}`
   )
 }
 
