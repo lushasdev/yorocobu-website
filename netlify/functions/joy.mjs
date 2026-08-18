@@ -20,6 +20,9 @@ import { json, callerId, overRateLimit } from './_shared/limits.mjs'
 /** One place. Short retrieval over eight entries, not reasoning. */
 const MODEL = 'gpt-5.6-luna'
 
+/** Overridable so the eval harness can be exercised against a local stub. */
+const API_BASE = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com'
+
 const MAX_OUTPUT_TOKENS = 600
 const MAX_QUESTION = 500
 const RATE_LIMIT = 20
@@ -241,7 +244,7 @@ export default async (req) => {
 
   let upstream
   try {
-    upstream = await fetch('https://api.openai.com/v1/responses', {
+    upstream = await fetch(`${API_BASE}/v1/responses`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${process.env.OPENAI_API_KEY}`,

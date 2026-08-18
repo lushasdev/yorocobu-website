@@ -14,6 +14,13 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+/*
+  The suite makes far more calls than a visitor ever would, so it would trip the
+  per-caller limit partway through and report failures that are really its own
+  throttling. Set before the function is imported.
+*/
+process.env.RATE_LIMIT_DISABLED = '1'
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const fn = await import(join(root, 'netlify/functions/joy.mjs'))
 
