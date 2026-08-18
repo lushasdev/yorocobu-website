@@ -13,7 +13,8 @@
  *   npm run knowledge && node scripts/check-navigator.mjs
  */
 
-import { resolve } from '../src/lib/navigator.js'
+import { resolve, DESTINATIONS } from '../src/lib/navigator.js'
+import knowledge from '../src/generated/knowledge-client.json' with { type: 'json' }
 
 /** Must produce a confident answer. `section` of null means any entry will do. */
 const MUST_ANSWER = [
@@ -44,6 +45,8 @@ const MUST_ANSWER = [
   { q: 'how do i contact you', section: 'contact' },
   { q: 'what do you build with', section: 'stack' },
   { q: 'what does the name mean', section: 'name' },
+  { q: 'what are you', section: 'joy' },
+  { q: 'are you a person', section: 'joy' },
 
   // The landing state: an empty submission is "well, what is this?".
   { q: '', section: 'company' },
@@ -111,6 +114,42 @@ for (const q of MUST_BE_UNKNOWN) {
   report(r.unknown && offers, `${JSON.stringify(q).padEnd(42)} unknown=${r.unknown} offers=${offers}`)
 }
 
-const total = MUST_ANSWER.length + MUST_DECLINE.length + MUST_BE_UNKNOWN.length
+/*
+  Reachability, both directions.
+
+  Forward: every chip lands on its own entry, so the site map cannot lie about
+  where it goes.
+
+  Reverse: every entry is reachable through the console, by a chip or by a
+  must-answer case. The full index carries all of them and is the backstop, but
+  it does not count as exposure here — if it did, this check would pass for every
+  entry forever and catch nothing. An entry that only the full index reaches is
+  invisible to anyone using the site as designed.
+*/
+console.log('\n  every chip reaches its own entry')
+for (const destination of DESTINATIONS) {
+  const r = resolve(destination.query)
+  report(
+    r.focus_section === destination.id && !r.unknown,
+    `${destination.label.padEnd(22)} -> ${r.unknown ? 'UNKNOWN' : r.focus_section}` +
+      (r.focus_section === destination.id ? '' : `  (wanted ${destination.id})`)
+  )
+}
+
+console.log('\n  every entry is reachable from the console')
+const chipFor = new Map(DESTINATIONS.map((d) => [d.id, d.label]))
+for (const entry of knowledge.entries) {
+  const chip = chipFor.get(entry.id)
+  const asked = MUST_ANSWER.find(({ q, section }) => section === entry.id && resolve(q).focus_section === entry.id)
+  const how = chip ? `chip "${chip}"` : asked ? `answers "${asked.q}"` : 'FULL INDEX ONLY'
+  report(Boolean(chip || asked), `${entry.id.padEnd(12)} ${how}`)
+}
+
+const total =
+  MUST_ANSWER.length +
+  MUST_DECLINE.length +
+  MUST_BE_UNKNOWN.length +
+  DESTINATIONS.length +
+  knowledge.entries.length
 console.log(`\n  ${total - failures}/${total} passed\n`)
 process.exit(failures ? 1 : 0)

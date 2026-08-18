@@ -183,7 +183,10 @@ function sse(stream) {
 
 export default async (req) => {
   if (req.method !== 'POST') return json(405, { error: 'method not allowed' })
-  if (!process.env.OPENAI_API_KEY) return json(503, { error: 'navigator offline' })
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('joy: OPENAI_API_KEY is not set')
+    return json(503, { error: 'navigator not configured', kind: 'config' })
+  }
 
   let body
   try {
@@ -265,8 +268,27 @@ export default async (req) => {
   }
 
   if (!upstream.ok || !upstream.body) {
-    console.error('joy: upstream returned', upstream.status, await upstream.text().catch(() => ''))
-    return json(502, { error: 'navigator unreachable' })
+    const detail = await upstream.text().catch(() => '')
+    /*
+      A permissions or model-name problem is not a bad day, it is a
+      misconfiguration, and it will never fix itself. Silently degrading on one
+      looks exactly like a working site with a poor matcher, which is the hardest
+      failure to notice. So it is separated from transient failures here, logged
+      loudly, and labelled for the client.
+    */
+    const configError = [401, 403, 404].includes(upstream.status)
+    console.error(
+      configError
+        ? `joy: CONFIGURATION ERROR ${upstream.status} for model "${MODEL}". ` +
+            `The key is missing a permission, or the model id is wrong or not ` +
+            `available to this account. This will not recover on its own. ${detail}`
+        : `joy: upstream returned ${upstream.status} ${detail}`
+    )
+    return json(502, {
+      error: configError ? `model "${MODEL}" is not available to this key` : 'navigator unreachable',
+      kind: configError ? 'config' : 'transient',
+      status: upstream.status,
+    })
   }
 
   /*

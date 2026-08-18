@@ -189,7 +189,11 @@ const bootLines = buildBootLines(entries)
 */
 const destinations = entries
   .filter((e) => e.nav)
-  .map((e) => ({ id: e.id, label: e.nav, query: e.nav }))
+  .map((e) => ({ id: e.id, label: e.nav, query: e.nav, order: e.nav_order ?? e.order ?? 99 }))
+  // Chip order is a priority order for a visitor scanning the site map, which is
+  // not the same as reading order on the full index.
+  .sort((a, b) => a.order - b.order)
+  .map(({ id, label, query }) => ({ id, label, query }))
 const context = buildContext(entries)
 
 // What the browser needs to run the offline navigator: enough to match a question

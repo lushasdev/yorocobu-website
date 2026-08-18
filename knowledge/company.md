@@ -1,7 +1,6 @@
 ---
 id: company
 order: 1
-nav: what we build
 title: Yorocobu
 aliases:
   [yorocobu llc, the company, what is yorocobu, what is this, who are you,

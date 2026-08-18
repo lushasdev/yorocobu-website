@@ -14,47 +14,13 @@
  */
 
 import { getStore } from '@netlify/blobs'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
+import { json, callerId, overRateLimit } from './_shared/limits.mjs'
 
 const QUESTION_MAX = 2000
 const EMAIL_MAX = 254
 const RATE_LIMIT = 5 // submissions per window, per caller
 const RATE_WINDOW_MS = 60 * 60 * 1000
-
-const json = (status, body) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
-  })
-
-/**
- * A stable but non-reversible id for a caller, salted per day so it cannot be
- * correlated across days or matched against a list of known addresses.
- */
-function callerId(req) {
-  const address =
-    req.headers.get('x-nf-client-connection-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
-    'unknown'
-  const day = new Date().toISOString().slice(0, 10)
-  const salt = process.env.RATE_LIMIT_SALT ?? 'yorocobu'
-  return createHash('sha256').update(`${salt}:${day}:${address}`).digest('hex').slice(0, 32)
-}
-
-async function overRateLimit(id) {
-  const store = getStore('rate-limits')
-  const now = Date.now()
-  const record = await store.get(id, { type: 'json' }).catch(() => null)
-
-  if (!record || now - record.start > RATE_WINDOW_MS) {
-    await store.setJSON(id, { start: now, count: 1 })
-    return false
-  }
-  if (record.count >= RATE_LIMIT) return true
-
-  await store.setJSON(id, { start: record.start, count: record.count + 1 })
-  return false
-}
 
 /**
  * Notify by email if a provider is configured. A missing key is not an error:
@@ -69,9 +35,16 @@ async function notify({ question, email, id }) {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
     body: JSON.stringify({
-      from: process.env.GAPS_EMAIL_FROM ?? 'Yorocobu <onboarding@resend.dev>',
+      from: process.env.GAPS_EMAIL_FROM ?? 'Joy <onboarding@resend.dev>',
       to: [to],
-      ...(email ? { reply_to: email } : {}),
+      /*
+        Reply-To is the visitor when they gave an address, so hitting reply
+        answers them directly. Otherwise it is the monitored inbox.
+
+        What it is never is the From address: that is a sending subdomain nobody
+        reads, and a reply landing there would be lost.
+      */
+      reply_to: email || to,
       subject: `Question from the site: ${question.slice(0, 60)}`,
       text: [
         question,
@@ -113,7 +86,7 @@ export default async (req) => {
     return json(400, { error: 'that email address does not look right' })
   }
 
-  if (await overRateLimit(callerId(req))) {
+  if (await overRateLimit(callerId(req), 'ask', RATE_LIMIT, RATE_WINDOW_MS)) {
     return json(429, { error: 'a few too many just now. Try again a little later.' })
   }
 
@@ -123,7 +96,9 @@ export default async (req) => {
     question,
     email: email || null,
     asked_at: new Date().toISOString(),
-    source: String(body.source ?? 'unknown') === 'manual' ? 'manual' : 'unknown',
+    // Where it came from, so the gaps queue distinguishes a question Joy could
+    // not answer from a message someone deliberately composed.
+    source: ['compose', 'manual', 'unknown'].includes(body.source) ? body.source : 'unknown',
     answered: false,
     notified: false,
   }

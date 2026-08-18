@@ -2,6 +2,7 @@
 id: services
 order: 6
 nav: working together
+nav_order: 4
 title: Client Work
 aliases:
   [can you build an app for my org, client work, working together, hire,

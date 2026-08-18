@@ -2,6 +2,7 @@
 id: contact
 order: 7
 nav: get in touch
+nav_order: 6
 title: Contact
 aliases: [email, get in touch, reach out, how do i contact you, talk to someone, investors, linkedin, instagram, social]
 status: active

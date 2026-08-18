@@ -262,6 +262,7 @@ function extractEmail(text) {
 export default function Console() {
   const [value, setValue] = useState('')
   const [compose, setCompose] = useState({ open: false, seed: '' })
+  const [waiting, setWaiting] = useState(false)
   const [engaged, setEngaged] = useState(false)
   const [transcript, setTranscript] = useState([])
   const [active, setActive] = useState(null)
@@ -357,9 +358,20 @@ export default function Console() {
       setEngaged(true)
       setValue('')
       setHighlight(-1)
+      // In the same commit as the migration, so the wait is legible from the
+      // first frame rather than only once tokens arrive.
+      setWaiting(true)
       live('')
 
-      const result = await askJoy({ mode: 'answer', question: trimmed, onDelta: live })
+      const result = await askJoy({
+        mode: 'answer',
+        question: trimmed,
+        onDelta: (partial) => {
+          setWaiting(false)
+          live(partial)
+        },
+      })
+      setWaiting(false)
 
       // A degraded answer is replayed through the simulated stream so it still
       // arrives rather than appearing all at once.
@@ -401,10 +413,11 @@ export default function Console() {
   }
 
   return (
-    <div className="console" data-engaged={engaged || undefined}>
+    <div className="console" data-engaged={engaged || undefined} data-waiting={waiting || undefined}>
       {/* Streaming indicator: an accent hairline across the very top of the viewport. */}
       <div
         className="console__progress"
+        data-waiting={(waiting && !streaming) || undefined}
         data-streaming={streaming || undefined}
         aria-hidden="true"
       />
@@ -434,6 +447,17 @@ export default function Console() {
         {active && (
           <article className="answer__body" key={active.n}>
             <p className="answer__q mono">{active.query}</p>
+            {/*
+              Any fall back to the offline index says so. A silent fallback looks
+              identical to a working site with a poor matcher.
+            */}
+            {!streaming && active.result?.degraded && (
+              <p className="answer__degraded mono">
+                {active.result.degradedReason === 'config'
+                  ? 'answering from the offline index — navigator not configured'
+                  : 'answering from the offline index'}
+              </p>
+            )}
             <p className="answer__text">{text}</p>
 
             {!streaming && active.result?.actions?.length > 0 && (

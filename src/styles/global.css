@@ -105,8 +105,9 @@
   --primary-subtle: var(--plum-50);
   --warm: var(--gold-400); /* fills, rules, the sun, the mark */
   /* The registration marks are the one gold element doing structural work, so
-     they are switchable independently of the hairlines. */
-  --warm-mark: var(--gold-400);
+     they sit a stop darker than the hairlines: placed rather than glowing. The
+     two golds are the atmosphere-versus-structure split made literal. */
+  --warm-mark: var(--gold-500);
   --warm-text: var(--gold-700); /* gold as text, never gold-400 */
   --warm-subtle: var(--gold-50);
   --focus-ring: 0 0 0 2px var(--n-50), 0 0 0 4px var(--plum-500);

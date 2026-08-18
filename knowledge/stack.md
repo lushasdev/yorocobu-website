@@ -2,6 +2,7 @@
 id: stack
 order: 4
 nav: the tech
+nav_order: 3
 title: Technology
 aliases: [tech stack, what do you build with, technologies, languages, frameworks, do you do ios, do you do android, react, swift, flutter]
 status: active

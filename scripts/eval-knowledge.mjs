@@ -17,6 +17,13 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const fn = await import(join(root, 'netlify/functions/joy.mjs'))
 
+/** Read back from the client so the report cannot quote a stale number. */
+const CURRENT_TIMEOUT = Number(
+  readFileSync(join(root, 'src/lib/joy.js'), 'utf8').match(
+    /FIRST_TOKEN_TIMEOUT\s*=\s*(\d+)/
+  )?.[1] ?? 0
+)
+
 if (!process.env.OPENAI_API_KEY) {
   console.error('\n  OPENAI_API_KEY is not set. Nothing to run against.\n')
   process.exit(2)
@@ -61,8 +68,27 @@ const MUST_BE_UNKNOWN = [
   'do you offer internships',
 ]
 
+/*
+  First-token latency, recorded on every call.
+
+  This is what sets the fallback threshold: it should catch genuine stalls and
+  not merely slow-but-fine responses, because falling back early is not free —
+  the offline index answers worse than the model does.
+*/
+const latencies = []
+
+const percentile = (values, p) => {
+  if (values.length === 0) return null
+  const sorted = [...values].sort((a, b) => a - b)
+  // Nearest-rank, which is the honest reading for a sample this small.
+  const rank = Math.ceil((p / 100) * sorted.length)
+  return sorted[Math.max(0, rank - 1)]
+}
+
 /** Drive the function directly, collecting the streamed result. */
 async function call(question) {
+  const started = Date.now()
+  let firstToken = null
   const response = await fn.default(
     new Request('https://yorocobu.org/api/joy', {
       method: 'POST',
@@ -86,6 +112,10 @@ async function call(question) {
       if (!line.startsWith('data:')) continue
       try {
         const event = JSON.parse(line.slice(5).trim())
+        if (event.delta && firstToken === null) {
+          firstToken = Date.now() - started
+          latencies.push(firstToken)
+        }
         if (event.done) result = event.result
         if (event.error) return { error: event.error }
       } catch {
@@ -93,7 +123,7 @@ async function call(question) {
       }
     }
   }
-  return result ?? { error: 'no result' }
+  return { ...(result ?? { error: 'no result' }), firstToken }
 }
 
 let failures = 0
@@ -124,5 +154,25 @@ for (const q of MUST_BE_UNKNOWN) {
 }
 
 const total = MUST_ANSWER.length + MUST_DECLINE.length + MUST_BE_UNKNOWN.length
-console.log(`\n  ${total - failures}/${total} passed\n`)
+console.log(`\n  ${total - failures}/${total} passed`)
+
+if (latencies.length) {
+  const p50 = percentile(latencies, 50)
+  const p95 = percentile(latencies, 95)
+  // Rounded up to the next 250ms so the threshold is not tuned to one sample.
+  const suggested = Math.ceil((p95 * 1.25) / 250) * 250
+  console.log(`\n  first-token latency over ${latencies.length} calls`)
+  console.log(`    min ${Math.min(...latencies)}ms`)
+  console.log(`    p50 ${p50}ms`)
+  console.log(`    p95 ${p95}ms`)
+  console.log(`    max ${Math.max(...latencies)}ms`)
+  console.log(
+    `\n  suggested FIRST_TOKEN_TIMEOUT in src/lib/joy.js: ${suggested}ms ` +
+      `(p95 plus 25% headroom)`
+  )
+  console.log(`  currently set to ${CURRENT_TIMEOUT}ms\n`)
+} else {
+  console.log('\n  no latency samples: nothing streamed\n')
+}
+
 process.exit(failures ? 1 : 0)

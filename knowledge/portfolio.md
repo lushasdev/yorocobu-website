@@ -1,12 +1,13 @@
 ---
 id: portfolio
 order: 5
-nav: in development
+nav: what we build
+nav_order: 1
 title: Work in Development
 aliases:
   [portfolio, what have you shipped, what have you built, your work, projects,
    apps, what are you working on, what kind of apps, what sort of apps,
-   what apps do you make, what are you building, what kinds of projects,
+   what apps do you make, what are you building, what we build, what kinds of projects,
    what areas, email platform, family history app, mobile tool,
    scheduling program for institutions, marketplace tool]
 status: in development

@@ -66,7 +66,12 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
       body: JSON.stringify({ mode, question, turns, seed }),
       signal: controller.signal,
     })
-    if (!response.ok || !response.body) throw new Error(`joy ${response.status}`)
+    if (!response.ok || !response.body) {
+      const detail = await response.json().catch(() => ({}))
+      const failure = new Error(detail.error ?? `joy ${response.status}`)
+      failure.kind = detail.kind ?? 'transient'
+      throw failure
+    }
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
@@ -111,6 +116,14 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
       mode === 'compose' ? composeFallback(turns, question, seed) : resolve(question)
     fallback.source = 'local'
     fallback.degraded = true
+    fallback.degradedReason = error?.kind === 'config' ? 'config' : 'transient'
+    if (error?.kind === 'config') {
+      // Loud, because it will not recover on its own.
+      console.error(
+        `Joy is misconfigured and is falling back to the offline index: ${error.message}. ` +
+          `Check OPENAI_API_KEY and the model id in netlify/functions/joy.mjs.`
+      )
+    }
     // Deliberately no onDelta here. The caller replays the local reply through
     // its own simulated stream, so a degraded answer still arrives rather than
     // appearing all at once — streaming is the whole feel of this interface.

@@ -36,9 +36,30 @@
   pointer-events: none;
 }
 
+/*
+  Two states, both starting in the first frame after submit rather than at the
+  moment tokens arrive. Waiting has to be legible from the start: the page opens
+  on a large claim, and silence under it does damage.
+*/
+.console__progress[data-waiting] {
+  opacity: 1;
+  animation: progress-crawl 12s cubic-bezier(0, 0.6, 0, 1) forwards;
+}
+
 .console__progress[data-streaming] {
   opacity: 1;
   animation: progress-fill 2.4s var(--ease) forwards;
+}
+
+/* Moves off immediately, then decelerates hard: honest about not knowing how
+   long this will take, without ever pretending to finish. */
+@keyframes progress-crawl {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(0.9);
+  }
 }
 
 @keyframes progress-fill {
@@ -198,6 +219,13 @@
   100% {
     opacity: 0;
   }
+}
+
+/* Solid rather than blinking while a question is in flight. */
+.console[data-waiting] .field__caret {
+  animation: none;
+  opacity: 1;
+  background: var(--primary-hover);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -539,4 +567,10 @@
   outline: none;
   border-bottom-color: var(--primary);
   box-shadow: 0 1px 0 var(--primary);
+}
+
+/* Says when an answer came from the offline index rather than the navigator. */
+.answer__degraded {
+  margin-bottom: 0.9rem;
+  color: var(--warm-text);
 }
