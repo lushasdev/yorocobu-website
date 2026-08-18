@@ -110,6 +110,12 @@ The AI layer sits on top of a real document; it does not replace it.
 - `/full-index` carries the same material laid out to read, reachable from the
   `◎ full index` control in the corner.
 
+**The region under an answer surfaces only when it complements the answer.** Chip
+navigation, refusals that route elsewhere, and unknowns raise the matching region;
+a direct answer from an entry keeps it down, because the region would be the same
+entry again at four times the length. The full index is where everything reads at
+length.
+
 ### Refusals
 
 The navigator declines rather than guesses, and the refusals are the point, not a
