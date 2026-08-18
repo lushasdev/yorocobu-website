@@ -149,17 +149,18 @@ the eval imports the Netlify function, which imports the compiled knowledge base
 Without it the run fails before reaching the model.
 
 The eval costs real money, so it is not wired into `npm run check`. It reports
-first-token latency with p50 and p95 and suggests a `FIRST_TOKEN_TIMEOUT` for
-`src/lib/joy.js`, read back against the value currently set there.
+first-token latency with p50 and p95 as a floor for the browser budgets — it
+deliberately does not suggest a budget, because an in-process "suggestion" was
+once installed as the browser budget and cut the model off for every visitor.
 
 `OPENAI_BASE_URL` points the whole thing at a different endpoint, which is how
 the harness gets exercised without spending anything.
 
 **The eval does not measure the browser path.** It imports the function and calls
 it in-process, so its latency numbers exclude TLS, the function's cold start, and
-the trip back to the browser — they are a floor, not a budget. `FIRST_TOKEN_TIMEOUT`
-in `src/lib/joy.js` is spent on the *browser's* clock, so leave headroom over what
-the eval reports.
+the trip back to the browser — they are a floor, not a budget. The budgets in
+`src/lib/joy.js` are spent on the *browser's* clock and are set from
+`__joyTiming()` data, never from here.
 
 ### Seeing exactly what the model is sent
 
@@ -209,7 +210,15 @@ an error. This exists because the opposite failed in practice: the offline index
 answered well enough that a completely dead model path read as a working site for
 several rounds, and the one quiet line was easy to read past.
 
-### Setting `FIRST_TOKEN_TIMEOUT` from data
+### The two first-token budgets, and setting them from data
+
+`src/lib/joy.js` carries two budgets: `FIRST_REQUEST_TIMEOUT` (8000ms) for a
+session's first request, which pays TLS, the function's cold start, and the
+model's first-token tail all at once, and `SETTLED_TIMEOUT` (5000ms) for every
+request after. Set from measured browser sessions (first request 2959ms, warm
+748–1650ms, desktop wifi) over the in-process model spread (warm p95 2462ms,
+max 3940ms), with headroom for phones on cell data. Tighten them only with
+`__joyTiming()` data from real sessions, ideally including mobile.
 
 Every request records its browser-side first-token time. In DevTools:
 
