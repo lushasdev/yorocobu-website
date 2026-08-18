@@ -138,6 +138,19 @@
   transition: color 160ms var(--ease);
 }
 
+/*
+  A session running entirely on the offline index. Marked, not shouted: the
+  answers underneath are still real answers, and a visitor does not need an
+  error dialogue. It sits in the status bar so it stays on screen.
+*/
+.bar__degraded {
+  margin-bottom: 0.5rem;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--primary);
+  color: var(--primary-text);
+  font-size: 0.7rem;
+}
+
 /* The hairline rule, and the field that sits on it. */
 .field {
   position: relative;

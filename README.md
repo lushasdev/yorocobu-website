@@ -164,6 +164,29 @@ just asked for means the request never reached the function at all — check the
 path, not the key. The browser console carries the other half: the HTTP status
 `/api/joy` returned, or the timeout it hit.
 
+**One fallback is a footnote; two in a row is a fault.** A single slow request gets
+the quiet line under the answer. From the second consecutive fallback the status bar
+carries a persistent `navigator unreachable` marker and the browser console raises
+an error. This exists because the opposite failed in practice: the offline index
+answered well enough that a completely dead model path read as a working site for
+several rounds, and the one quiet line was easy to read past.
+
+### Setting `FIRST_TOKEN_TIMEOUT` from data
+
+Every request records its browser-side first-token time. In DevTools:
+
+```js
+__joyTiming()
+// joy timing over 4 request(s): first request 3027ms, rest p50 6013ms / p95 6013ms,
+//   overall min 3027ms max 6013ms, 2 fell back
+```
+
+The request index is part of each sample deliberately. If request 1 is slow and the
+rest are quick, that is a cold start, and the answer is a longer budget for the first
+request rather than a blanket raise. The function's own contribution to a cold start
+is about 30ms — 9ms of module init plus ~18ms on the first invocation — so anything
+larger is the platform's container start or the model's own latency, not this code.
+
 ---
 
 ## The gaps queue
