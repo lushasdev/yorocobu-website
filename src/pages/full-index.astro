@@ -1,0 +1,77 @@
+---
+/**
+ * The escape hatch.
+ *
+ * Everything on the site, properly typeset, in the same palette and type system.
+ * Some visitors would rather read than converse, and this is for them: it is the
+ * better-lit path, not a punishment. It is also the document crawlers and link
+ * previews see in full.
+ */
+import Base from '../layouts/Base.astro'
+import Founders from '../components/Founders.astro'
+import knowledge from '../generated/knowledge.json'
+import '../styles/content.css'
+
+const { entries, generated } = knowledge
+---
+
+<Base
+  title="Full index — Yorocobu"
+  description="Everything Yorocobu publishes, on one page: the mission, the name, the founders, the technology, the five projects in development, client work, and how to get in touch."
+>
+  <main id="main" class="index-page">
+    <header class="index-page__head">
+      <p class="mono">Yorocobu &nbsp;//&nbsp; full index &nbsp;//&nbsp; {generated}</p>
+      <h1>
+        Everything on this site<span class="index-page__jp jp">喜</span>
+      </h1>
+      <p class="index-page__lede">
+        The navigator on the home page answers from exactly these {entries.length} entries
+        and nothing else. This is the same material, laid out to read.
+      </p>
+
+      <nav aria-label="Contents">
+        <ol class="toc">
+          {
+            entries.map((entry, i) => (
+              <li>
+                <a href={`#${entry.id}`}>
+                  <span class="toc__n">{String(i + 1).padStart(2, '0')}</span>
+                  <span>{entry.title}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+      </nav>
+    </header>
+
+    {
+      entries.map((entry) => (
+        <article class="region" id={entry.id}>
+          <header class="region__head">
+            <p class="mono region__kicker">
+              {entry.status}
+              <span class="region__sep" aria-hidden="true">
+                /
+              </span>
+              updated {entry.last_updated}
+            </p>
+            <h2>{entry.title}</h2>
+          </header>
+          <div class="prose" set:html={entry.detailHtml} />
+          {entry.id === 'founders' && <Founders />}
+        </article>
+      ))
+    }
+
+    <p class="index-page__direct">
+      Joy can send a message from any page. If you would rather write directly,
+      the address is <a href="mailto:yorocobu.llc@gmail.com">yorocobu.llc@gmail.com</a>.
+    </p>
+
+    <a class="back" href="/">
+      <span class="back__mark" aria-hidden="true">◎</span>back to the navigator
+    </a>
+  </main>
+</Base>

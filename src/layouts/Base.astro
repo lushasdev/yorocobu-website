@@ -1,0 +1,81 @@
+---
+import { Font } from 'astro:assets'
+import Frame from '../components/Frame.astro'
+import ThemeToggle from '../components/ThemeToggle.astro'
+import '../styles/global.css'
+
+interface Props {
+  title: string
+  description: string
+}
+
+const { title, description } = Astro.props
+const canonical = new URL(Astro.url.pathname, Astro.site).href
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Yorocobu" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL('/images/yweb1.png', Astro.site).href} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL('/images/yweb1.png', Astro.site).href} />
+
+    <link rel="icon" type="image/png" href="/images/yweb1.png" />
+    <link rel="apple-touch-icon" href="/images/yweb1.png" />
+    <meta name="theme-color" content="#F6F7F8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)" />
+
+    {/*
+      Self-hosted, so there is no third-party request and nothing render-blocking
+      on another origin.
+
+      Only the display face is preloaded: it carries the largest text on the
+      page and is what LCP measures. The others load normally and swap in behind
+      the metric-compatible fallbacks, which is what those fallbacks are for.
+      Preloading all three put 63KB at High priority ahead of everything else.
+    */}
+    <Font cssVariable="--font-display" preload />
+    <Font cssVariable="--font-mono" />
+    <Font cssVariable="--font-jp" />
+    <Font cssVariable="--font-body" />
+
+    <script is:inline>
+      // Runs before first paint: no theme flash, and no flash of the resolved
+      // interface before the boot sequence decides whether to run.
+      ;(function () {
+        var root = document.documentElement
+        root.classList.add('js')
+        try {
+          var stored = localStorage.getItem('yorocobu:theme')
+          if (stored === 'dark' || stored === 'light') root.dataset.theme = stored
+        } catch (e) {}
+        try {
+          var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          var booted = sessionStorage.getItem('yorocobu:booted') === '1'
+          if (!reduced && !booted) root.dataset.booting = 'pending'
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <Frame />
+    <ThemeToggle />
+    <slot />
+  </body>
+</html>

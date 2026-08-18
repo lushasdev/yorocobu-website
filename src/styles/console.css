@@ -1,0 +1,576 @@
+/*
+  The console.
+
+  Not a chat window: no bubbles, no avatars, no assistant name badge. On arrival it
+  is a single hairline rule centred in the viewport. Once a question is asked the
+  rule migrates to the bottom and stays there, like a status bar, and the answer
+  typesets into the main column as real content.
+*/
+
+.console {
+  --bar-height: 3.25rem;
+}
+
+/*
+  Without JavaScript the island never hydrates, so the input would be a dead
+  control sitting on top of the document. The document is the fallback; the
+  console simply is not offered.
+*/
+:root:not(.js) .console {
+  display: none;
+}
+
+/* ─── Streaming indicator ────────────────────────────────────────────────── */
+
+.console__progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+
+/*
+  Two states, both starting in the first frame after submit rather than at the
+  moment tokens arrive. Waiting has to be legible from the start: the page opens
+  on a large claim, and silence under it does damage.
+*/
+.console__progress[data-waiting] {
+  opacity: 1;
+  animation: progress-crawl 12s cubic-bezier(0, 0.6, 0, 1) forwards;
+}
+
+.console__progress[data-streaming] {
+  opacity: 1;
+  animation: progress-fill 2.4s var(--ease) forwards;
+}
+
+/* Moves off immediately, then decelerates hard: honest about not knowing how
+   long this will take, without ever pretending to finish. */
+@keyframes progress-crawl {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(0.9);
+  }
+}
+
+@keyframes progress-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ─── The bar ────────────────────────────────────────────────────────────── */
+
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  /* Above the content column, below the frame, so the frame's bottom hairline
+     still draws across the bar rather than being painted over by it. */
+  z-index: 38;
+  padding-inline: calc(var(--frame-inset) + 1.25rem);
+  /* Centred on arrival; the transform is what animates the migration. */
+  transform: translateY(calc(50svh - 50%));
+  transition: transform 520ms var(--ease);
+}
+
+/*
+  Once it becomes a status bar it sits over the content column, so it needs to be
+  opaque, with a short gradient above it so text meets it softly rather than
+  disappearing mid-line.
+*/
+.console[data-engaged] .bar {
+  transform: translateY(
+    calc(100svh - 100% - var(--frame-inset) - 1.1rem - var(--keyboard-inset, 0px))
+  );
+  padding-block: 0.75rem 0.9rem;
+  background: var(--bg);
+}
+
+.console[data-engaged] .bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 2.5rem;
+  background: linear-gradient(to top, var(--bg), transparent);
+  pointer-events: none;
+}
+
+/* Fills the strip between the bar and the bottom edge, so nothing scrolls
+   through the gap under it. */
+.console[data-engaged] .bar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: calc(var(--frame-inset) + 2rem + var(--keyboard-inset, 0px));
+  background: var(--bg);
+  pointer-events: none;
+}
+
+.bar__inner {
+  max-width: var(--measure);
+  margin-inline: auto;
+}
+
+.console[data-engaged] .bar__inner {
+  max-width: 46rem;
+}
+
+.bar__hint {
+  margin-bottom: 0.55rem;
+  transition: color 160ms var(--ease);
+}
+
+/* The hairline rule, and the field that sits on it. */
+.field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--text-primary);
+  padding-block: 0.5rem;
+  transition: border-color 200ms var(--ease);
+}
+
+.console[data-engaged] .field {
+  border-bottom-color: var(--border);
+}
+
+/*
+  The field carries its own focus indicator: the rule goes to the accent and doubles
+  in weight. box-shadow rather than border-width so nothing shifts. The generic
+  focus ring is suppressed here because a 2px pill around the input fights the
+  hairline-and-caret the console is built on.
+*/
+.field:focus-within {
+  border-bottom-color: var(--primary);
+  box-shadow: 0 1px 0 var(--primary);
+}
+
+.field__input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.field__input,
+.field__mirror {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+
+.field__input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  padding: 0;
+  /* The block caret below stands in for the native one. */
+  caret-color: transparent;
+}
+
+.field__input::placeholder {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+/* Measures the typed text so the block caret can sit at its end. */
+.field__mirror {
+  position: absolute;
+  left: 0;
+  top: -9999px;
+  white-space: pre;
+  visibility: hidden;
+}
+
+.field__caret {
+  position: absolute;
+  left: 0;
+  width: 0.55rem;
+  height: 1.05rem;
+  background: var(--primary);
+  pointer-events: none;
+  animation: caret-blink 1.1s steps(1) infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Solid rather than blinking while a question is in flight. */
+.console[data-waiting] .field__caret {
+  animation: none;
+  opacity: 1;
+  background: var(--primary-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field__caret {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ─── Suggested prompts ──────────────────────────────────────────────────── */
+
+.suggestions {
+  max-width: var(--measure);
+  margin: 1.1rem auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.1rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: none;
+  border: 0;
+  padding: 0.2rem 0;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  transition: color 140ms var(--ease);
+}
+
+.chip:hover,
+.chip[data-highlight] {
+  color: var(--text-primary);
+}
+
+.chip__bullet {
+  width: 4px;
+  height: 4px;
+  background: var(--primary);
+  flex: none;
+}
+
+.chip[data-highlight] {
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+  text-underline-offset: 0.25em;
+}
+
+/* ─── The answer ─────────────────────────────────────────────────────────── */
+
+.answer {
+  max-width: 46rem;
+  margin-inline: auto;
+  padding-inline: calc(var(--frame-inset) + 1.25rem);
+}
+
+.console[data-engaged] .answer {
+  padding-top: clamp(4rem, 12vh, 7rem);
+}
+
+.answer__q {
+  color: var(--text-secondary);
+  margin-bottom: 0.9rem;
+}
+
+.answer__q::before {
+  content: '▸ ';
+  color: var(--warm-text);
+}
+
+.answer__text {
+  font-size: clamp(1.35rem, 2.7vw, 1.75rem);
+  line-height: 1.45;
+  font-weight: 400;
+  min-height: 1.45em;
+}
+
+.answer__actions {
+  margin-top: 1.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.4rem;
+}
+
+.action {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-bottom: 1px solid var(--primary);
+  padding-bottom: 2px;
+}
+
+.action:hover {
+  color: var(--primary-text);
+}
+
+/* Buttons that are actions read exactly as the anchors beside them. */
+.action--button {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--primary);
+  padding: 0 0 2px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.action--button:disabled {
+  color: var(--text-secondary);
+  border-bottom-color: var(--border);
+  cursor: default;
+}
+
+/* ─── The inline send field ──────────────────────────────────────────────── */
+
+.compose {
+  margin-top: 1.9rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--border);
+  max-width: var(--measure);
+}
+
+.compose__note.mono {
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.compose__q {
+  color: var(--text-primary);
+}
+
+.compose__label {
+  display: block;
+  margin-top: 1.2rem;
+  margin-bottom: 0.4rem;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.compose__field {
+  border-bottom-color: var(--border);
+}
+
+/* Off-screen rather than display:none, so bots that skip hidden fields fill it. */
+.compose__trap {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.compose__controls {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  margin-top: 1.3rem;
+}
+
+.compose__error.mono {
+  margin-top: 0.9rem;
+  color: var(--text-primary);
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.compose--sent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1.4rem;
+}
+
+.answer__followups {
+  margin-top: 1.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.1rem;
+}
+
+/* ─── Transcript rail ────────────────────────────────────────────────────── */
+
+.rail {
+  position: fixed;
+  left: calc(var(--frame-inset) + 1.1rem);
+  top: clamp(4rem, 12vh, 7rem);
+  width: 11rem;
+  z-index: 45;
+}
+
+.rail ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rail button {
+  display: flex;
+  gap: 0.5rem;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  transition: color 140ms var(--ease);
+}
+
+.rail button:hover,
+.rail button[data-active] {
+  color: var(--text-primary);
+}
+
+.rail button[data-active] .rail__n {
+  color: var(--primary-text);
+}
+
+.rail__n {
+  flex: none;
+}
+
+.rail__q {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The rail needs room the viewport does not have below this width. */
+@media (max-width: 74rem) {
+  .rail {
+    display: none;
+  }
+}
+
+/* ─── Mobile ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 46rem) {
+  .bar {
+    padding-inline: calc(var(--frame-inset) + 0.9rem);
+  }
+
+  .answer {
+    padding-inline: calc(var(--frame-inset) + 0.9rem);
+  }
+
+  .suggestions {
+    gap: 0.3rem 0.9rem;
+  }
+
+  .answer__text {
+    font-size: 1.25rem;
+  }
+}
+
+/* ─── The introduction ───────────────────────────────────────────────────── */
+/*
+  Shown on arrival only. The claim comes first and the proof sits one line under
+  it, both verifiable within four seconds. It does not survive the first answer.
+*/
+
+.intro {
+  margin-bottom: 2.4rem;
+}
+
+.intro__status {
+  margin-bottom: 1.1rem;
+}
+
+.intro__claim {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6.2vw, 4.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.intro__proof {
+  font-family: var(--font-display);
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+  line-height: 1.15;
+  margin-top: 0.35rem;
+  color: var(--text-secondary);
+  text-wrap: balance;
+}
+
+.intro__body {
+  margin-top: 1.3rem;
+  color: var(--text-secondary);
+  max-width: 30rem;
+}
+
+/* The introduction needs the width the console does not. */
+.console:not([data-engaged]) .bar__inner {
+  max-width: 44rem;
+}
+
+.console:not([data-engaged]) .suggestions {
+  max-width: 44rem;
+}
+
+@media (max-width: 46rem) {
+  .intro {
+    margin-bottom: 1.8rem;
+  }
+  .intro__body {
+    font-size: 0.95rem;
+  }
+}
+
+/* The drafted message, editable in place. */
+.compose__draft {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.75rem 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.compose__draft:focus {
+  outline: none;
+  border-bottom-color: var(--primary);
+  box-shadow: 0 1px 0 var(--primary);
+}
+
+/* Says when an answer came from the offline index rather than the navigator. */
+.answer__degraded {
+  margin-bottom: 0.9rem;
+  color: var(--warm-text);
+}
