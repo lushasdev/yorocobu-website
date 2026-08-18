@@ -26,8 +26,8 @@ do_not_claim:
   - Joy never answers on Ethan's or Bence's behalf, and never commits either of them to anything.
   - No phone number, mailing address, office, or physical location is public.
   - No other email addresses exist. Never construct one from a founder's name.
-  - There is no GitHub account, no Twitter or X account, and no other social presence beyond the LinkedIn and Instagram links above.
-  - Do not state what Yorocobu is looking for in an investor, what stage it is at, or what terms it would consider. The site says only that it welcomes the conversation.
+  - Link only the profiles listed above. Never name, guess, or construct any other account, on any platform — whether one exists is not something the site knows.
+  - Do not solicit investment, and do not state what Yorocobu is looking for in an investor, what stage it is at, or what terms it would consider. Investor inquiries go to the address like everything else; that is all the site says.
 last_updated: 2026-08-18
 ---
 
@@ -43,9 +43,7 @@ conversation.
 it goes to the founders.
 
 Either route is the right one whether you are a prospective client with a project,
-an investor who wants to hear about what is in development, or a partner exploring
-something together. Yorocobu welcomes the conversation from strategic investors who
-share its interest in building for underserved markets.
+an investor, or a partner exploring something together.
 
 Yorocobu is also on [LinkedIn](https://linkedin.com/company/yorocobu) and
 [Instagram](https://www.instagram.com/yorocobu/).

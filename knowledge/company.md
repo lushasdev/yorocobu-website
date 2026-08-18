@@ -34,6 +34,5 @@ holes in niche markets, and build apps to fill them.
 The company was filed in Wyoming in 2025. Operations are based in Chapel Hill,
 North Carolina, and the work is done remotely.
 
-The work spans web and mobile, built on React, Swift, and Flutter, and aimed at
-markets that larger developers have passed over. Five projects are in development.
-Yorocobu also takes on client work.
+The work spans web and mobile, built on React, Swift, and Flutter. Five projects
+are in development. Yorocobu also takes on client work.
