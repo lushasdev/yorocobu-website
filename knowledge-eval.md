@@ -95,6 +95,14 @@ the entry predated compose mode, then again on "i want to ask ethan a question" 
 a stated intention — after every interrogative phrasing passed. Capability
 questions and stated intentions are different shapes and both are tested.
 
+**Every case in section A has a second requirement: no compose action unless the
+answer focuses on contact or services.** The offer is a way out of a dead end or
+the next step in a conversation; on a complete answer it is noise, and an offer
+under every reply makes the whole site read as a contact form. This assertion was
+added after a broad prompt line put "Send it to Ethan from here" under every
+answer for several rounds while the suite stayed green — it only ever checked
+that an action was PRESENT where needed, never ABSENT where it was not.
+
 **A17–A18 have a second requirement.** Confirming client work is correct, but the
 answer must not state pricing, timelines, availability, or fit, and must end by
 routing to the contact action. An answer that confirms client work *and* says

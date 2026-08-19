@@ -144,6 +144,42 @@ there as well.**
 
 ---
 
+## Working note: fixing behaviour without causing its opposite
+
+**Read this before writing a prompt line that begins "whenever" or "always."**
+
+Three times in this project, a fix for one behavioural failure produced the
+opposite failure, and each time the mechanism was the same: a broad instruction
+doing the work of a narrow one.
+
+| The failure | The fix | What the fix caused |
+|---|---|---|
+| Joy denied she could take a message | *"Whenever someone wants to reach Ethan or Bence, **ask them something**, or leave a message … offer the compose action"* | Every question is "asking her something", so the Send-to-Ethan button appeared under nearly every answer and the site read as a contact form |
+| The region repeated the answer at length | Suppress the region when Joy answered from that entry | The chip path still called the model, so navigation produced an answer *and* a section — the same duplication on the one path where the region belongs |
+| The chip duplicated its own section | Give the chip a one-line pointer instead of an answer | *"Everything the site publishes on this is just below"* — filler, a sentence whose only job was to point downward |
+
+What generalises:
+
+1. **Scope the instruction to the case, and enumerate the case.** "Offer the
+   compose action whenever someone wants to reach Ethan" became three numbered
+   situations plus an explicit *an answer that fully answers gets no action*.
+   The negative half is what keeps the positive half from spreading.
+2. **A fix that adds behaviour needs a test for the behaviour's absence.** The
+   suite checked that the compose action was PRESENT where needed and never that
+   it was ABSENT where it was not, so over-offering stayed green for rounds.
+   Every "must do X here" assertion wants a "must not do X there" beside it.
+3. **Prefer a structural guarantee to an instruction, but check what it keys
+   on.** `guaranteeOffer` went through three keys: `unknown` (the model's own
+   report, which fails exactly when the model is wrong), then empty
+   actions+followups (fired on almost everything, because a complete answer
+   frequently has neither), then the reply's own words. Deterministic is not the
+   same as correct; a guarantee that fires too often is its own failure.
+4. **When an interface expects speech, silence is an option.** Two of the three
+   came from assuming Joy had to say something. A chip renders its destination
+   and says nothing.
+
+---
+
 ## Running the model eval
 
 ```bash

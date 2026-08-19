@@ -221,11 +221,31 @@ const report = (ok, line) => {
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${line}`)
 }
 
-console.log('\n  must answer')
+/*
+  Where a compose action belongs on an answered question, derived from the rule
+  the prompt states rather than kept as a hand-maintained exemption list: the
+  offer is a way out of a dead end or the next step in a conversation, so on a
+  complete answer it is only ever right for contact and services.
+
+  This is the guard that would have caught the over-offering. A broad prompt
+  line put "Send it to Ethan from here" under every answer for several rounds
+  and nothing failed, because the suite only ever checked that an action was
+  PRESENT where it was needed, never that it was ABSENT where it was not.
+*/
+const COMPOSE_BELONGS = ['contact', 'services']
+
+console.log('\n  must answer, and complete answers carry no offer')
 for (const [q, section] of MUST_ANSWER) {
   const r = await call(q)
-  const ok = !r.error && r.unknown === false && (section === null || r.focus_section === section)
-  report(ok, `${JSON.stringify(q).padEnd(34)} -> ${r.error ?? (r.unknown ? 'UNKNOWN' : r.focus_section)}`)
+  const composed = (r.actions ?? []).some((a) => a.type === 'compose')
+  const strayOffer = composed && !COMPOSE_BELONGS.includes(r.focus_section)
+  const ok =
+    !r.error && r.unknown === false && (section === null || r.focus_section === section) && !strayOffer
+  report(
+    ok,
+    `${JSON.stringify(q).padEnd(34)} -> ${r.error ?? (r.unknown ? 'UNKNOWN' : r.focus_section)}` +
+      (strayOffer ? '  [stray compose action on a complete answer]' : '')
+  )
 }
 
 console.log('\n  must decline, without inventing')
