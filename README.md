@@ -158,6 +158,7 @@ doing the work of a narrow one.
 | The region repeated the answer at length | Suppress the region when Joy answered from that entry | The chip path still called the model, so navigation produced an answer *and* a section — the same duplication on the one path where the region belongs |
 | The chip duplicated its own section | Give the chip a one-line pointer instead of an answer | *"Everything the site publishes on this is just below"* — filler, a sentence whose only job was to point downward |
 | The offer appeared under complete answers | Narrow the prompt to three enumerated cases | Nothing. 7 of 32 answers still carried a stray offer, and the failures were *inconsistent within one entry*: "who is in charge" clean, "who runs the company" not |
+| The model called a published bio unknown | Two grounding instructions naming the founders entry | Nothing, twice. The case came back unknown on one pass and correct on the next, same fingerprint — so it moved to detection: if the deterministic matcher resolves the question to an entry while the model says unknown, the model is overruled |
 | Same, fifth round | A strip in the function, sharing its key with the adder so "the two rules are one rule" | They colluded instead of checking each other. The adder fired, the stripper exempted exactly what the adder had created, and the log read `stripped_offers=0` on all 48 calls while stray offers shipped |
 
 **The fourth round is the one that settles the argument.** Three instructions in a
@@ -206,10 +207,19 @@ What generalises:
    a key tested against the whole reply. Testing the opening sentence only
    dropped that to 0 of 6. Build the corpus from what the model actually
    returns, not from what is easy to type.
-8. **Measure what the safety net catches.** A strip that quietly cleans up after
-   the model forever is a maintenance cost nobody sees. Report the count in the
-   same log line as everything else, so the day it starts firing on everything is
-   the day you find out. A chip renders its destination
+8. **An assertion that quotes the question will match the refusal.** A refusal
+   echoes what it is declining — "the site does not publish where Bence lives" —
+   so a pattern looking for "Bence lives" calls a correct answer a fabrication.
+   Four assertions have failed this way, three of them found by paid eval runs.
+   `scripts/check-eval-assertions.mjs` now runs every decline pattern against
+   fixture refusals it must accept and fabrications it must catch; it found the
+   fourth on its first run, for free. Add a decline case, add its fixtures.
+9. **Measure what the safety net catches, and put the measurement where someone
+   already looks.** A guard that quietly cleans up after the model forever is a
+   maintenance cost nobody sees. Counting it in a log line is not enough — that
+   still requires remembering to grep. Rescues go into the gaps queue beside real
+   questions, and both guards send one email the day they cross a threshold. The
+   test is not "is it recorded" but "will anyone find out without going looking". A chip renders its destination
    and says nothing.
 
 ---
@@ -335,6 +345,25 @@ worth knowing about even when there is nobody to answer.
 Every entry that store accumulates is an entry worth writing. That is the whole
 training loop — there is no model training anywhere in this project.
 
+### Rescues land here too
+
+`joy` overrules the model when it calls a published entry unknown, and serves the
+offline answer instead. That is a quiet quality downgrade — the offline reply is
+terser — and it is exactly the case the gaps queue was built for: a question
+where `unknown` was true, with its text and a timestamp. So each one is written
+to this same store tagged `source: 'rescue'`, carrying the entry that answered
+it. **A cluster of rescues on one entry means that entry needs work**, and it
+shows up where questions already do rather than in a log line to remember.
+
+Stray offers are counted rather than stored, in a `quality` store: the count is
+the whole signal there.
+
+**Neither waits to be noticed.** When rescues cross `QUALITY_ALERT_RESCUES` (3)
+or strips cross `QUALITY_ALERT_STRIPS` (25) in a day, one email goes out on the
+first crossing — the same Resend configuration the gaps queue uses, and it says
+which of the two it is and what to do about it. Without a key configured, the
+threshold logs loudly instead. Set either variable to `0` to silence it.
+
 ### What is and is not recorded
 
 Recorded: the question, an optional reply address, a timestamp, and whether it has
@@ -355,6 +384,8 @@ caller per hour, a 2000 character cap, and email validation.
 | `GAPS_EMAIL_TO` | no | Where notifications go. |
 | `GAPS_EMAIL_FROM` | no | Defaults to Resend's onboarding sender. |
 | `RATE_LIMIT_SALT` | recommended | Any random string. Salts the rate-limit hash. |
+| `QUALITY_ALERT_RESCUES` | no | Rescues in a day before one email goes out. Default 3, `0` disables. |
+| `QUALITY_ALERT_STRIPS` | no | Stray offers in a day before one email goes out. Default 25, `0` disables. |
 | `OPENAI_API_KEY` | phase 3 | Never in the repo, never in the client bundle. |
 
 ---
@@ -364,7 +395,8 @@ caller per hour, a 2000 character cap, and email validation.
 ```bash
 npm run check                      # navigator, contrast, secrets and CSP drift
 
-node scripts/check-navigator.mjs   # 53 cases: answer, decline, unknown, reachability
+node scripts/check-navigator.mjs   # 69 cases: answer, decline, unknown, send-offer, reachability
+node scripts/check-eval-assertions.mjs  # the eval's decline patterns, against fixture replies
 node scripts/check-contrast.mjs    # WCAG contrast over the palette tokens
 node scripts/check-secrets.mjs     # key material in the built output (needs a build)
 node scripts/build-csp.mjs --check # netlify.toml CSP against the built inline scripts

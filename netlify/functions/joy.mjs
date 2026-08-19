@@ -15,7 +15,9 @@
  */
 
 import knowledge from '../../src/generated/knowledge.json' with { type: 'json' }
+import { resolve as resolveLocal } from '../../src/lib/navigator.js'
 import { json, callerId, overRateLimit } from './_shared/limits.mjs'
+import { recordQuality } from './_shared/quality.mjs'
 
 /** One place. Short retrieval over eight entries, not reasoning. */
 const MODEL = 'gpt-5.6-luna'
@@ -249,6 +251,47 @@ const GAP_SHAPED =
   cannot drift apart.
 */
 const OFFER_FOCUS = ['contact', 'services']
+
+/**
+ * A claimed unknown that the site can in fact answer.
+ *
+ * "what is ethan gailushas background" came back unknown on one pass and
+ * correct on the next, same fingerprint, same prompt. The bios are in the
+ * founders entry; claiming not to know is not a judgement call the model gets
+ * to make, it is a contradiction with the knowledge base it was handed. Two
+ * instructions failed to fix it, which is the same evidence the offer problem
+ * gave before decideOffer.
+ *
+ * So it is detected rather than instructed. The deterministic matcher already
+ * decides, from the same knowledge, whether a question has a confident home —
+ * it is the fallback the browser trusts when this function is unreachable, and
+ * it is checked by 69 offline cases on every build. If it resolves the question
+ * to an entry while the model says unknown, the model is wrong and its refusal
+ * is replaced by the offline answer.
+ *
+ * Deliberately narrow: a local result that is itself unknown, or that fired a
+ * refusal guard, is not a rescue. "Not published" is a real answer, and the
+ * matcher agreeing that something is missing is corroboration, not a conflict.
+ */
+function rescueFalseUnknown(result, question, mode) {
+  if (mode === 'compose' || !result?.unknown) return { result, rescued: false }
+
+  let local
+  try {
+    local = resolveLocal(question)
+  } catch {
+    return { result, rescued: false }
+  }
+  if (!local || local.unknown || local.guard || !local.focus_section) {
+    return { result, rescued: false }
+  }
+
+  console.warn(
+    `joy: model claimed unknown for a question the ${local.focus_section} entry answers; ` +
+      `serving the offline answer instead`
+  )
+  return { result: { ...local, source: 'local' }, rescued: true }
+}
 
 /**
  * One decision about the offer, enforced in both directions.
@@ -551,15 +594,34 @@ export default async (req) => {
         // Guarantee first, then strip: the guarantee only ever adds where a dead
         // end earned it, and the strip only ever removes where none did, so the
         // order cannot have them fighting over the same answer.
-        const { result: decided, offer } = decideOffer(result, mode)
+        // Rescue first: a false unknown replaces the whole result, and the offer
+        // decision must then run over what is actually being sent.
+        const { result: checked, rescued } = rescueFalseUnknown(result, question, mode)
+        const { result: decided, offer } = decideOffer(checked, mode)
         const finished = fixComposeLabels(decided)
         send({ done: true, result: finished, source: 'model' })
+
+        /*
+          Both guards are quiet by design, and quiet is how a quality signal
+          decays into nothing. A rescue is a downgrade the visitor cannot see;
+          a rising strip count means the prompt line has stopped helping. Neither
+          should depend on someone remembering to grep for it.
+
+          Deliberately after send(), never awaited: the reply is already on its
+          way, and recording must not be able to cost anyone their answer.
+        */
+        if (rescued) {
+          void recordQuality('rescue', { question, entry: checked?.focus_section ?? null })
+        }
+        if (offer === 'stripped') {
+          void recordQuality('strip', { entry: finished?.focus_section ?? null })
+        }
         trace(
           started,
           'answered',
           `first_token=${firstToken ?? 'never'}ms mode=${mode}` +
             (mode === 'answer' ? ` unknown=${Boolean(finished?.unknown)}` : '') +
-            ` offer=${offer}`
+            ` offer=${offer}${rescued ? ' rescued=true' : ''}`
         )
       } catch (error) {
         console.error('joy: stream failed', error)

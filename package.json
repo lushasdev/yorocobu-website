@@ -8,7 +8,7 @@
     "dev": "npm run knowledge && astro dev",
     "build": "npm run knowledge && astro build",
     "preview": "astro preview",
-    "check": "node scripts/check-navigator.mjs && node scripts/check-contrast.mjs && node scripts/check-secrets.mjs && node scripts/build-csp.mjs --check"
+    "check": "node scripts/check-navigator.mjs && node scripts/check-eval-assertions.mjs && node scripts/check-contrast.mjs && node scripts/check-secrets.mjs && node scripts/build-csp.mjs --check"
   },
   "dependencies": {
     "@astrojs/react": "^6.0.2",
