@@ -133,6 +133,26 @@
   max-width: 46rem;
 }
 
+/*
+  The mark's arrival box. Reserved space inside the opening statement, painted
+  by nothing: the fixed logo transforms onto it. Sized to read as part of the
+  statement rather than as a header ornament — roughly the width of the claim
+  line beneath it.
+*/
+.intro__logo-slot {
+  display: block;
+  width: clamp(200px, 26vw, 320px);
+  aspect-ratio: 1200 / 240;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 46rem) {
+  .intro__logo-slot {
+    width: min(72vw, 260px);
+    margin-bottom: 1.15rem;
+  }
+}
+
 .bar__hint {
   margin-bottom: 0.55rem;
   transition: color 160ms var(--ease);

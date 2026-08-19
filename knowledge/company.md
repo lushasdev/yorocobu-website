@@ -16,7 +16,7 @@ based: Chapel Hill, North Carolina
 summary: Yorocobu LLC finds holes in niche markets and builds apps to fill them. Filed in Wyoming in 2025, operating from Chapel Hill, North Carolina, and working remotely.
 links:
   - label: Email Yorocobu
-    url: mailto:yorocobu.llc@gmail.com
+    url: mailto:ethan@yorocobu.org
 do_not_claim:
   - No funding, investment, or fundraising totals are public. Never state that Yorocobu has raised money or is raising a round.
   - No revenue, user counts, download numbers, growth figures, or valuation are public.

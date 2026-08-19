@@ -31,7 +31,7 @@ projects:
     status: in development
 links:
   - label: Email Yorocobu
-    url: mailto:yorocobu.llc@gmail.com
+    url: mailto:ethan@yorocobu.org
 do_not_claim:
   - Nothing in this portfolio has shipped. Never say any project is released, live, launched, downloadable, in beta, or available to try.
   - These projects have no public names. The five titles are categories, not product names. Never present a category as a product name.

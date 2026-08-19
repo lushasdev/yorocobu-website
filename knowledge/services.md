@@ -13,7 +13,7 @@ kind: service
 summary: Yorocobu takes on client projects. Anyone with a project in mind is invited to get in touch.
 links:
   - label: Email Yorocobu
-    url: mailto:yorocobu.llc@gmail.com
+    url: mailto:ethan@yorocobu.org
 do_not_claim:
   - No pricing, rates, hourly figures, project costs, budgets, retainers, or minimum project size are public. Never state or estimate any of these, and never offer a range.
   - No timelines, delivery estimates, start dates, or turnaround times are public. Never estimate how long anything would take.
@@ -32,4 +32,4 @@ Yorocobu takes on client work alongside its own projects.
 What a project would cost, how long it would take, and whether Yorocobu has room for
 it right now are all conversations rather than published figures. To start one,
 describe what you have in mind — Joy can pass it along from here, or you can email
-yorocobu.llc@gmail.com directly.
+ethan@yorocobu.org directly.

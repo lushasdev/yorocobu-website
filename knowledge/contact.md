@@ -10,11 +10,11 @@ aliases: [email, get in touch, reach out, how do i contact you, how do i reach y
   can you take a message, send a message, can you get a message to him, message ethan]
 status: active
 kind: contact
-primary_email: yorocobu.llc@gmail.com
-summary: There are two ways in. Joy can take a message and pass it to Ethan without you leaving the site, or you can email yorocobu.llc@gmail.com yourself.
+primary_email: ethan@yorocobu.org
+summary: There are two ways in. Joy can take a message and pass it to Ethan without you leaving the site, or you can email ethan@yorocobu.org yourself.
 links:
   - label: Email Yorocobu
-    url: mailto:yorocobu.llc@gmail.com
+    url: mailto:ethan@yorocobu.org
   - label: LinkedIn
     url: https://linkedin.com/company/yorocobu
   - label: Instagram
@@ -25,7 +25,7 @@ do_not_claim:
   - Joy does not see replies. She cannot say whether an earlier message was read, answered, or acted on, and cannot look one up.
   - Joy never answers on Ethan's or Bence's behalf, and never commits either of them to anything.
   - No phone number, mailing address, office, or physical location is public.
-  - No other email addresses exist. Never construct one from a founder's name.
+  - ethan@yorocobu.org is the only published address. Never offer another, and never build one by putting a name in front of the domain — that a published address happens to have Ethan's name in it does not license inventing bence@ or hello@ or anything else.
   - Link only the profiles listed above. Never name, guess, or construct any other account, on any platform — whether one exists is not something the site knows.
   - Do not solicit investment, and do not state what Yorocobu is looking for in an investor, what stage it is at, or what terms it would consider. Investor inquiries go to the address like everything else; that is all the site says.
 last_updated: 2026-08-18
@@ -39,8 +39,8 @@ press send. Leave a reply address and it goes with the message so Ethan can answ
 you directly; leave it out and the message still arrives, as a note rather than a
 conversation.
 
-**Or write directly.** The address is **yorocobu.llc@gmail.com**. One address, and
-it goes to the founders.
+**Or write directly.** The address is **ethan@yorocobu.org**, which reaches Ethan.
+Either route gets to the same place, so use whichever suits you.
 
 Either route is the right one whether you are a prospective client with a project,
 an investor, or a partner exploring something together.

@@ -1,0 +1,82 @@
+---
+/**
+ * The mark.
+ *
+ * Inlined rather than served as <img> because the SVG paints with
+ * `fill="currentColor"`: inline, it inherits --text-primary and is ink on paper
+ * in light mode and paper on ink in dark, from one file, with no toggle and
+ * nothing to drift if the token changes. An <img> would not inherit anything.
+ *
+ * Never tinted. The palette does not touch the mark, the same rule the founder
+ * photographs follow.
+ *
+ * Server-rendered, so it exists without JavaScript — parked in its corner,
+ * which is the resolved state. The travel is the console's business.
+ */
+import logo from '../assets/yorocobu-logo.svg?raw'
+---
+
+<div class="logo" data-logo aria-hidden="false" set:html={logo} />
+
+<style>
+  /*
+    Parked is the BASE state, not the special one: it is what no-JS gets, what
+    reduced motion gets, and where every session ends up. Arrival is expressed
+    as a transform away from it, which is also why the travel cannot shift
+    layout — the element is fixed and only ever transforms.
+  */
+  .logo {
+    position: fixed;
+    top: calc(var(--frame-inset) + 16px);
+    left: calc(var(--frame-inset) + 18px);
+    z-index: 44;
+    width: 118px;
+    color: var(--text-primary);
+    transform-origin: top left;
+    pointer-events: none;
+  }
+
+  .logo :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Hidden while calibrating, like the frame: the boot sequence has its own 喜. */
+  :root[data-booting] .logo {
+    opacity: 0;
+  }
+
+  /*
+    Before the console has measured the arrival slot there is nothing to
+    animate towards, so the mark waits rather than flashing in its parked
+    corner and then jumping up to the introduction.
+  */
+  :root.js .logo {
+    opacity: 0;
+  }
+
+  :root.js[data-logo-ready] .logo {
+    opacity: 1;
+    transform: translate(var(--logo-dx, 0px), var(--logo-dy, 0px)) scale(var(--logo-scale, 1));
+    transition:
+      transform 620ms var(--ease),
+      opacity 240ms var(--ease);
+  }
+
+  /* Engaged: the vars are cleared, so it travels home to the base state. */
+
+  @media (prefers-reduced-motion: reduce) {
+    :root.js[data-logo-ready] .logo {
+      transition: opacity 240ms var(--ease);
+    }
+  }
+
+  @media (max-width: 46rem) {
+    .logo {
+      width: 84px;
+      top: calc(var(--frame-inset) + 10px);
+      left: calc(var(--frame-inset) + 12px);
+    }
+  }
+</style>

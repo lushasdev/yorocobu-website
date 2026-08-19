@@ -120,9 +120,14 @@
 
 /* The bar owns the bottom of the viewport on small screens. */
 @media (max-width: 46rem) {
+  /*
+    On a phone the escape link shares the top-left with the parked mark, so it
+    sits beside it rather than under it. Mark then link, reading as one small
+    cluster.
+  */
   .escape {
     right: auto;
-    left: calc(var(--frame-inset) + 0.9rem);
+    left: calc(var(--frame-inset) + 12px + 84px + 0.7rem);
     bottom: auto;
     top: calc(var(--frame-inset) + 0.85rem);
   }
