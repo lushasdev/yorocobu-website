@@ -158,6 +158,7 @@ doing the work of a narrow one.
 | The region repeated the answer at length | Suppress the region when Joy answered from that entry | The chip path still called the model, so navigation produced an answer *and* a section — the same duplication on the one path where the region belongs |
 | The chip duplicated its own section | Give the chip a one-line pointer instead of an answer | *"Everything the site publishes on this is just below"* — filler, a sentence whose only job was to point downward |
 | The offer appeared under complete answers | Narrow the prompt to three enumerated cases | Nothing. 7 of 32 answers still carried a stray offer, and the failures were *inconsistent within one entry*: "who is in charge" clean, "who runs the company" not |
+| Same, fifth round | A strip in the function, sharing its key with the adder so "the two rules are one rule" | They colluded instead of checking each other. The adder fired, the stripper exempted exactly what the adder had created, and the log read `stripped_offers=0` on all 48 calls while stray offers shipped |
 
 **The fourth round is the one that settles the argument.** Three instructions in a
 row failed, and the eval showed why a fourth would too: the model was not applying
@@ -192,7 +193,20 @@ What generalises:
    question behave differently in the same run, the model is guessing rather than
    applying a rule, and the fix belongs in the function rather than the prompt.
    Look for that signal before writing another instruction.
-6. **Measure what the safety net catches.** A strip that quietly cleans up after
+6. **Two enforcers sharing a key do not check each other, they collude.** The
+   adder and the stripper keyed on the same regex, in the belief that one
+   definition meant one rule. What it meant was that the stripper could never
+   remove what the adder had just added — a closed loop that reported zero
+   strips while the defect shipped. One decision function enforcing the rule in
+   *both* directions has no such gap.
+7. **A verification corpus cleaner than production proves nothing.** The nine
+   hand-written shapes that "verified" the strip all had tidy replies. Real
+   answers name a boundary in passing — "…and the site does not publish anything
+   further" — and 4 of 6 realistic complete answers were misread as dead ends by
+   a key tested against the whole reply. Testing the opening sentence only
+   dropped that to 0 of 6. Build the corpus from what the model actually
+   returns, not from what is easy to type.
+8. **Measure what the safety net catches.** A strip that quietly cleans up after
    the model forever is a maintenance cost nobody sees. Report the count in the
    same log line as everything else, so the day it starts firing on everything is
    the day you find out. A chip renders its destination
@@ -272,6 +286,14 @@ carries a persistent `navigator unreachable` marker and the browser console rais
 an error. This exists because the opposite failed in practice: the offline index
 answered well enough that a completely dead model path read as a working site for
 several rounds, and the one quiet line was easy to read past.
+
+### Run-to-run variance
+
+The answer block runs twice, and any case that differs between passes is reported
+UNSTABLE and counted as a failure — a visitor gets one pass, not the best of two.
+At the same knowledge fingerprint and the same prompt, failures move: "who runs
+the company" failed while "who is in charge" passed, then they swapped. A single
+run cannot distinguish a fix from luck, and a green run is not evidence on its own.
 
 ### The two first-token budgets, and setting them from data
 
