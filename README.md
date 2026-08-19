@@ -158,6 +158,7 @@ doing the work of a narrow one.
 | The region repeated the answer at length | Suppress the region when Joy answered from that entry | The chip path still called the model, so navigation produced an answer *and* a section — the same duplication on the one path where the region belongs |
 | The chip duplicated its own section | Give the chip a one-line pointer instead of an answer | *"Everything the site publishes on this is just below"* — filler, a sentence whose only job was to point downward |
 | The offer appeared under complete answers | Narrow the prompt to three enumerated cases | Nothing. 7 of 32 answers still carried a stray offer, and the failures were *inconsistent within one entry*: "who is in charge" clean, "who runs the company" not |
+| The model called a published bio unknown | Two grounding instructions naming the founders entry | Nothing, twice. The case came back unknown on one pass and correct on the next, same fingerprint — so it moved to detection: if the deterministic matcher resolves the question to an entry while the model says unknown, the model is overruled |
 | Same, fifth round | A strip in the function, sharing its key with the adder so "the two rules are one rule" | They colluded instead of checking each other. The adder fired, the stripper exempted exactly what the adder had created, and the log read `stripped_offers=0` on all 48 calls while stray offers shipped |
 
 **The fourth round is the one that settles the argument.** Three instructions in a
@@ -206,7 +207,14 @@ What generalises:
    a key tested against the whole reply. Testing the opening sentence only
    dropped that to 0 of 6. Build the corpus from what the model actually
    returns, not from what is easy to type.
-8. **Measure what the safety net catches.** A strip that quietly cleans up after
+8. **An assertion that quotes the question will match the refusal.** A refusal
+   echoes what it is declining — "the site does not publish where Bence lives" —
+   so a pattern looking for "Bence lives" calls a correct answer a fabrication.
+   Four assertions have failed this way, three of them found by paid eval runs.
+   `scripts/check-eval-assertions.mjs` now runs every decline pattern against
+   fixture refusals it must accept and fabrications it must catch; it found the
+   fourth on its first run, for free. Add a decline case, add its fixtures.
+9. **Measure what the safety net catches.** A strip that quietly cleans up after
    the model forever is a maintenance cost nobody sees. Report the count in the
    same log line as everything else, so the day it starts firing on everything is
    the day you find out. A chip renders its destination
@@ -364,7 +372,8 @@ caller per hour, a 2000 character cap, and email validation.
 ```bash
 npm run check                      # navigator, contrast, secrets and CSP drift
 
-node scripts/check-navigator.mjs   # 53 cases: answer, decline, unknown, reachability
+node scripts/check-navigator.mjs   # 69 cases: answer, decline, unknown, send-offer, reachability
+node scripts/check-eval-assertions.mjs  # the eval's decline patterns, against fixture replies
 node scripts/check-contrast.mjs    # WCAG contrast over the palette tokens
 node scripts/check-secrets.mjs     # key material in the built output (needs a build)
 node scripts/build-csp.mjs --check # netlify.toml CSP against the built inline scripts
