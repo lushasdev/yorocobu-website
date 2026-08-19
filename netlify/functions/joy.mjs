@@ -153,7 +153,10 @@ company entry. "What do you build", "what do you do", "who are you", "what is
 this", "tell me about yorocobu" — none of these is ever unknown. Questions about
 who leads or runs the company are always answerable from the founders entry.
 Questions about what kind of apps are being built are answerable from the
-portfolio entry, which publishes five categories.
+portfolio entry, which publishes five categories. Questions about either
+founder's background, education, or scholarship are answerable from the founders
+entry, which publishes a short bio for each — the bio is the boundary of what
+you may say, but it is published, and treating it as unknown is wrong.
 
 Set unknown: true only for a specific thing the knowledge base genuinely does not
 contain. When you do:
@@ -248,55 +251,59 @@ const GAP_SHAPED =
 const OFFER_FOCUS = ['contact', 'services']
 
 /**
- * The model may suggest a compose action; the function decides whether it keeps
- * it. Four rounds of instructions did not stop the offer appearing under
- * complete answers, and the eval showed why an instruction never would: within
- * one entry, "who is in charge" came back clean while "who runs the company"
- * did not. That is not a rule being applied imperfectly, it is per-request
- * guessing, and no amount of firmer wording fixes guessing.
+ * One decision about the offer, enforced in both directions.
  *
- * Returns the result plus a `stripped` count, reported in the trace line: if
- * this fires on most answers, the prompt is not helping and that is worth
- * knowing rather than quietly cleaning up after the model forever.
+ * This replaces a pair of functions that keyed on the same regex — one adding
+ * the offer where a reply looked like a dead end, the other stripping it where
+ * it did not. Sharing the key was meant to make them one rule; what it did was
+ * make them collude. The adder fired, and the stripper then exempted exactly
+ * what the adder had just created, so `stripped_offers` read 0 on every call
+ * while stray offers went out anyway.
+ *
+ * The second bug was the key itself. GAP_SHAPED was tested against the whole
+ * reply, and a good complete answer routinely names a boundary in passing —
+ * "…and the site does not publish anything further." Four of six realistic
+ * complete answers were misread as dead ends that way. A dead end announces
+ * itself in its OPENING sentence; a caveat arrives after the answer has landed.
+ * Testing the first sentence only separates them: 0 of 6 false positives.
+ *
+ * The model may suggest a compose action; this decides whether it keeps one.
+ * Four rounds of prompt instructions did not stop stray offers, and the eval
+ * showed why a fifth would not either — within one entry, "who is in charge"
+ * came back clean while "who runs the company" did not, and the two swapped
+ * places on the next run. That is per-request guessing, not a rule applied
+ * imperfectly.
  */
-function stripStrayOffers(result, mode) {
-  if (!result || mode === 'compose') return { result, stripped: 0 }
-  if (result.unknown || OFFER_FOCUS.includes(result.focus_section)) return { result, stripped: 0 }
-  if (GAP_SHAPED.test(result.reply ?? '')) return { result, stripped: 0 }
+function decideOffer(result, mode) {
+  if (!result || mode === 'compose') return { result, offer: 'n/a' }
 
-  const actions = (result.actions ?? []).filter((a) => a?.type !== 'compose')
-  const stripped = (result.actions?.length ?? 0) - actions.length
-  return { result: stripped ? { ...result, actions } : result, stripped }
-}
+  const opening = String(result.reply ?? '').split(/(?<=[.!?])\s/)[0]
+  const deadEnd = Boolean(result.unknown) || GAP_SHAPED.test(opening)
+  const shouldOffer = deadEnd || OFFER_FOCUS.includes(result.focus_section)
 
-function guaranteeOffer(result, mode) {
-  if (!result || mode === 'compose') return result
+  const actions = result.actions ?? []
+  const has = actions.some((a) => a?.type === 'compose')
 
-  /*
-    Two failed keys before this one. result.unknown is the model's self-report,
-    and it fails exactly when the model wrongly believes it knows. Keying on
-    empty actions+followups then fired on almost every answer, because a good
-    complete answer frequently carries neither — emptiness turned out to be no
-    signal at all.
-
-    What actually distinguishes "this left the visitor nowhere" from "this was
-    complete" is what the reply SAYS. A refusal or a gap announces itself: not
-    published, not covered, I don't have that. Those words are observable
-    output the model cannot be wrong about — if the reply says the site does
-    not have it, the visitor experienced a dead end whatever the unknown flag
-    claimed. So the offer attaches on unknown OR a gap-shaped reply, and a
-    complete answer that simply ends is left alone.
-  */
-  if (!result.unknown && !GAP_SHAPED.test(result.reply ?? '')) return result
-
-  const offers = knowledge.destinations.slice(0, 3)
-  return {
-    ...result,
-    actions: result.actions?.length
-      ? result.actions
-      : [{ type: 'compose', label: 'Send the question to Ethan' }],
-    followups: result.followups?.length ? result.followups : offers.map((d) => d.query),
+  if (shouldOffer && !has) {
+    const offers = knowledge.destinations.slice(0, 3)
+    return {
+      offer: 'added',
+      result: {
+        ...result,
+        actions: [...actions, { type: 'compose', label: 'Send the question to Ethan' }],
+        followups: result.followups?.length ? result.followups : offers.map((d) => d.query),
+      },
+    }
   }
+
+  if (!shouldOffer && has) {
+    return {
+      offer: 'stripped',
+      result: { ...result, actions: actions.filter((a) => a?.type !== 'compose') },
+    }
+  }
+
+  return { result, offer: has ? 'kept' : 'none' }
 }
 
 /**
@@ -544,15 +551,15 @@ export default async (req) => {
         // Guarantee first, then strip: the guarantee only ever adds where a dead
         // end earned it, and the strip only ever removes where none did, so the
         // order cannot have them fighting over the same answer.
-        const offered = fixComposeLabels(guaranteeOffer(result, mode))
-        const { result: finished, stripped } = stripStrayOffers(offered, mode)
+        const { result: decided, offer } = decideOffer(result, mode)
+        const finished = fixComposeLabels(decided)
         send({ done: true, result: finished, source: 'model' })
         trace(
           started,
           'answered',
           `first_token=${firstToken ?? 'never'}ms mode=${mode}` +
             (mode === 'answer' ? ` unknown=${Boolean(finished?.unknown)}` : '') +
-            ` stripped_offers=${stripped}`
+            ` offer=${offer}`
         )
       } catch (error) {
         console.error('joy: stream failed', error)
