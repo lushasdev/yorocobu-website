@@ -27,14 +27,14 @@ people:
       State champion swimmer.
 links:
   - label: Email Yorocobu
-    url: mailto:yorocobu.llc@gmail.com
+    url: mailto:ethan@yorocobu.org
 do_not_claim:
   - The two bios above are the complete published record. Anything not written in them is not public, however reasonable it sounds.
   - No education or employment history beyond what the bios list. Do not add schools, employers, jobs, internships, or dates.
   - Keio was study at Keio. Never call it an exchange, a semester abroad, a transfer, or a degree, and never name a programme.
   - Ethan studies Economics and nothing else. There is no Japanese concentration, no minor of any kind, and no second major.
   - Do not name the six cities in Japan, or any city either founder has lived in beyond what the bios say.
-  - No contact details for either founder. The company address is the only one, and it is never combined with a founder's name to make a personal one.
+  - No personal contact details for either founder — no direct line, no private address, nothing for Bence at all. ethan@yorocobu.org is the site's published address and may always be given; never construct any other from a name.
   - Nothing about either founder's other projects, side work, or involvement anywhere outside Yorocobu.
   - Nothing about either founder's current location, availability, schedule, travel, or plans after graduation. Class year is not a graduation date and is not a plan.
   - The site does not explain either class year, and the reason for one is deliberately not published. Never speculate about it, never reason from it, and never work out an age, a start year, or a gap from it. If asked, say the site does not cover it and offer to pass the question along.
