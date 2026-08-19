@@ -17,6 +17,7 @@
 import knowledge from '../../src/generated/knowledge.json' with { type: 'json' }
 import { resolve as resolveLocal } from '../../src/lib/navigator.js'
 import { json, callerId, overRateLimit } from './_shared/limits.mjs'
+import { recordQuality } from './_shared/quality.mjs'
 
 /** One place. Short retrieval over eight entries, not reasoning. */
 const MODEL = 'gpt-5.6-luna'
@@ -599,6 +600,22 @@ export default async (req) => {
         const { result: decided, offer } = decideOffer(checked, mode)
         const finished = fixComposeLabels(decided)
         send({ done: true, result: finished, source: 'model' })
+
+        /*
+          Both guards are quiet by design, and quiet is how a quality signal
+          decays into nothing. A rescue is a downgrade the visitor cannot see;
+          a rising strip count means the prompt line has stopped helping. Neither
+          should depend on someone remembering to grep for it.
+
+          Deliberately after send(), never awaited: the reply is already on its
+          way, and recording must not be able to cost anyone their answer.
+        */
+        if (rescued) {
+          void recordQuality('rescue', { question, entry: checked?.focus_section ?? null })
+        }
+        if (offer === 'stripped') {
+          void recordQuality('strip', { entry: finished?.focus_section ?? null })
+        }
         trace(
           started,
           'answered',
