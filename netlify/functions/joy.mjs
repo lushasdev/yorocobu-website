@@ -231,6 +231,44 @@ function fixComposeLabels(result) {
   }
 }
 
+/*
+  What a dead end sounds like. One definition, used in both directions: an
+  answer that says this is a dead end EARNS the offer, and an answer that does
+  not say so cannot keep one. Editing this changes both, which is the point —
+  the two rules are the same rule.
+*/
+const GAP_SHAPED =
+  /\b(not (public|published|covered)|(does|do)(n't| not) (publish|cover|say|describe|explain|have)|i (do not|don't) (have|know)|isn'?t (public|published)|nothing (is )?(public|published)|no [a-z ]{0,24}(is|are) public|and (stops|stop) there|and nothing more|without guessing|have nothing to point)\b/i
+
+/*
+  Where an offer belongs on an answer that is not a dead end: the conversation
+  cases. Same derivation the eval asserts against, so the function and the test
+  cannot drift apart.
+*/
+const OFFER_FOCUS = ['contact', 'services']
+
+/**
+ * The model may suggest a compose action; the function decides whether it keeps
+ * it. Four rounds of instructions did not stop the offer appearing under
+ * complete answers, and the eval showed why an instruction never would: within
+ * one entry, "who is in charge" came back clean while "who runs the company"
+ * did not. That is not a rule being applied imperfectly, it is per-request
+ * guessing, and no amount of firmer wording fixes guessing.
+ *
+ * Returns the result plus a `stripped` count, reported in the trace line: if
+ * this fires on most answers, the prompt is not helping and that is worth
+ * knowing rather than quietly cleaning up after the model forever.
+ */
+function stripStrayOffers(result, mode) {
+  if (!result || mode === 'compose') return { result, stripped: 0 }
+  if (result.unknown || OFFER_FOCUS.includes(result.focus_section)) return { result, stripped: 0 }
+  if (GAP_SHAPED.test(result.reply ?? '')) return { result, stripped: 0 }
+
+  const actions = (result.actions ?? []).filter((a) => a?.type !== 'compose')
+  const stripped = (result.actions?.length ?? 0) - actions.length
+  return { result: stripped ? { ...result, actions } : result, stripped }
+}
+
 function guaranteeOffer(result, mode) {
   if (!result || mode === 'compose') return result
 
@@ -249,8 +287,6 @@ function guaranteeOffer(result, mode) {
     claimed. So the offer attaches on unknown OR a gap-shaped reply, and a
     complete answer that simply ends is left alone.
   */
-  const GAP_SHAPED =
-    /\b(not (public|published|covered)|(does|do)(n't| not) (publish|cover|say|describe|explain|have)|i (do not|don't) (have|know)|isn'?t (public|published)|nothing (is )?(public|published)|no [a-z ]{0,24}(is|are) public|and (stops|stop) there|and nothing more|without guessing|have nothing to point)\b/i
   if (!result.unknown && !GAP_SHAPED.test(result.reply ?? '')) return result
 
   const offers = knowledge.destinations.slice(0, 3)
@@ -505,13 +541,18 @@ export default async (req) => {
         } catch {
           console.error('joy: model output was not valid json')
         }
-        const finished = fixComposeLabels(guaranteeOffer(result, mode))
+        // Guarantee first, then strip: the guarantee only ever adds where a dead
+        // end earned it, and the strip only ever removes where none did, so the
+        // order cannot have them fighting over the same answer.
+        const offered = fixComposeLabels(guaranteeOffer(result, mode))
+        const { result: finished, stripped } = stripStrayOffers(offered, mode)
         send({ done: true, result: finished, source: 'model' })
         trace(
           started,
           'answered',
           `first_token=${firstToken ?? 'never'}ms mode=${mode}` +
-            (mode === 'answer' ? ` unknown=${Boolean(finished?.unknown)}` : '')
+            (mode === 'answer' ? ` unknown=${Boolean(finished?.unknown)}` : '') +
+            ` stripped_offers=${stripped}`
         )
       } catch (error) {
         console.error('joy: stream failed', error)

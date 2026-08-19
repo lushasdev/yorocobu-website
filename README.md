@@ -157,6 +157,18 @@ doing the work of a narrow one.
 | Joy denied she could take a message | *"Whenever someone wants to reach Ethan or Bence, **ask them something**, or leave a message … offer the compose action"* | Every question is "asking her something", so the Send-to-Ethan button appeared under nearly every answer and the site read as a contact form |
 | The region repeated the answer at length | Suppress the region when Joy answered from that entry | The chip path still called the model, so navigation produced an answer *and* a section — the same duplication on the one path where the region belongs |
 | The chip duplicated its own section | Give the chip a one-line pointer instead of an answer | *"Everything the site publishes on this is just below"* — filler, a sentence whose only job was to point downward |
+| The offer appeared under complete answers | Narrow the prompt to three enumerated cases | Nothing. 7 of 32 answers still carried a stray offer, and the failures were *inconsistent within one entry*: "who is in charge" clean, "who runs the company" not |
+
+**The fourth round is the one that settles the argument.** Three instructions in a
+row failed, and the eval showed why a fourth would too: the model was not applying
+a rule imperfectly, it was deciding per request. Two phrasings of the same question
+about the same entry came back differently in the same run. No wording fixes that,
+so the function now strips a compose action from any answer that is not focused on
+contact or services, is not flagged unknown, and does not read as a dead end — the
+model suggests, the function decides. The prompt line stays as well, on the theory
+that it costs nothing and may reduce how often the strip has to fire, and every
+`joy: answered` line reports `stripped_offers=N` so "how often" is a measured
+number rather than an assumption.
 
 What generalises:
 
@@ -174,8 +186,16 @@ What generalises:
    actions+followups (fired on almost everything, because a complete answer
    frequently has neither), then the reply's own words. Deterministic is not the
    same as correct; a guarantee that fires too often is its own failure.
-4. **When an interface expects speech, silence is an option.** Two of the three
-   came from assuming Joy had to say something. A chip renders its destination
+4. **When an interface expects speech, silence is an option.** Two of the four
+   came from assuming Joy had to say something.
+5. **Inconsistency within one entry is the tell.** If two phrasings of the same
+   question behave differently in the same run, the model is guessing rather than
+   applying a rule, and the fix belongs in the function rather than the prompt.
+   Look for that signal before writing another instruction.
+6. **Measure what the safety net catches.** A strip that quietly cleans up after
+   the model forever is a maintenance cost nobody sees. Report the count in the
+   same log line as everything else, so the day it starts firing on everything is
+   the day you find out. A chip renders its destination
    and says nothing.
 
 ---
