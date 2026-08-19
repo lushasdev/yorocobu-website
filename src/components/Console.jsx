@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { resolve, DESTINATIONS } from '../lib/navigator.js'
 import { askJoy } from '../lib/joy.js'
 import { COMPOSE_QUESTIONS } from '../lib/compose-fallback.js'
@@ -311,6 +311,47 @@ export default function Console() {
   }, [])
 
   /*
+    Where the mark sits before the first question.
+
+    The logo is a fixed element parked in the corner by CSS — the resolved
+    state, and what no-JS and reduced motion get. Here the arrival slot inside
+    the introduction is measured and the delta published as custom properties,
+    so the mark transforms onto the slot on arrival and is released back to the
+    corner on the first query. FLIP, in other words. Because it is only ever a
+    transform on a fixed element, nothing else on the page can move: CLS stays 0.
+
+    The parked box is measured with the transform cleared rather than inferred
+    from the current one, so repeated resizes cannot accumulate error.
+  */
+  useLayoutEffect(() => {
+    const root = document.documentElement
+    const logo = document.querySelector('[data-logo]')
+    if (!logo) return
+
+    const place = () => {
+      root.style.removeProperty('--logo-dx')
+      root.style.removeProperty('--logo-dy')
+      root.style.removeProperty('--logo-scale')
+
+      const slot = logoSlotRef.current
+      if (slot) {
+        const parked = logo.getBoundingClientRect()
+        const target = slot.getBoundingClientRect()
+        if (parked.width && target.width) {
+          root.style.setProperty('--logo-scale', String(target.width / parked.width))
+          root.style.setProperty('--logo-dx', `${target.left - parked.left}px`)
+          root.style.setProperty('--logo-dy', `${target.top - parked.top}px`)
+        }
+      }
+      root.dataset.logoReady = 'true'
+    }
+
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [engaged])
+
+  /*
     Surface the server-rendered region only when the answer is a pointer rather
     than the content: chip navigation, a refusal routing elsewhere, or an
     unknown. When Joy has answered from an entry directly, the region under it
@@ -382,6 +423,7 @@ export default function Console() {
     in a row is a broken navigator, and it says so where it cannot be read past.
   */
   const [degradedRun, setDegradedRun] = useState(0)
+  const logoSlotRef = useRef(null)
 
   const ask = useCallback(
     async (query, { navigate = false } = {}) => {
@@ -625,6 +667,14 @@ export default function Console() {
           */}
           {!engaged && (
             <div className="intro">
+              {/*
+                The mark's arrival position: reserved, never painted. The real
+                logo is a fixed element that transforms onto this box. A
+                placeholder rather than the logo itself, because the intro is
+                removed on the first query and an element inside it could not
+                travel out of its own removal.
+              */}
+              <span className="intro__logo-slot" ref={logoSlotRef} aria-hidden="true" />
               <p className="intro__status mono">JOY // NAVIGATOR // ready</p>
               <p className="intro__claim">This is the future of websites.</p>
               <p className="intro__proof">No menus. No hunting. Just a guide.</p>

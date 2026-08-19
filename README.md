@@ -5,7 +5,7 @@ by using a nav bar, and the whole thing sits on top of a real, server-rendered
 document so that crawlers, link previews, and anyone who would rather just read
 are all first-class.
 
-**Company:** yorocobu LLC · **Mark:** 喜 · **Contact:** yorocobu.llc@gmail.com
+**Company:** yorocobu LLC · **Mark:** 喜 · **Contact:** ethan@yorocobu.org
 
 ---
 
@@ -43,7 +43,7 @@ status: open
 summary: One or two sentences the navigator can quote back nearly verbatim.
 links:
   - label: Email Yorocobu
-    url: mailto:yorocobu.llc@gmail.com
+    url: mailto:ethan@yorocobu.org
 do_not_claim:
   - Things that are NOT true and must never be implied.
 last_updated: 2026-08-17
@@ -486,6 +486,38 @@ input, the transcript. Serif is content, mono is the machine. That split should 
 visible on every screen. Zen Old Mincho is subset to the single glyph 喜, which takes
 it from 1.8MB to 1.1KB. All four are self-hosted through Astro's font pipeline with
 metric-compatible fallbacks, so nothing shifts when the files land.
+
+### The mark
+
+`src/assets/yorocobu-logo.svg` is inlined by `Logo.astro` rather than served as
+an `<img>`, because it paints with `fill="currentColor"`: inline, it inherits
+`--text-primary` and is ink on paper in light mode and paper on ink in dark,
+from one file, with no toggle and nothing to drift if the token changes. **It is
+never tinted** — the palette does not touch the mark, the same rule the founder
+photographs follow.
+
+It arrives at `clamp(200px, 26vw, 320px)` inside the opening statement, and on
+the first query travels to the top-left corner at 118px (84px on a phone) and
+stays for the session. 620ms on `var(--ease)`, the same curve as the calibration
+sequence. Under `prefers-reduced-motion` it does not travel; it is simply parked.
+
+**Parked is the base state, not the special one.** It is what the CSS declares,
+what no-JS gets, and where every session ends up; arrival is a transform away
+from it, measured from a reserved slot inside the introduction. Because the
+element is `position: fixed` and only ever transforms, the travel cannot move
+anything else on the page — CLS measured at 0 on desktop, mobile and reduced
+motion.
+
+Nothing happens on hover or click. It is a mark, not a control: the console
+answers questions and `◎ full index` is the one navigation affordance, so making
+the logo a second one would only add a thing to wonder about.
+
+The traced SVG was 40KB. SVGO at 2 decimal places brings it to 21.8KB (9.0KB
+gzipped) at 99.9% ink overlap with the trace. **1 decimal place would be 8.6KB
+but is not safe here**: it holds 98.5% at full width and falls to ~96% at the
+parked size, where the mark actually lives, while 2dp holds 99.2%. It is still
+larger than a hand-drawn mark would be — an automated trace emits far more curve
+points than a designer would — and redrawing it is the only way further down.
 
 **Content arrives by unmasking**, never by fading or sliding: `clip-path` wipes left
 to right at 180ms on `cubic-bezier(0.2, 0, 0, 1)`. The registration marks and frame
