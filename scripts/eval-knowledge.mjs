@@ -221,11 +221,57 @@ const report = (ok, line) => {
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${line}`)
 }
 
-console.log('\n  must answer')
+/*
+  Where a compose action belongs on an answered question, derived from the rule
+  the prompt states rather than kept as a hand-maintained exemption list: the
+  offer is a way out of a dead end or the next step in a conversation, so on a
+  complete answer it is only ever right for contact and services.
+
+  This is the guard that would have caught the over-offering. A broad prompt
+  line put "Send it to Ethan from here" under every answer for several rounds
+  and nothing failed, because the suite only ever checked that an action was
+  PRESENT where it was needed, never that it was ABSENT where it was not.
+*/
+const COMPOSE_BELONGS = ['contact', 'services']
+
+/*
+  The answer block runs twice.
+
+  Failures moved between runs at the same knowledge fingerprint and the same
+  prompt: "who runs the company" failed and "who is in charge" passed, then they
+  swapped; "what does the name mean" failed once and passed next time. At that
+  variance a single run cannot tell a fix from luck, and a passing run is not
+  evidence either. Two passes make instability visible as its own category
+  rather than letting it read as a regression.
+
+  A case that differs between passes is reported UNSTABLE and counted as a
+  failure — a visitor gets one pass, not the best of two.
+*/
+const judge = (r, section) => {
+  const composed = (r.actions ?? []).some((a) => a.type === 'compose')
+  const strayOffer = composed && !COMPOSE_BELONGS.includes(r.focus_section)
+  return {
+    ok: !r.error && r.unknown === false && (section === null || r.focus_section === section) && !strayOffer,
+    why: r.error ?? (r.unknown ? 'UNKNOWN' : r.focus_section) + (strayOffer ? ' +stray-offer' : ''),
+  }
+}
+
+console.log('\n  must answer, twice — complete answers carry no offer, and answers do not wobble')
+const unstable = []
 for (const [q, section] of MUST_ANSWER) {
-  const r = await call(q)
-  const ok = !r.error && r.unknown === false && (section === null || r.focus_section === section)
-  report(ok, `${JSON.stringify(q).padEnd(34)} -> ${r.error ?? (r.unknown ? 'UNKNOWN' : r.focus_section)}`)
+  const a = judge(await call(q), section)
+  const b = judge(await call(q), section)
+  const wobbled = a.ok !== b.ok || a.why !== b.why
+  if (wobbled) unstable.push(`${q}  [${a.why}] vs [${b.why}]`)
+  report(
+    a.ok && b.ok,
+    `${JSON.stringify(q).padEnd(34)} -> ${a.why}` +
+      (wobbled ? `  UNSTABLE, second pass: ${b.why}` : '')
+  )
+}
+if (unstable.length) {
+  console.log(`\n  ${unstable.length} case(s) differed between passes — instability, not a regression:`)
+  for (const line of unstable) console.log(`    ${line}`)
 }
 
 console.log('\n  must decline, without inventing')
@@ -263,6 +309,8 @@ for (const q of MUST_NOT_DENY) {
   )
 }
 
+// The answer block is judged once per case over two passes, so it contributes
+// its length, not twice its length.
 const total =
   MUST_ANSWER.length +
   MUST_DECLINE.length +

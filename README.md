@@ -116,9 +116,12 @@ a direct answer from an entry keeps it down, because the region would be the sam
 entry again at four times the length. The full index is where everything reads at
 length.
 
-Chips never call the model. A chip is a site-map link: the region is the content,
-so Joy answers with one pointer line and the region rises — instant, free, and
-never a restatement of what is about to unmask underneath it.
+**Chips never call the model, and Joy says nothing on them.** A chip is a site-map
+link: the region below is the content, so clicking one renders the destination and
+the answer slot collapses. A pointer line ("everything is just below") was tried
+and removed — it only swapped duplication for filler, and a menu item does not
+announce the page it opens. The query echo names what was clicked; the entry's own
+controls still come along.
 
 ### Refusals
 
@@ -138,6 +141,76 @@ answer case either fails on correct behaviour or stops testing anything.
 The refusal guards in `src/lib/navigator.js` mirror the `do_not_claim` fields.
 **When you add a `do_not_claim` rule that should hold offline too, add a guard
 there as well.**
+
+---
+
+## Working note: fixing behaviour without causing its opposite
+
+**Read this before writing a prompt line that begins "whenever" or "always."**
+
+Three times in this project, a fix for one behavioural failure produced the
+opposite failure, and each time the mechanism was the same: a broad instruction
+doing the work of a narrow one.
+
+| The failure | The fix | What the fix caused |
+|---|---|---|
+| Joy denied she could take a message | *"Whenever someone wants to reach Ethan or Bence, **ask them something**, or leave a message … offer the compose action"* | Every question is "asking her something", so the Send-to-Ethan button appeared under nearly every answer and the site read as a contact form |
+| The region repeated the answer at length | Suppress the region when Joy answered from that entry | The chip path still called the model, so navigation produced an answer *and* a section — the same duplication on the one path where the region belongs |
+| The chip duplicated its own section | Give the chip a one-line pointer instead of an answer | *"Everything the site publishes on this is just below"* — filler, a sentence whose only job was to point downward |
+| The offer appeared under complete answers | Narrow the prompt to three enumerated cases | Nothing. 7 of 32 answers still carried a stray offer, and the failures were *inconsistent within one entry*: "who is in charge" clean, "who runs the company" not |
+| Same, fifth round | A strip in the function, sharing its key with the adder so "the two rules are one rule" | They colluded instead of checking each other. The adder fired, the stripper exempted exactly what the adder had created, and the log read `stripped_offers=0` on all 48 calls while stray offers shipped |
+
+**The fourth round is the one that settles the argument.** Three instructions in a
+row failed, and the eval showed why a fourth would too: the model was not applying
+a rule imperfectly, it was deciding per request. Two phrasings of the same question
+about the same entry came back differently in the same run. No wording fixes that,
+so the function now strips a compose action from any answer that is not focused on
+contact or services, is not flagged unknown, and does not read as a dead end — the
+model suggests, the function decides. The prompt line stays as well, on the theory
+that it costs nothing and may reduce how often the strip has to fire, and every
+`joy: answered` line reports `stripped_offers=N` so "how often" is a measured
+number rather than an assumption.
+
+What generalises:
+
+1. **Scope the instruction to the case, and enumerate the case.** "Offer the
+   compose action whenever someone wants to reach Ethan" became three numbered
+   situations plus an explicit *an answer that fully answers gets no action*.
+   The negative half is what keeps the positive half from spreading.
+2. **A fix that adds behaviour needs a test for the behaviour's absence.** The
+   suite checked that the compose action was PRESENT where needed and never that
+   it was ABSENT where it was not, so over-offering stayed green for rounds.
+   Every "must do X here" assertion wants a "must not do X there" beside it.
+3. **Prefer a structural guarantee to an instruction, but check what it keys
+   on.** `guaranteeOffer` went through three keys: `unknown` (the model's own
+   report, which fails exactly when the model is wrong), then empty
+   actions+followups (fired on almost everything, because a complete answer
+   frequently has neither), then the reply's own words. Deterministic is not the
+   same as correct; a guarantee that fires too often is its own failure.
+4. **When an interface expects speech, silence is an option.** Two of the four
+   came from assuming Joy had to say something.
+5. **Inconsistency within one entry is the tell.** If two phrasings of the same
+   question behave differently in the same run, the model is guessing rather than
+   applying a rule, and the fix belongs in the function rather than the prompt.
+   Look for that signal before writing another instruction.
+6. **Two enforcers sharing a key do not check each other, they collude.** The
+   adder and the stripper keyed on the same regex, in the belief that one
+   definition meant one rule. What it meant was that the stripper could never
+   remove what the adder had just added — a closed loop that reported zero
+   strips while the defect shipped. One decision function enforcing the rule in
+   *both* directions has no such gap.
+7. **A verification corpus cleaner than production proves nothing.** The nine
+   hand-written shapes that "verified" the strip all had tidy replies. Real
+   answers name a boundary in passing — "…and the site does not publish anything
+   further" — and 4 of 6 realistic complete answers were misread as dead ends by
+   a key tested against the whole reply. Testing the opening sentence only
+   dropped that to 0 of 6. Build the corpus from what the model actually
+   returns, not from what is easy to type.
+8. **Measure what the safety net catches.** A strip that quietly cleans up after
+   the model forever is a maintenance cost nobody sees. Report the count in the
+   same log line as everything else, so the day it starts firing on everything is
+   the day you find out. A chip renders its destination
+   and says nothing.
 
 ---
 
@@ -213,6 +286,14 @@ carries a persistent `navigator unreachable` marker and the browser console rais
 an error. This exists because the opposite failed in practice: the offline index
 answered well enough that a completely dead model path read as a working site for
 several rounds, and the one quiet line was easy to read past.
+
+### Run-to-run variance
+
+The answer block runs twice, and any case that differs between passes is reported
+UNSTABLE and counted as a failure — a visitor gets one pass, not the best of two.
+At the same knowledge fingerprint and the same prompt, failures move: "who runs
+the company" failed while "who is in charge" passed, then they swapped. A single
+run cannot distinguish a fix from luck, and a green run is not evidence on its own.
 
 ### The two first-token budgets, and setting them from data
 

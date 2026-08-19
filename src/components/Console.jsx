@@ -282,7 +282,7 @@ export default function Console() {
   const inputRef = useRef(null)
   const mirrorRef = useRef(null)
   const [caretX, setCaretX] = useState(0)
-  const { text, streaming, stream, live, settle } = useStreamedReply()
+  const { text, streaming, stream, live, settle, setText } = useStreamedReply()
 
   const reducedMotion = useMemo(
     () =>
@@ -393,31 +393,31 @@ export default function Console() {
       const isNavigation = navigate || Boolean(destination)
 
       /*
-        Navigation never asks the model. A chip is a site-map link: the region
-        IS the content, so Joy's part is one pointer line, not a speech. Sending
-        the chip's query through the model produced a full answer AND the
-        surfaced region — the exact duplication the surfacing rule exists to
-        prevent, rebuilt on the one path where the region is meant to show.
-        Skipping the call is also instant and free.
+        Navigation is not a question, so nobody answers it.
+
+        A chip is a site-map link: the region below IS the content. Routing the
+        chip through the model produced a full answer above the section that
+        repeated it; replacing that with a pointer line ("everything is just
+        below") only swapped duplication for filler — a sentence whose entire
+        job was to point downward, which a menu item does not need to do.
+
+        So a chip renders the destination and Joy says nothing at all. The
+        answer slot collapses; the query echo above it names what was clicked,
+        and the entry's own controls still come along.
       */
       if (isNavigation) {
         const local = resolve(destination?.query ?? trimmed)
-        const result = {
-          ...local,
-          reply: 'Everything the site publishes on this is just below.',
-          pointer: true,
-        }
-        setActive({ n, query: label, result: null })
         setCompose({ open: false, seed: '' })
         setEngaged(true)
         setValue('')
         setHighlight(-1)
         setWaiting(false)
-        stream(result.reply, { instant: reducedMotion })
+        setText('')
+        settle()
         const item = {
           n,
           query: label,
-          result,
+          result: { ...local, reply: '', pointer: true },
           navigate: true,
           forcedFocus: destination?.id ?? local.focus_section,
         }
@@ -477,7 +477,7 @@ export default function Console() {
       setTranscript((prev) => [...prev, item])
       setActive(item)
     },
-    [transcript.length, stream, live, settle, reducedMotion]
+    [transcript.length, stream, live, settle, setText, reducedMotion]
   )
 
   const restore = useCallback(
@@ -553,7 +553,8 @@ export default function Console() {
                   : 'answering from the offline index'}
               </p>
             )}
-            <p className="answer__text">{text}</p>
+            {/* Navigation has no reply; the slot collapses rather than holding a line. */}
+            {text && <p className="answer__text">{text}</p>}
 
             {!streaming && active.result?.actions?.length > 0 && (
               <div className="answer__actions unmask">
