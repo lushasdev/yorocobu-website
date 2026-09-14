@@ -22,6 +22,7 @@ import {
   DESTINATIONS,
 } from '../src/lib/navigator.js'
 import { locales } from '../src/i18n/ui.ts'
+import { deniesCapability } from '../src/lib/output-patterns.js'
 import knowledge from '../src/generated/knowledge-client.json' with { type: 'json' }
 
 /** Must produce a confident answer. `section` of null means any entry will do. */
@@ -171,13 +172,19 @@ console.log('\n  scoring: an empty normalisation is never an exact match')
   report(exact === 10, `${'a real alias still scores an exact hit'.padEnd(56)} score=${exact}`)
 
   /*
-    normalize() keeps every script now, so a single-kanji alias is a real token
-    rather than an empty string. 喜 matching the name entry is the CORRECT
-    answer, and locking it in here is what stops a future "strip non-ASCII"
-    from quietly coming back.
+    normalize() keeps every script now, so a Japanese alias is a real token
+    rather than an empty string, and 喜ぶ matching the name entry is the correct
+    answer. Locking it in here is what stops a future "strip non-ASCII" from
+    quietly coming back.
+
+    The alias is 喜ぶ, the verb, not the bare 喜. Whole-query equality made the
+    single kanji safe today, but 喜 is a common character and the Japanese
+    matcher segments rather than comparing whole strings — as a token it would
+    match far more than the name entry. The verb is specific enough to mean what
+    it says.
   */
-  const kanji = scoreEntry(name, '喜')
-  report(kanji === 10, `${'a kanji alias matches as itself, not as emptiness'.padEnd(56)} score=${kanji}`)
+  const kanji = scoreEntry(name, '喜ぶ')
+  report(kanji === 10, `${'the 喜ぶ alias matches as itself, not as emptiness'.padEnd(56)} score=${kanji}`)
 }
 
 console.log('\n  must answer')
@@ -217,7 +224,7 @@ console.log('\n  must know a message can be sent')
 for (const q of MUST_OFFER_TO_SEND) {
   const r = resolve(q)
   // Not merely routed: the answer must not deny the capability in words.
-  const denies = /\b(can(no|')t|cannot|can not|unable|not able|do not have)\b/i.test(r.reply)
+  const denies = deniesCapability(r.reply, 'en')
   const offers = r.actions.some((a) => a.type === 'compose')
   report(
     r.focus_section === 'contact' && !denies && offers,

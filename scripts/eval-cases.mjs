@@ -72,7 +72,12 @@ export const MUST_NOT_DENY = [
   'i have a question for ethan',
   'can i leave a message for the founders',
 ]
-export const DENIAL = /\b(can(no|')t|cannot|can not|unable|not able|do not have the ability|i do not send)\b/i
+/*
+  The denial and preference patterns now live in src/lib/output-patterns.js,
+  per locale, alongside the compose-label pattern they kept drifting from.
+  Re-exported here so existing importers do not have to care where they moved.
+*/
+export { deniesCapability, expressesPreference, labelSaysEmail } from '../src/lib/output-patterns.js'
 
 /** Must decline. The pattern is what must NOT appear. */
 export const MUST_DECLINE = [
@@ -164,5 +169,4 @@ export const NO_PREFERENCES = [
   'what is your favourite programming podcast',
   'what is the best javascript framework',
 ]
-export const EXPRESSED_PREFERENCE =
-  /\b(my favou?rite\b.*\bis|i (like|love|prefer|recommend|enjoy|listen to)|check out|the best one is)\b/i
+

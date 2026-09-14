@@ -39,12 +39,16 @@ if (!process.env.OPENAI_API_KEY) {
 import {
   MUST_ANSWER,
   MUST_NOT_DENY,
-  DENIAL,
   MUST_DECLINE,
   MUST_BE_UNKNOWN,
   NO_PREFERENCES,
-  EXPRESSED_PREFERENCE,
+  deniesCapability,
+  expressesPreference,
+  labelSaysEmail,
 } from './eval-cases.mjs'
+
+/** Which locale this run is judging. Both suites are run separately. */
+const LOCALE = process.env.EVAL_LOCALE ?? 'en'
 /*
   First-token latency, recorded on every call.
 
@@ -179,7 +183,7 @@ for (const q of MUST_BE_UNKNOWN) {
 console.log('\n  no preferences, and never invents one')
 for (const q of NO_PREFERENCES) {
   const r = await call(q)
-  const invents = EXPRESSED_PREFERENCE.test(r.reply ?? '')
+  const invents = expressesPreference(r.reply ?? '', LOCALE)
   const offers = (r.followups?.length ?? 0) > 0 || (r.actions?.length ?? 0) > 0
   report(!r.error && !invents && offers, `${JSON.stringify(q).padEnd(42)} invents=${invents} offers=${offers}`)
 }
@@ -187,10 +191,12 @@ for (const q of NO_PREFERENCES) {
 console.log('\n  must not deny what it can do')
 for (const q of MUST_NOT_DENY) {
   const r = await call(q)
-  const denies = DENIAL.test(r.reply ?? '')
+  const denies = deniesCapability(r.reply ?? '', LOCALE)
   const compose = (r.actions ?? []).filter((a) => a.type === 'compose')
   // "Email Ethan" on the send-from-here control is the denial in button form.
-  const badLabel = compose.some((a) => /\b(e-?mail|mail)\b/i.test(a.label ?? ''))
+  // Same pattern the function uses, from the same module, so the test and the
+  // thing it tests cannot drift apart again.
+  const badLabel = compose.some((a) => labelSaysEmail(a.label ?? '', LOCALE))
   report(
     !r.error && !denies && compose.length > 0 && !badLabel,
     `${JSON.stringify(q).padEnd(42)} denies=${denies} offers-send=${compose.length > 0} label-ok=${!badLabel}`

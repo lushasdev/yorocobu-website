@@ -91,8 +91,30 @@ export function partialString(buffer, field) {
     if (char === '\\') {
       const next = buffer[i + 1]
       if (next === undefined) break
-      out += next === 'n' ? '\n' : next === 't' ? '\t' : next === 'u' ? '' : next
-      if (next === 'u') i += 4
+
+      /*
+        A \uXXXX escape is DECODED, not discarded.
+
+        This used to append nothing and skip four characters, which is invisible
+        in English — JSON has no reason to escape ASCII — and erases a Japanese
+        reply entirely if the model ever emits escaped output. The streaming
+        preview would show blank while text arrived, then snap to the full reply
+        at completion: unreproducible on demand, and maximally visible in a demo.
+
+        A truncated escape at the buffer's edge stops the loop rather than
+        decoding garbage. The next delta brings the rest of it and the whole
+        field is re-parsed from the start, so nothing is lost by waiting.
+      */
+      if (next === 'u') {
+        const hex = buffer.slice(i + 2, i + 6)
+        if (hex.length < 4 || !/^[0-9a-fA-F]{4}$/.test(hex)) break
+        out += String.fromCharCode(Number.parseInt(hex, 16))
+        i += 5
+        continue
+      }
+
+      out +=
+        next === 'n' ? '\n' : next === 't' ? '\t' : next === 'r' ? '\r' : next === 'b' ? '\b' : next === 'f' ? '\f' : next
       i += 1
       continue
     }
