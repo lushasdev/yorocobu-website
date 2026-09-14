@@ -40,6 +40,14 @@ export const MUST_ANSWER = [
   ['where are you based', 'company'],
   ['when was yorocobu founded', 'company'],
 
+  /*
+    The documentary. The gate fires once and is dismissible, so asking for the
+    film has to work on its own — this is the case that keeps the entry honest
+    when the gate is not there to carry it.
+  */
+  ['where can i watch the documentary', 'documentary'],
+  ['tell me about the documentary', 'documentary'],
+
   // Joy can pass a message. She used to say she could not.
   ['can you send a question to ethan', 'contact'],
   ['can you contact him for me', 'contact'],

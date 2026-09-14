@@ -1,6 +1,6 @@
 ---
 id: contact
-order: 7
+order: 8
 nav: get in touch
 nav_order: 6
 title: Contact

@@ -562,6 +562,55 @@
   max-width: 30rem;
 }
 
+/* ─── The documentary gate ───────────────────────────────────────────────── */
+
+/*
+  Joy's question, inside the console, in the console's own voice — not a dialog
+  over the page. It uses the same .action and .chip controls as every other
+  answer, so it reads as something Joy said rather than as a component that
+  arrived from somewhere else.
+
+  The accent rule on the left is the only thing distinguishing it: this is the
+  one message on the site the visitor did not ask for, and it should be legible
+  as an interruption without being loud about it.
+*/
+.gate {
+  margin-top: 1.6rem;
+  padding-left: 0.9rem;
+  border-left: 1px solid var(--primary);
+  max-width: 34rem;
+}
+
+.answer .gate {
+  margin-top: 1.7rem;
+}
+
+.gate__question {
+  color: var(--text-primary);
+  text-wrap: pretty;
+}
+
+.gate__choices {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1.4rem;
+}
+
+/*
+  The URL stays visible as text after the tab opens. A popup blocker that ate
+  the new tab would otherwise leave the visitor with nothing, having just said
+  exactly what they came for. Wrapping is allowed because a broken-looking URL
+  is better than one that overflows the console.
+*/
+.gate__link {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--primary-text);
+  overflow-wrap: anywhere;
+}
+
 /* The introduction needs the width the console does not. */
 .console:not([data-engaged]) .bar__inner {
   max-width: 44rem;

@@ -2,8 +2,133 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { resolve, DESTINATIONS } from '../lib/navigator.js'
 import { askJoy } from '../lib/joy.js'
 import { COMPOSE_QUESTIONS } from '../lib/compose-fallback.js'
+import { GATE_COPY, gateAlreadyShown, rememberGateShown } from '../lib/documentary.js'
 
 const PLACEHOLDER = 'ask Joy for anything on this site'
+
+/**
+ * The documentary gate, as Joy's own question rather than a dialog over the page.
+ *
+ * A modal would contradict the premise of the site: everything here happens by
+ * talking to the console, so the gate is a message in it.
+ *
+ * Two entry points, one component. `start: 'ask'` is arrival — Joy asks whether
+ * the visitor came for the film at all. `start: 'language'` is the recovery
+ * path, reached by asking Joy about the documentary, where the first question
+ * has already been answered by the act of asking.
+ *
+ * The film-language choices are anchors, not buttons, because they navigate.
+ * That keeps them keyboard-reachable, gives the browser a genuine user-initiated
+ * navigation rather than a scripted window.open, and means the URL is real even
+ * before it is clicked.
+ */
+function DocumentaryGate({ urls, start = 'ask', onDismiss }) {
+  // 'dismissed' renders nothing, so both call sites drop the gate the same way
+  // and neither has to carry a flag of its own for it.
+  const [step, setStep] = useState(start)
+  const [opened, setOpened] = useState(null)
+  const firstChoiceRef = useRef(null)
+
+  // Focus lands on the first choice whenever a new question appears, so the
+  // gate is operable without a pointer and does not silently take the caret
+  // away from someone who is already typing.
+  useEffect(() => {
+    if (step === 'ask' || step === 'language') firstChoiceRef.current?.focus()
+  }, [step])
+
+  const decline = () => {
+    rememberGateShown()
+    setStep('dismissed')
+    onDismiss?.()
+  }
+
+  const choose = (language) => {
+    rememberGateShown()
+    setOpened({ language, url: urls[language] })
+    setStep('opened')
+  }
+
+  // Escape anywhere in the gate drops it into the normal greeting. Stopped here
+  // so it does not also reach the console input's own Escape handling.
+  const onKeyDown = (event) => {
+    if (event.key !== 'Escape') return
+    event.stopPropagation()
+    decline()
+  }
+
+  if (step === 'dismissed') return null
+
+  return (
+    <div className="gate unmask" onKeyDown={onKeyDown}>
+      {step === 'ask' && (
+        <>
+          <p className="gate__question">{GATE_COPY.ask}</p>
+          <div className="gate__choices">
+            <button
+              ref={firstChoiceRef}
+              type="button"
+              className="action action--button"
+              onClick={() => setStep('language')}
+            >
+              {GATE_COPY.yes}
+            </button>
+            <button type="button" className="chip" onClick={decline}>
+              <span className="chip__bullet" aria-hidden="true" />
+              {GATE_COPY.no}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 'language' && (
+        <>
+          <p className="gate__question">
+            {start === 'language' ? GATE_COPY.languageAgain : GATE_COPY.language}
+          </p>
+          <div className="gate__choices">
+            {/*
+              Deliberately not preselected from the site locale, and deliberately
+              always asked. Which language someone reads a site in says nothing
+              about which language they want to watch a film in.
+            */}
+            <a
+              ref={firstChoiceRef}
+              className="action"
+              href={urls.en}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => choose('en')}
+            >
+              {GATE_COPY.en}
+            </a>
+            <a
+              className="action"
+              href={urls.ja}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => choose('ja')}
+            >
+              {GATE_COPY.ja}
+            </a>
+            <button type="button" className="chip" onClick={decline}>
+              <span className="chip__bullet" aria-hidden="true" />
+              {GATE_COPY.dismiss}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 'opened' && opened && (
+        <p className="gate__question" role="status">
+          {GATE_COPY.opened}{' '}
+          <a className="gate__link" href={opened.url} target="_blank" rel="noopener noreferrer">
+            {opened.url}
+          </a>
+        </p>
+      )}
+    </div>
+  )
+}
 
 /** Reveal a reply progressively. A response that appears all at once reads as a page load. */
 function useStreamedReply() {
@@ -271,9 +396,12 @@ function extractEmail(text) {
   return text.match(/[^\s<>@]+@[^\s<>@.]+\.[^\s<>@]+/)?.[0] ?? ''
 }
 
-export default function Console() {
+export default function Console({ docUrls = null }) {
   const [value, setValue] = useState('')
   const [compose, setCompose] = useState({ open: false, seed: '' })
+  // The arrival gate. Closed on the server and on first paint; opened by the
+  // effect below once calibration has handed off.
+  const [gate, setGate] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [engaged, setEngaged] = useState(false)
   const [transcript, setTranscript] = useState([])
@@ -291,9 +419,52 @@ export default function Console() {
     []
   )
 
+  /*
+    Whether the gate is going to claim this arrival.
+
+    Decided once, up front, so the gate and the input-autofocus effect below
+    cannot race for the caret — the alternative is two effects both firing on
+    the same MutationObserver and the winner depending on scheduling.
+
+    False on the server (no window), which is why the gate renders closed in the
+    SSR output and opens in an effect rather than during render: an arrival
+    state read from localStorage cannot be server-rendered without a hydration
+    mismatch.
+  */
+  const gateWillOpen = useMemo(
+    () => Boolean(docUrls) && typeof window !== 'undefined' && !gateAlreadyShown(),
+    [docUrls]
+  )
+
+  /*
+    The gate opens as Joy's first message, once calibration has handed off —
+    never over the top of it, and never as a dialog above the page.
+
+    Reduced motion and a returning session both clear `data-booting` before this
+    runs, so the observer is only for the arrival that actually calibrates.
+  */
+  useEffect(() => {
+    if (!gateWillOpen) return
+    const root = document.documentElement
+    if (!root.dataset.booting) {
+      setGate(true)
+      return
+    }
+    const observer = new MutationObserver(() => {
+      if (!root.dataset.booting) {
+        setGate(true)
+        observer.disconnect()
+      }
+    })
+    observer.observe(root, { attributes: true, attributeFilter: ['data-booting'] })
+    return () => observer.disconnect()
+  }, [gateWillOpen])
+
   // Take the caret once calibration has handed off, but only where there is a
   // real pointer: focusing on touch would throw up the soft keyboard on arrival.
+  // The gate takes focus instead when it is the one arriving.
   useEffect(() => {
+    if (gateWillOpen) return
     if (!window.matchMedia('(pointer: fine)').matches) return
     const root = document.documentElement
     if (!root.dataset.booting) {
@@ -308,7 +479,7 @@ export default function Console() {
     })
     observer.observe(root, { attributes: true, attributeFilter: ['data-booting'] })
     return () => observer.disconnect()
-  }, [])
+  }, [gateWillOpen])
 
   /*
     Where the mark sits before the first question.
@@ -425,6 +596,16 @@ export default function Console() {
   const [degradedRun, setDegradedRun] = useState(0)
   const logoSlotRef = useRef(null)
 
+  /*
+    Shown is shown. Typing a question instead of answering the gate is still the
+    gate having been asked, so it is recorded the same way a yes or a no is —
+    otherwise a reload asks again, having already been ignored once.
+  */
+  const closeGate = useCallback(() => {
+    if (gate) rememberGateShown()
+    setGate(false)
+  }, [gate])
+
   const ask = useCallback(
     async (query, { navigate = false } = {}) => {
       const trimmed = query.trim()
@@ -450,6 +631,7 @@ export default function Console() {
       if (isNavigation) {
         const local = resolve(destination?.query ?? trimmed)
         setCompose({ open: false, seed: '' })
+        closeGate()
         setEngaged(true)
         setValue('')
         setHighlight(-1)
@@ -471,6 +653,9 @@ export default function Console() {
       // The question and the migration land immediately; the answer follows.
       setActive({ n, query: label, result: null })
       setCompose({ open: false, seed: '' })
+      // Asking a question is an answer to the gate: they are not here for the
+      // film, or they will ask about it and reach the same choice below.
+      closeGate()
       setEngaged(true)
       setValue('')
       setHighlight(-1)
@@ -519,7 +704,7 @@ export default function Console() {
       setTranscript((prev) => [...prev, item])
       setActive(item)
     },
-    [transcript.length, stream, live, settle, setText, reducedMotion]
+    [transcript.length, stream, live, settle, setText, reducedMotion, closeGate]
   )
 
   const restore = useCallback(
@@ -597,6 +782,20 @@ export default function Console() {
             )}
             {/* Navigation has no reply; the slot collapses rather than holding a line. */}
             {text && <p className="answer__text">{text}</p>}
+
+            {/*
+              The recovery path, and the reason the gate is not the only route
+              to the film.
+
+              Keyed on focus_section, which is a closed enum over the knowledge
+              entry ids — the same token the model is constrained to and the
+              offline matcher returns. So asking about the documentary reaches
+              the choice on both paths, in any language, without anything here
+              reading Joy's prose or the model being instructed to cooperate.
+            */}
+            {!streaming && docUrls && active.result?.focus_section === 'documentary' && (
+              <DocumentaryGate urls={docUrls} start="language" />
+            )}
 
             {!streaming && active.result?.actions?.length > 0 && (
               <div className="answer__actions unmask">
@@ -679,6 +878,9 @@ export default function Console() {
               <p className="intro__claim">This is the future of websites.</p>
               <p className="intro__proof">No menus. No hunting. Just a guide.</p>
               <p className="intro__body">This is Joy. She can help you find anything here.</p>
+              {gate && docUrls && (
+                <DocumentaryGate urls={docUrls} start="ask" onDismiss={() => setGate(false)} />
+              )}
             </div>
           )}
 

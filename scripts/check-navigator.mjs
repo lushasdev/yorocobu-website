@@ -13,7 +13,7 @@
  *   npm run knowledge && node scripts/check-navigator.mjs
  */
 
-import { resolve, DESTINATIONS } from '../src/lib/navigator.js'
+import { resolve, scoreEntry, DESTINATIONS } from '../src/lib/navigator.js'
 import knowledge from '../src/generated/knowledge-client.json' with { type: 'json' }
 
 /** Must produce a confident answer. `section` of null means any entry will do. */
@@ -57,6 +57,16 @@ const MUST_ANSWER = [
   // Filed in Wyoming, operating from Chapel Hill. Both public as of round 12.
   { q: 'where are you based', section: 'company' },
   { q: 'when was yorocobu founded', section: 'company' },
+
+  /*
+    The documentary. The gate is the arrival route, but it fires once and the
+    film has to stay reachable by asking for it — including after the gate has
+    been dismissed, and on the offline path where there is no model to be
+    reasonable about it.
+  */
+  { q: 'the documentary', section: 'documentary' },
+  { q: 'where can i watch the documentary', section: 'documentary' },
+  { q: "ethans documentary", section: 'documentary' },
 
   { q: 'what do you build with', section: 'stack' },
   { q: 'what does the name mean', section: 'name' },
@@ -121,6 +131,34 @@ let failures = 0
 const report = (ok, line) => {
   if (!ok) failures++
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${line}`)
+}
+
+/*
+  Scoring guards.
+
+  An empty normalisation must never read as an exact alias hit. It did: a query
+  in a non-Latin script and an alias of a single kanji both normalise to '', and
+  comparing them returned 10. Every Japanese question was answered at maximum
+  confidence from whichever entry carried such an alias.
+
+  Tested directly rather than only through resolve(), because resolve() has an
+  empty-subject fallback that reaches the overview anyway and would mask a
+  regression here as a still-plausible answer.
+*/
+console.log('\n  scoring: an empty normalisation is never an exact match')
+{
+  const synthetic = { id: 'synthetic', title: '???', aliases: ['喜', '!!', '—'] }
+  const cases = [
+    ['a punctuation-only query against punctuation-only aliases', scoreEntry(synthetic, '???')],
+    ['a Japanese query against a single-kanji alias', scoreEntry(synthetic, '料金はいくらですか')],
+    ['a real entry scored against a Japanese query', scoreEntry(knowledge.entries.find((e) => e.id === 'name'), '喜')],
+  ]
+  for (const [label, score] of cases) {
+    report(score === 0, `${label.padEnd(56)} score=${score}`)
+  }
+  // The guard must not have cost a genuine exact match.
+  const exact = scoreEntry(knowledge.entries.find((e) => e.id === 'name'), 'what does yorocobu mean')
+  report(exact === 10, `${'a real alias still scores an exact hit'.padEnd(56)} score=${exact}`)
 }
 
 console.log('\n  must answer')
@@ -200,6 +238,7 @@ for (const entry of knowledge.entries) {
 }
 
 const total =
+  4 + // the scoring guards above
   MUST_ANSWER.length +
   MUST_DECLINE.length +
   MUST_BE_UNKNOWN.length +

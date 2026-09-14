@@ -289,14 +289,35 @@ function overlap(queryWords, candidateWords) {
  * Score an entry against a query. 10 for an exact alias, otherwise scaled
  * subject overlap against the best-matching alias.
  */
-function scoreEntry(entry, query) {
+export function scoreEntry(entry, query) {
   const queryWords = subject(query)
   const queryPhrase = normalize(query).join(' ')
+
+  /*
+    An empty normalisation is the ABSENCE of a match, never an exact one.
+
+    normalize() strips everything outside [a-z0-9\s], so a query in any
+    non-Latin script reduces to the empty string — and so does an alias that is
+    a single kanji. Those two empty strings then compared equal and returned 10,
+    the exact-alias score. The effect was not "no match": it was every Japanese
+    question answered, at maximum confidence, from whichever entry happened to
+    carry such an alias. `喜` on the name entry is one, which is why every
+    Japanese query resolved to About the Name.
+
+    This is a live bug in English too — any alias that is punctuation or a
+    symbol alone swallows every query that normalises to nothing, the same way.
+    Adding the documentary's 忘れ者 alias would have made it a coin flip between
+    two entries rather than a consistent wrong answer, which is how it surfaced.
+  */
+  if (!queryPhrase) return 0
+
   const candidates = [entry.title, entry.id.replace(/-/g, ' '), ...entry.aliases]
 
   let best = 0
   for (const candidate of candidates) {
-    if (normalize(candidate).join(' ') === queryPhrase) return 10
+    const candidatePhrase = normalize(candidate).join(' ')
+    if (!candidatePhrase) continue
+    if (candidatePhrase === queryPhrase) return 10
     best = Math.max(best, overlap(queryWords, subject(candidate)))
   }
   return best * 10

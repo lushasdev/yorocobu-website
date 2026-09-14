@@ -1,6 +1,6 @@
 ---
 id: joy
-order: 8
+order: 9
 title: Joy
 aliases:
   [who are you joy, what are you, are you human, are you a person, are you real,
