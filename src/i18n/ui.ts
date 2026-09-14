@@ -301,10 +301,10 @@ const ja: Record<UIKey, string> = {
     Shown above the input on the Japanese tree only, until Unit C lands. It says
     what is true today: the site is in Japanese, Joy's answers are not yet.
   */
-  // REVIEW — this is the one line whose tone matters most. It has to sound like
-  // a limitation stated plainly, not an apology and not a promise.
+  // Per Ethan: one less layer of hedging than the first draft, same meaning.
+  // A limitation stated plainly, neither an apology nor a promise.
   'console.englishOnlyNotice':
-    'Joy の回答は現在のところ英語のみです。日本語でご質問いただいた場合も、英語でお答えします。',
+    'Joy の回答は現在英語のみです。日本語でご質問いただいても、英語でお答えします。',
 
   // ── Compose ──────────────────────────────────────────────────────────────
   'compose.sent': '送信しました。',
@@ -335,9 +335,15 @@ const ja: Record<UIKey, string> = {
   'composeFallback.ackNext': 'ありがとうございます。',
   'composeFallback.draftIntro':
     '以下のようにまとめました。自由に書き換えてから送信してください。',
-  // REVIEW — these two assemble the draft in the visitor's own voice, so they
-  // are deliberately plain です・ます rather than humble forms. A draft written
-  // in keigo would not sound like the person who typed it.
+  /*
+    These two assemble the draft in the visitor's own voice.
+
+    申します is humble form, not plain です・ます — an earlier comment here had
+    that wrong. It is still the right choice, for a different reason than the
+    one originally given: 申します is simply how you introduce yourself when
+    writing to someone you do not know, so it is what the visitor would have
+    typed themselves. The draft is their message, not Joy's.
+  */
   'composeFallback.draftWho': '{who} と申します',
   'composeFallback.draftReply': '連絡先は {reply} です',
 
@@ -415,13 +421,17 @@ const ja: Record<UIKey, string> = {
 
   // ── Home page ────────────────────────────────────────────────────────────
   // Written for a Japanese search result, not translated from the English one.
-  'home.title': 'Yorocobu — 手の届いていない市場に、アプリを',
-  // REVIEW — 「手の届いていない市場」 for "underserved markets". The alternative
-  // 「ニッチ市場」 is the common business term but loses the sense that someone
-  // is going without; this phrasing keeps it.
+  'home.title': 'Yorocobu — サービスが行き届いていない市場に、アプリを',
+  /*
+    「サービスが行き届いていない市場」 for "underserved markets", per Ethan.
+    行き届く is the idiom for service reaching someone, so the market is the one
+    not being reached. 「手の届いていない」 was wrong in a way that is easy to
+    miss in English: it frames the gap from Yorocobu's side, as markets we
+    failed to reach, rather than as people going without.
+  */
   'home.description':
     'Yorocobu LLC は、ニッチな市場に残された穴を見つけて、それを埋めるアプリを作っています。React、Swift、Flutter で5件を開発中。ナビゲーターに聞くか、全体目次をご覧ください。',
-  'home.heading': 'Yorocobu — 手の届いていない市場に、アプリを',
+  'home.heading': 'Yorocobu — サービスが行き届いていない市場に、アプリを',
   'home.fullIndexLink': '全体目次',
 
   // ── Full index ───────────────────────────────────────────────────────────

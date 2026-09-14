@@ -1,0 +1,250 @@
+#!/usr/bin/env node
+/**
+ * The language fence on the MODEL path.
+ *
+ * The offline matcher has patternsFor(), which throws for a locale it cannot
+ * reason about. The model is the primary path and had no equivalent: nothing
+ * stopped it answering a Japanese question in Japanese, and if it did, every
+ * output guard downstream failed open at once while the console displayed a
+ * notice promising the answer would be in English.
+ *
+ * This checks both halves of the fix, and it costs nothing:
+ *
+ *   1. The detector, against fixtures. The interesting cases are the CORRECT
+ *      English answers that contain Japanese — the site publishes 喜ぶ, 喜 and
+ *      忘れ者 as things it is naming — because a naive "contains Japanese" test
+ *      flags all of them.
+ *
+ *   2. The whole function, end to end, against a stubbed upstream. joy.mjs
+ *      takes OPENAI_BASE_URL, so a local server can play the model and return
+ *      a Japanese reply on demand. That exercises the real handler, the real
+ *      stream parsing and the real guard ordering without an API key and
+ *      without spending anything.
+ *
+ * Runs in `npm run check`.
+ */
+
+import { createServer } from 'node:http'
+import { localeViolation, japaneseShare, resultLocaleViolation } from '../netlify/functions/_shared/language.mjs'
+
+let failures = 0
+const report = (ok, line) => {
+  if (!ok) failures++
+  console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${line}`)
+}
+
+// ── 1. The detector ─────────────────────────────────────────────────────────
+
+/*
+  Correct English answers drawn from what this knowledge base actually says.
+  Every one of them contains Japanese characters, and every one must pass —
+  these are the fixtures that rule out the naive version of this check.
+*/
+const ENGLISH_THAT_MUST_PASS = [
+  'Yorocobu means to have joy in Japanese. The name comes from 喜ぶ, to be glad. The company mark is the kanji 喜, which sits at the end of the wordmark.',
+  'Ethan Gailushas made a documentary called 忘れ者. There are two versions, one in English and one in Japanese, and either can be opened from here.',
+  'The documentary is called 忘れ者.',
+  'The standard romanization of 喜ぶ is yorokobu, with a k. The company name is spelled yorocobu, with a c.',
+  'Yorocobu LLC finds holes in niche markets and builds apps to fill them.',
+  'I do not have that one. I can tell you about what Yorocobu builds or who is behind it, or I can send your question to Ethan.',
+]
+
+/*
+  Replies that are actually Japanese. If any of these passes, the check is
+  decorative — which is the failure mode check-eval-assertions.mjs exists to
+  catch on the other suite, and the same reasoning applies here.
+*/
+const JAPANESE_THAT_MUST_FAIL = [
+  'Yorocobu は、ニッチな市場に残された穴を見つけて、それを埋めるアプリを作っています。',
+  '料金は公開していません。金額を推測してお伝えするつもりもありません。',
+  'Ethan Gailushas と Bence Burton の二名が創業しました。どちらも Co-Founder です。',
+  'それについては分かりません。ご質問を Ethan にお送りすることもできます。',
+  '「忘れ者」は Ethan が作ったドキュメンタリー作品です。英語版と日本語版があります。',
+]
+
+console.log('\n  the detector accepts correct English that quotes Japanese')
+for (const text of ENGLISH_THAT_MUST_PASS) {
+  const reason = localeViolation(text, 'en')
+  report(
+    reason === null,
+    `${(Math.round(japaneseShare(text) * 100) + '%').padStart(4)}  ${text.slice(0, 56)}`
+  )
+}
+
+console.log('\n  the detector catches a Japanese reply where English was asked for')
+for (const text of JAPANESE_THAT_MUST_FAIL) {
+  const reason = localeViolation(text, 'en')
+  report(
+    reason !== null,
+    `${(Math.round(japaneseShare(text) * 100) + '%').padStart(4)}  ${text.slice(0, 44)}`
+  )
+}
+
+console.log('\n  the mirror, for when Japanese is the requested locale')
+{
+  // Ready for Unit C. A Japanese answer keeps Latin proper nouns and must pass.
+  const ok = 'Yorocobu は React と Swift でアプリを作っています。'
+  report(localeViolation(ok, 'ja') === null, `a Japanese answer with Latin names is accepted`)
+  const bad = 'Yorocobu builds apps for niche markets that are underserved.'
+  report(localeViolation(bad, 'ja') !== null, `an English answer is caught when Japanese was asked for`)
+  // An unknown locale must be an error, never a silent pass.
+  report(
+    localeViolation('anything at all', 'de') !== null,
+    'an unchecked locale errors rather than passing everything'
+  )
+}
+
+console.log('\n  the draft is exempt, because it is the visitor speaking')
+{
+  /*
+    A Japanese visitor's message to Ethan must stay Japanese whatever language
+    Joy is answering in. Forcing it to English would rewrite what someone
+    actually said, which is worse than the problem being solved.
+  */
+  const result = {
+    reply: 'Here is what I have. Edit anything, then send it.',
+    next_question: null,
+    draft: '田中と申します。アプリの開発についてご相談したく connect しました。連絡先は tanaka@example.com です。',
+    done: true,
+  }
+  report(
+    resultLocaleViolation(result, 'en') === null,
+    'a Japanese draft under an English reply is not a violation'
+  )
+  // But Joy's own words in the same payload still are.
+  report(
+    resultLocaleViolation({ ...result, reply: 'こちらが下書きです。' }, 'en') !== null,
+    "Joy's own line in the same payload is still checked"
+  )
+}
+
+console.log('\n  every field Joy speaks in is checked, not just the reply')
+for (const [field, result] of [
+  ['actions[].label', { reply: 'Fine.', actions: [{ type: 'compose', label: '質問を Ethan に送る' }] }],
+  ['followups[]', { reply: 'Fine.', followups: ['社名の由来は'] }],
+  ['next_question', { reply: 'Fine.', next_question: 'お名前を教えてください。' }],
+]) {
+  report(resultLocaleViolation(result, 'en') !== null, `a Japanese ${field} is caught`)
+}
+
+// ── 2. The whole function, against a stubbed model ──────────────────────────
+
+/*
+  A stand-in for the Responses API. joy.mjs reads OPENAI_BASE_URL, so this
+  serves /v1/responses and streams back whatever payload the test asked for,
+  in the same SSE shape the real API uses.
+*/
+let nextPayload = null
+const stub = createServer((req, res) => {
+  res.writeHead(200, { 'content-type': 'text/event-stream' })
+  const body = JSON.stringify(nextPayload)
+  // Two deltas, so the streaming path is genuinely exercised rather than
+  // short-circuited by a single complete chunk.
+  const half = Math.ceil(body.length / 2)
+  for (const chunk of [body.slice(0, half), body.slice(half)]) {
+    res.write(`data: ${JSON.stringify({ type: 'response.output_text.delta', delta: chunk })}\n\n`)
+  }
+  res.write(`data: ${JSON.stringify({ type: 'response.output_text.done', text: body })}\n\n`)
+  res.write('data: [DONE]\n\n')
+  res.end()
+})
+await new Promise((resolve) => stub.listen(0, '127.0.0.1', resolve))
+const { port } = stub.address()
+
+process.env.OPENAI_BASE_URL = `http://127.0.0.1:${port}`
+// Deliberately not sk-shaped. The stub does not check it, and a credential-
+// shaped literal in the repo is exactly what check-secrets.mjs and GitHub's own
+// scanner exist to shout about.
+process.env.OPENAI_API_KEY = 'local-stub-no-credential-needed'
+process.env.RATE_LIMIT_DISABLED = '1'
+
+// Imported AFTER the environment is set: API_BASE is read at module load.
+const joy = await import('../netlify/functions/joy.mjs')
+
+/** Drive the handler and collect what the browser would actually receive. */
+async function ask(question, locale, payload) {
+  nextPayload = payload
+  const response = await joy.default(
+    new Request('https://yorocobu.org/api/joy', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'answer', question, locale }),
+    })
+  )
+  const text = await new Response(response.body).text()
+  const events = text
+    .split('\n')
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => JSON.parse(line.slice(5).trim()))
+  return {
+    error: events.find((e) => e.error)?.error ?? null,
+    result: events.find((e) => e.done)?.result ?? null,
+  }
+}
+
+const ENGLISH_PAYLOAD = {
+  reply: 'Yorocobu LLC finds holes in niche markets and builds apps to fill them.',
+  focus_section: 'company',
+  actions: [],
+  followups: ['what does the name mean'],
+  unknown: false,
+  used_entries: ['company'],
+}
+
+const JAPANESE_PAYLOAD = {
+  reply: 'Yorocobu は、ニッチな市場に残された穴を見つけて、それを埋めるアプリを作っています。',
+  focus_section: 'company',
+  actions: [],
+  followups: ['社名の由来は'],
+  unknown: false,
+  used_entries: ['company'],
+}
+
+console.log('\n  end to end, against a stubbed model')
+{
+  // The control: an English reply to a Japanese question is exactly right.
+  const good = await ask('Yorocobu とは何ですか', 'ja', ENGLISH_PAYLOAD)
+  report(
+    good.error === null && good.result?.reply === ENGLISH_PAYLOAD.reply,
+    `Japanese question, English reply -> served  (${good.error ?? 'ok'})`
+  )
+
+  /*
+    The case this whole fence exists for: Japanese input, and the model answers
+    in Japanese anyway. It must NOT be served. The browser then falls back to
+    the offline index, which answers in English and says it did — keeping the
+    notice above the input true.
+  */
+  const bad = await ask('Yorocobu とは何ですか', 'ja', JAPANESE_PAYLOAD)
+  report(
+    bad.error === 'wrong language' && bad.result === null,
+    `Japanese question, Japanese reply -> refused  (error=${bad.error}, result=${bad.result ? 'SERVED' : 'none'})`
+  )
+
+  // The same refusal when the request did not mention a locale at all.
+  const noLocale = await ask('what is yorocobu', undefined, JAPANESE_PAYLOAD)
+  report(
+    noLocale.error === 'wrong language',
+    `no locale in the request, Japanese reply -> refused  (error=${noLocale.error})`
+  )
+
+  // A client asking for Japanese must not be able to switch the fence off.
+  const sysPrompt = joy.buildModelInput({ mode: 'answer', question: 'x', locale: 'ja' })[0].content
+  report(
+    /Write your entire response in English\./.test(sysPrompt),
+    'a client asking for Japanese still gets an English-pinned prompt'
+  )
+  report(
+    !/Write your entire response in Japanese/.test(sysPrompt),
+    'the prompt never asks for a locale the guards cannot police'
+  )
+}
+
+stub.close()
+
+console.log(
+  failures
+    ? `\n  ${failures} language check(s) failed\n`
+    : `\n  the model path answers in the locale the server pinned, and is refused when it does not\n`
+)
+process.exit(failures ? 1 : 0)

@@ -18,6 +18,7 @@ import knowledge from '../../src/generated/knowledge.json' with { type: 'json' }
 import { resolve as resolveLocal } from '../../src/lib/navigator.js'
 import { json, callerId, overRateLimit } from './_shared/limits.mjs'
 import { recordQuality } from './_shared/quality.mjs'
+import { resultLocaleViolation } from './_shared/language.mjs'
 
 /** One place. Short retrieval over eight entries, not reasoning. */
 const MODEL = 'gpt-5.6-luna'
@@ -30,6 +31,37 @@ const MAX_QUESTION = 500
 const RATE_LIMIT = 20
 const RATE_WINDOW_MS = 60 * 60 * 1000
 const MAX_COMPOSE_TURNS = 3
+
+/*
+  Which locales Joy is allowed to ANSWER in, decided on the server.
+
+  This is the same fence as patternsFor() in the offline matcher, on the other
+  path. The client sends the locale it wants; the server decides what it gets,
+  because a locale the guards cannot police is not a locale this function may
+  answer in. Every guard downstream of here keys on English: decideOffer splits
+  sentences on English punctuation, GAP_SHAPED is an English alternation,
+  fixComposeLabels looks for the English word "mail". In Japanese all three
+  match nothing and fail OPEN — they stop catching the failures they were
+  written for, silently, which is the worst shape a guard can take.
+
+  So until those guards are locale-aware and a Japanese eval suite passes, a
+  request asking for Japanese is answered in English and the console says so
+  above the input. Unit C adds 'ja' here, and this comment goes with it.
+
+  Not trusting the client is the point: a stray locale in a request body must
+  not be able to switch off the guards.
+*/
+const REPLY_LOCALES = ['en']
+const FALLBACK_REPLY_LOCALE = 'en'
+
+/** What the model is told to answer in, whatever the client asked for. */
+function replyLocaleFor(requested) {
+  if (REPLY_LOCALES.includes(requested)) return requested
+  return FALLBACK_REPLY_LOCALE
+}
+
+/** How each locale is named to the model. */
+const LOCALE_NAMES = { en: 'English', ja: 'Japanese (日本語)' }
 
 const context = knowledge.entries
   .map((e) =>
@@ -183,7 +215,31 @@ KNOWLEDGE BASE
 ==============
 ${context}`
 
-const ANSWER_PROMPT = `${VOICE}\n\n${GROUNDING}`
+/*
+  The language constraint.
+
+  Stated as a hard rule rather than a preference, and repeated for the action
+  labels specifically, because a label is the field most likely to drift: it is
+  short, it is generated last, and it is the one piece of Joy's output that
+  reads like UI rather than like speech.
+
+  The instruction is not trusted on its own. _shared/language.mjs checks what
+  comes back, and a violation is treated as a failed response rather than as
+  something to tidy up — see the stream handler below.
+*/
+const languageRule = (locale) => `LANGUAGE. Write your entire response in ${LOCALE_NAMES[locale]}.
+This applies to every field without exception: the reply, every action label,
+every follow-up question, and any refusal or unknown-answer response.
+
+- Never mix languages inside one response.
+- Never apologise for the language you are writing in, and never mention it.
+- If the visitor writes to you in another language, understand them in that
+  language and answer in ${LOCALE_NAMES[locale]} anyway. Do not comment on
+  having done so.
+- Proper names stay as they are written in the knowledge base: Yorocobu, Joy,
+  Ethan Gailushas, Bence Burton. A Japanese term the knowledge base quotes —
+  喜ぶ, 喜, 忘れ者 — stays in Japanese even in an English answer, because it is
+  the thing being named rather than a word being translated.`
 
 const COMPOSE_PROMPT = `${VOICE}
 
@@ -207,6 +263,14 @@ RULES FOR THE DRAFT, which matter more than making it read well:
 
 Nothing is ever sent without the visitor pressing send, so never say the message
 has been sent.`
+
+const answerPrompt = (locale) => `${VOICE}\n\n${languageRule(locale)}\n\n${GROUNDING}`
+const composePrompt = (locale) => `${COMPOSE_PROMPT}\n\n${languageRule(locale)}
+
+The DRAFT is the exception to the language rule above. It is the visitor's own
+message in their own voice, so it is written in the language THEY used, not in
+${LOCALE_NAMES[locale]}. Everything you say around it still follows the rule.`
+
 
 /*
   "Every unknown names what it can help with instead" was an instruction, and an
@@ -355,12 +419,18 @@ function decideOffer(result, mode) {
  * about. What this returns for a given question IS what production sends, byte
  * for byte, at the same commit of /knowledge.
  */
-export function buildModelInput({ mode, question, turns = [], seed = '' }) {
+export function buildModelInput({ mode, question, turns = [], seed = '', locale }) {
   const asked = turns.filter((t) => t.role === 'assistant').length
   const forceDraft = mode === 'compose' && asked >= MAX_COMPOSE_TURNS
+  // Never the requested locale directly: the server decides what it will answer
+  // in, so a locale in a request body cannot switch off the guards.
+  const replyLocale = replyLocaleFor(locale)
 
   return [
-    { role: 'system', content: mode === 'compose' ? COMPOSE_PROMPT : ANSWER_PROMPT },
+    {
+      role: 'system',
+      content: mode === 'compose' ? composePrompt(replyLocale) : answerPrompt(replyLocale),
+    },
     ...(mode === 'compose' && seed
       ? [
           {
@@ -460,11 +530,21 @@ export default async (req) => {
   const question = String(body.question ?? '').trim().slice(0, MAX_QUESTION)
   const turns = Array.isArray(body.turns) ? body.turns.slice(-6) : []
   const seed = String(body.seed ?? '').trim().slice(0, MAX_QUESTION)
+  const requestedLocale = String(body.locale ?? 'en').trim().slice(0, 8)
+  const replyLocale = replyLocaleFor(requestedLocale)
 
   // Logged before anything can fail, so an arriving request is always on record.
   console.log(
-    `joy: request mode=${mode} qlen=${question.length} turns=${turns.length} knowledge=${KNOWLEDGE_FINGERPRINT}`
+    `joy: request mode=${mode} qlen=${question.length} turns=${turns.length} ` +
+      `locale=${requestedLocale}->${replyLocale} knowledge=${KNOWLEDGE_FINGERPRINT}`
   )
+  if (replyLocale !== requestedLocale) {
+    console.log(
+      `joy: answering in ${replyLocale} for a request that asked for ` +
+        `"${requestedLocale}". Only ${REPLY_LOCALES.join(', ')} are served, because ` +
+        `the output guards can only police those. The console shows a notice saying so.`
+    )
+  }
 
   if (mode === 'answer' && !question) {
     trace(started, 'rejected, no question')
@@ -476,7 +556,7 @@ export default async (req) => {
     return json(429, { error: 'a few too many just now. Try again a little later.' })
   }
 
-  const input = buildModelInput({ mode, question, turns, seed })
+  const input = buildModelInput({ mode, question, turns, seed, locale: replyLocale })
 
   let upstream
   try {
@@ -596,6 +676,37 @@ export default async (req) => {
         // order cannot have them fighting over the same answer.
         // Rescue first: a false unknown replaces the whole result, and the offer
         // decision must then run over what is actually being sent.
+        /*
+          The language constraint, checked rather than trusted.
+
+          This runs FIRST, before the offer and rescue guards, because those
+          guards are the thing at stake: every one of them keys on English, and
+          on a Japanese reply they match nothing and fail open. Running them
+          over a reply in the wrong language would produce a result that had
+          passed three checks while none of them actually looked at anything.
+
+          A violation is treated as a FAILED response, not as something to
+          repair. There is no honest way to repair it here — rewriting the
+          reply would mean translating it, and this function has no business
+          inventing prose the model did not produce. Failing hands the request
+          to the browser's existing fallback, which answers from the offline
+          index in English and tells the visitor it did so. That keeps the
+          notice above the input true, which is the whole point.
+        */
+        const wrongLanguage = resultLocaleViolation(result, replyLocale)
+        if (wrongLanguage) {
+          console.error(
+            `joy: LANGUAGE VIOLATION — ${wrongLanguage}. The prompt pinned the ` +
+              `response to ${replyLocale} and the model did not comply. Serving a ` +
+              `failure so the browser falls back to the offline index rather than ` +
+              `running English-keyed guards over a reply they cannot read.`
+          )
+          void recordQuality('language', { question, entry: result?.focus_section ?? null })
+          trace(started, 'failed, wrong language', `locale=${replyLocale}`)
+          send({ error: 'wrong language' })
+          return
+        }
+
         const { result: checked, rescued } = rescueFalseUnknown(result, question, mode)
         const { result: decided, offer } = decideOffer(checked, mode)
         const finished = fixComposeLabels(decided)

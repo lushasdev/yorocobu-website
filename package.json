@@ -10,7 +10,7 @@
     "preview": "astro preview",
     "check:gate": "node scripts/check-gate.mjs",
     "check:locale": "node scripts/check-locale.mjs",
-    "check": "node scripts/check-i18n.mjs && node scripts/check-navigator.mjs && node scripts/check-eval-assertions.mjs && node scripts/check-contrast.mjs && node scripts/check-secrets.mjs && node scripts/build-csp.mjs --check"
+    "check": "node scripts/check-i18n.mjs && node scripts/check-language.mjs && node scripts/check-navigator.mjs && node scripts/check-eval-assertions.mjs && node scripts/check-contrast.mjs && node scripts/check-secrets.mjs && node scripts/build-csp.mjs --check"
   },
   "dependencies": {
     "@astrojs/react": "^6.0.2",

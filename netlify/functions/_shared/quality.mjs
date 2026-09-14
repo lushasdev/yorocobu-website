@@ -32,6 +32,13 @@ import { randomUUID } from 'node:crypto'
 const THRESHOLDS = {
   rescue: Number(process.env.QUALITY_ALERT_RESCUES ?? 3),
   strip: Number(process.env.QUALITY_ALERT_STRIPS ?? 25),
+  /*
+    A language violation costs the visitor their answer outright — the request
+    fails and the browser serves the terser offline reply — so the bar is one.
+    Anything above zero means the model is ignoring a hard constraint, which is
+    worth knowing about the same day rather than at the end of a week.
+  */
+  language: Number(process.env.QUALITY_ALERT_LANGUAGE ?? 1),
 }
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -48,7 +55,17 @@ async function notify(kind, count, day) {
   }
 
   const body =
-    kind === 'rescue'
+    kind === 'language'
+      ? [
+          `Joy answered in the wrong language ${count} time(s) today.`,
+          '',
+          'The prompt pins every response to one locale and the model did not',
+          'comply. Each one was refused rather than served, so the visitor got',
+          'the offline index in the right language instead of a reply in the',
+          'wrong one — but they got the worse answer, and the output guards',
+          'downstream cannot police a language they do not read.',
+        ].join('\n')
+      : kind === 'rescue'
       ? [
           `Joy called a published entry "unknown" ${count} times today.`,
           '',
@@ -81,7 +98,7 @@ async function notify(kind, count, day) {
 }
 
 /**
- * @param {'rescue'|'strip'} kind
+ * @param {'rescue'|'strip'|'language'} kind
  * @param {{question?: string, entry?: string|null}} detail
  *
  * Fire and forget. Returns a promise so a caller may await it in a test, but
@@ -109,7 +126,7 @@ export async function recordQuality(kind, { question = '', entry = null } = {}) 
       A rescue is a gap in an entry, so it goes where gaps already go. The
       review page and the digest read that store; nothing new has to be checked.
     */
-    if (kind === 'rescue' && question) {
+    if ((kind === 'rescue' || kind === 'language') && question) {
       const questions = getStore('questions')
       const id = randomUUID()
       await questions.setJSON(id, {
@@ -117,7 +134,7 @@ export async function recordQuality(kind, { question = '', entry = null } = {}) 
         question,
         email: null,
         asked_at: new Date().toISOString(),
-        source: 'rescue',
+        source: kind,
         entry,
         answered: false,
         notified: false,
