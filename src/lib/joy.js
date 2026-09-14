@@ -10,6 +10,7 @@
 
 import { resolve } from './navigator.js'
 import { composeFallback } from './compose-fallback.js'
+import { useTranslations, defaultLocale } from '../i18n/ui.ts'
 
 /*
   Past this, the local answer is better than a spinner. Two budgets, because a
@@ -109,7 +110,15 @@ export function partialString(buffer, field) {
  * @param {(text: string) => void} options.onDelta  called with the reply so far
  * @param {AbortSignal} [options.signal]
  */
-export async function askJoy({ mode = 'answer', question, turns = [], seed = '', onDelta, signal }) {
+export async function askJoy({
+  mode = 'answer',
+  question,
+  turns = [],
+  seed = '',
+  locale = defaultLocale,
+  onDelta,
+  signal,
+}) {
   const controller = new AbortController()
   const abort = () => controller.abort()
   signal?.addEventListener('abort', abort, { once: true })
@@ -127,7 +136,7 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
     const response = await fetch('/api/joy', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ mode, question, turns, seed }),
+      body: JSON.stringify({ mode, question, turns, seed, locale }),
       signal: controller.signal,
     })
     if (!response.ok || !response.body) {
@@ -180,11 +189,13 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
 
     if (!final) throw new Error('no result')
     record({ n, mode, budgetMs, firstTokenMs, outcome: 'model', status: response.status })
-    return { ...normalise(final, mode, question), firstTokenMs }
+    return { ...normalise(final, mode, question, locale), firstTokenMs }
   } catch (error) {
     // Any failure at all lands here, including an abort on the timeout.
     const fallback =
-      mode === 'compose' ? composeFallback(turns, question, seed) : resolve(question)
+      mode === 'compose'
+        ? composeFallback(turns, question, seed, locale)
+        : resolve(question, locale)
     fallback.source = 'local'
     fallback.degraded = true
     fallback.degradedReason = error?.kind === 'config' ? 'config' : 'transient'
@@ -224,7 +235,8 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
  * The model returns action *types*, never URLs. Real links are attached here
  * from the entry the answer was grounded in, so an invented link is impossible.
  */
-function normalise(result, mode, question) {
+function normalise(result, mode, question, locale = defaultLocale) {
+  const t = useTranslations(locale)
   if (mode === 'compose') {
     return {
       reply: String(result.reply ?? ''),
@@ -239,7 +251,14 @@ function normalise(result, mode, question) {
     .filter((a) => a && (a.type === 'compose' || a.type === 'index'))
     .map((a) => ({
       type: a.type,
-      label: String(a.label ?? (a.type === 'index' ? 'Open the full index' : 'Send a message')),
+      /*
+        The model's label is used when it sends one, but the fallback comes from
+        the locale dictionary rather than from an English literal — an action
+        with no label must not be the one place English leaks back in.
+      */
+      label: String(
+        a.label ?? t(a.type === 'index' ? 'action.openIndex' : 'action.sendMessage')
+      ),
       value: a.type === 'index' ? '/full-index' : question,
     }))
 

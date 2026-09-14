@@ -1,46 +1,6 @@
 ---
-import Base from '../layouts/Base.astro'
-import BootSequence from '../components/BootSequence.astro'
-import Logo from '../components/Logo.astro'
-import Regions from '../components/Regions.astro'
-import Console from '../components/Console.jsx'
-import { documentaryUrls } from '../lib/documentary.js'
-import '../styles/console.css'
-import '../styles/content.css'
-
-/*
-  Read here rather than in the island, because these are not PUBLIC_ variables
-  and Astro does not expose them to client code. Resolving them in the frontmatter
-  at build time and handing them down as a prop keeps the names the deploy uses
-  (DOC_URL_EN / DOC_URL_JA) instead of renaming them to satisfy a bundler.
-
-  process.env is where Netlify's build-time variables land; import.meta.env is
-  where a local .env lands. Both are checked so a fresh clone and a real deploy
-  behave the same.
-
-  Null when either is missing or malformed, and the gate then does not render at
-  all — never a dead link.
-*/
-const docUrls = documentaryUrls({
-  DOC_URL_EN: import.meta.env.DOC_URL_EN ?? process.env.DOC_URL_EN,
-  DOC_URL_JA: import.meta.env.DOC_URL_JA ?? process.env.DOC_URL_JA,
-})
+/** English home, served from /. */
+import HomePage from '../components/HomePage.astro'
 ---
 
-<Base
-  title="Yorocobu — apps for underserved markets"
-  description="Yorocobu LLC finds holes in niche markets and builds apps to fill them. Five projects in development, built with React, Swift, and Flutter. Ask the navigator, or read the full index."
->
-  <BootSequence />
-  <Logo />
-
-  <main id="main">
-    <h1 class="visually-hidden">Yorocobu — apps for underserved markets</h1>
-    <Console client:load docUrls={docUrls} />
-    <Regions />
-  </main>
-
-  <a class="escape" href="/full-index">
-    <span class="escape__mark" aria-hidden="true">◎</span>full index
-  </a>
-</Base>
+<HomePage locale="en" />

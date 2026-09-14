@@ -96,7 +96,16 @@ function toArray(value) {
 
 /**
  * Boot sequence status lines, derived entirely from the entries above so they
- * cannot go stale. Lines that describe an absent entry are simply omitted.
+ * cannot go stale.
+ *
+ * Emitted as TOKENS plus numbers, never as finished phrases. This used to build
+ * "5 in development" and "17 technologies" here, which is a sentence assembled
+ * by concatenation in English word order — untranslatable without rebuilding it
+ * per language. Now the line carries { labelKey, valueKey, count } and the
+ * locale dictionary renders it, so the count lands where the language wants it.
+ *
+ * The counts themselves are still derived from the entries, so they cannot go
+ * stale in either language. Lines describing an absent entry are simply omitted.
  */
 function buildBootLines(entries) {
   const byId = Object.fromEntries(entries.map((e) => [e.id, e]))
@@ -105,7 +114,30 @@ function buildBootLines(entries) {
   // plumbing rather than about Yorocobu, and it invites the visitor to wonder
   // what the missing entries would have been. Every other line below is a real
   // derived figure that reads as information.
-  const lines = [{ label: 'knowledge base', value: 'indexed' }]
+  const lines = [{ labelKey: 'boot.label.knowledgeBase', valueKey: 'boot.value.indexed' }]
+
+  /*
+    A status word from front matter maps to a dictionary key. An unmapped status
+    is a build failure rather than a silent English leak into the Japanese boot
+    sequence — adding a status to an entry should make someone translate it.
+  */
+  const STATUS_KEYS = {
+    'in development': 'boot.value.inDevelopment',
+    open: 'boot.value.open',
+    active: 'boot.value.active',
+    online: 'boot.value.online',
+    available: 'boot.value.available',
+  }
+  const statusKey = (status, where) => {
+    const key = STATUS_KEYS[status]
+    if (!key) {
+      fail(
+        `${where} has status "${status}", which has no boot-sequence translation. ` +
+          `Add it to STATUS_KEYS here and to every locale in src/i18n/ui.ts.`
+      )
+    }
+    return key
+  }
 
   const portfolio = byId.portfolio
   if (portfolio) {
@@ -115,22 +147,37 @@ function buildBootLines(entries) {
       return acc
     }, {})
     for (const [status, count] of Object.entries(counts)) {
-      lines.push({ label: 'portfolio', value: `${count} ${status}` })
+      lines.push({
+        labelKey: 'boot.label.portfolio',
+        valueKey: statusKey(status, 'portfolio project'),
+        count,
+      })
     }
   }
 
-  if (byId.services) lines.push({ label: 'client work', value: byId.services.status })
+  if (byId.services) {
+    lines.push({
+      labelKey: 'boot.label.clientWork',
+      valueKey: statusKey(byId.services.status, 'knowledge/services.md'),
+    })
+  }
   if (byId.stack) {
     const primary = toArray(byId.stack.primary).length
     const additional = toArray(byId.stack.additional).length
-    lines.push({ label: 'stack', value: `${primary + additional} technologies` })
+    lines.push({
+      labelKey: 'boot.label.stack',
+      valueKey: 'boot.value.technologies',
+      count: primary + additional,
+    })
   }
   if (byId.founders) {
     const count = toArray(byId.founders.people).length
-    if (count) lines.push({ label: 'founders', value: String(count) })
+    if (count) {
+      lines.push({ labelKey: 'boot.label.founders', valueKey: 'boot.value.count', count })
+    }
   }
 
-  lines.push({ label: 'navigator', value: 'online' })
+  lines.push({ labelKey: 'boot.label.navigator', valueKey: 'boot.value.online' })
   return lines
 }
 

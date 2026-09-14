@@ -1,0 +1,71 @@
+---
+/**
+ * The home page, for either language tree.
+ *
+ * One component rather than two page files with the same markup: the two trees
+ * are the same site, and a copy of this that drifted would be the bilingual
+ * equivalent of a stale translation — structure diverging rather than words.
+ * The page files under src/pages/ are thin, and exist only to declare the route.
+ */
+import Base from '../layouts/Base.astro'
+import BootSequence from './BootSequence.astro'
+import Logo from './Logo.astro'
+import Regions from './Regions.astro'
+import Console from './Console.jsx'
+import { documentaryUrls } from '../lib/documentary.js'
+import { useTranslations, pathForLocale, defaultLocale, type Locale } from '../i18n/ui.ts'
+import '../styles/console.css'
+import '../styles/content.css'
+
+interface Props {
+  locale?: Locale
+}
+
+const { locale = defaultLocale } = Astro.props
+const t = useTranslations(locale)
+
+/*
+  Read here rather than in the island, because these are not PUBLIC_ variables
+  and Astro does not expose them to client code. Resolving them at build time
+  and handing them down as a prop keeps the names the deploy uses
+  (DOC_URL_EN / DOC_URL_JA) instead of renaming them to satisfy a bundler.
+
+  process.env is where Netlify's build-time variables land; import.meta.env is
+  where a local .env lands. Both are checked so a fresh clone and a real deploy
+  behave the same.
+
+  Null when either is missing or malformed, and the gate then does not render at
+  all — never a dead link.
+*/
+const docUrls = documentaryUrls({
+  DOC_URL_EN: import.meta.env.DOC_URL_EN ?? process.env.DOC_URL_EN,
+  DOC_URL_JA: import.meta.env.DOC_URL_JA ?? process.env.DOC_URL_JA,
+})
+
+/*
+  Joy answers in English on both trees for now.
+
+  The page is fully Japanese; her replies are not, and the console says so
+  above the input. That is the honest version of today's state. The alternative
+  the audit found is worse: the matcher answering every Japanese question
+  confidently and wrongly. When the Japanese guards and eval suite land, this
+  becomes `locale` and the notice disappears on its own, because the console
+  only shows it when the two differ.
+*/
+const answerLocale = 'en'
+---
+
+<Base title={t('home.title')} description={t('home.description')} locale={locale}>
+  <BootSequence locale={locale} />
+  <Logo />
+
+  <main id="main">
+    <h1 class="visually-hidden">{t('home.heading')}</h1>
+    <Console client:load docUrls={docUrls} locale={locale} answerLocale={answerLocale} />
+    <Regions locale={locale} />
+  </main>
+
+  <a class="escape" href={pathForLocale('/full-index', locale)}>
+    <span class="escape__mark" aria-hidden="true">◎</span>{t('home.fullIndexLink')}
+  </a>
+</Base>

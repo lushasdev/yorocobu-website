@@ -13,7 +13,15 @@
  *   npm run knowledge && node scripts/check-navigator.mjs
  */
 
-import { resolve, scoreEntry, DESTINATIONS } from '../src/lib/navigator.js'
+import {
+  resolve,
+  resolveEntry,
+  scoreEntry,
+  destinationLabel,
+  destinationIdFor,
+  DESTINATIONS,
+} from '../src/lib/navigator.js'
+import { locales } from '../src/i18n/ui.ts'
 import knowledge from '../src/generated/knowledge-client.json' with { type: 'json' }
 
 /** Must produce a confident answer. `section` of null means any entry will do. */
@@ -147,18 +155,29 @@ const report = (ok, line) => {
 */
 console.log('\n  scoring: an empty normalisation is never an exact match')
 {
-  const synthetic = { id: 'synthetic', title: '???', aliases: ['喜', '!!', '—'] }
-  const cases = [
+  const name = knowledge.entries.find((e) => e.id === 'name')
+  const synthetic = { id: 'synthetic', title: '???', aliases: ['!!', '—', '###'] }
+  const zero = [
     ['a punctuation-only query against punctuation-only aliases', scoreEntry(synthetic, '???')],
-    ['a Japanese query against a single-kanji alias', scoreEntry(synthetic, '料金はいくらですか')],
-    ['a real entry scored against a Japanese query', scoreEntry(knowledge.entries.find((e) => e.id === 'name'), '喜')],
+    ['a punctuation-only query against a real entry', scoreEntry(name, '!!!')],
+    ['an emoji-only query against a real entry', scoreEntry(name, '★★')],
   ]
-  for (const [label, score] of cases) {
+  for (const [label, score] of zero) {
     report(score === 0, `${label.padEnd(56)} score=${score}`)
   }
-  // The guard must not have cost a genuine exact match.
-  const exact = scoreEntry(knowledge.entries.find((e) => e.id === 'name'), 'what does yorocobu mean')
+
+  // The guard must not have cost a genuine exact match, in either script.
+  const exact = scoreEntry(name, 'what does yorocobu mean')
   report(exact === 10, `${'a real alias still scores an exact hit'.padEnd(56)} score=${exact}`)
+
+  /*
+    normalize() keeps every script now, so a single-kanji alias is a real token
+    rather than an empty string. 喜 matching the name entry is the CORRECT
+    answer, and locking it in here is what stops a future "strip non-ASCII"
+    from quietly coming back.
+  */
+  const kanji = scoreEntry(name, '喜')
+  report(kanji === 10, `${'a kanji alias matches as itself, not as emptiness'.padEnd(56)} score=${kanji}`)
 }
 
 console.log('\n  must answer')
@@ -218,14 +237,46 @@ for (const q of MUST_OFFER_TO_SEND) {
   entry forever and catch nothing. An entry that only the full index reaches is
   invisible to anyone using the site as designed.
 */
-console.log('\n  every chip reaches its own entry')
+/*
+  Chips resolve by id, in every locale.
+
+  They used to be matched by comparing the typed text with the destination's
+  stored English label, which is the coupling that made the six nav strings
+  untranslatable: translating a label broke navigation to it. Resolving by id
+  means the label is display text and nothing else, and it means a chip works
+  identically in a language the MATCHER cannot handle — which is the state
+  Japanese is in until Unit C.
+*/
+console.log('\n  every chip reaches its own entry, in every locale')
 for (const destination of DESTINATIONS) {
-  const r = resolve(destination.query)
-  report(
-    r.focus_section === destination.id && !r.unknown,
-    `${destination.label.padEnd(22)} -> ${r.unknown ? 'UNKNOWN' : r.focus_section}` +
-      (r.focus_section === destination.id ? '' : `  (wanted ${destination.id})`)
-  )
+  for (const locale of locales) {
+    let r
+    try {
+      r = resolveEntry(destination.id, locale)
+    } catch (error) {
+      r = null
+    }
+    const label = destinationLabel(destination.id, locale)
+    report(
+      Boolean(r) && r.focus_section === destination.id && !r.unknown,
+      `${locale}  ${label.padEnd(22)} -> ${r ? r.focus_section : 'THREW'}` +
+        (r?.focus_section === destination.id ? '' : `  (wanted ${destination.id})`)
+    )
+  }
+}
+
+/*
+  Typing a chip's exact label is still the chip, in whichever language it is
+  being displayed in. This is the half that would silently stop working if the
+  labels were translated without the lookup moving to the dictionary.
+*/
+console.log('\n  typing a chip label finds it, in every locale')
+for (const destination of DESTINATIONS) {
+  for (const locale of locales) {
+    const label = destinationLabel(destination.id, locale)
+    const found = destinationIdFor(label, locale)
+    report(found === destination.id, `${locale}  ${JSON.stringify(label).padEnd(26)} -> ${found}`)
+  }
 }
 
 console.log('\n  every entry is reachable from the console')
@@ -238,12 +289,12 @@ for (const entry of knowledge.entries) {
 }
 
 const total =
-  4 + // the scoring guards above
+  5 + // the scoring guards above
   MUST_ANSWER.length +
   MUST_DECLINE.length +
   MUST_BE_UNKNOWN.length +
   MUST_OFFER_TO_SEND.length +
-  DESTINATIONS.length +
+  DESTINATIONS.length * locales.length * 2 +
   knowledge.entries.length
 console.log(`\n  ${total - failures}/${total} passed\n`)
 process.exit(failures ? 1 : 0)

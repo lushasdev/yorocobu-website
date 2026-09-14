@@ -3,12 +3,25 @@
  * Manual light/dark override. Defaults to prefers-color-scheme; once the visitor
  * chooses, the choice is stored and wins in both directions.
  */
+import { useTranslations, defaultLocale } from '../i18n/ui.ts'
+
+interface Props {
+  locale?: 'en' | 'ja'
+}
+
+const { locale = defaultLocale } = Astro.props
+const t = useTranslations(locale)
 ---
 
 <button class="theme" type="button" data-theme-toggle aria-pressed="false">
   <span class="theme__dot" aria-hidden="true"></span>
-  <span class="visually-hidden">Switch between light and dark</span>
-  <span class="theme__label mono" aria-hidden="true" data-theme-label>light</span>
+  <span class="visually-hidden">{t('theme.toggle')}</span>
+  <span
+    class="theme__label mono"
+    aria-hidden="true"
+    data-theme-label
+    data-label-light={t('theme.light')}
+    data-label-dark={t('theme.dark')}>{t('theme.light')}</span>
 </button>
 
 <style>
@@ -59,9 +72,17 @@
     root.dataset.theme ??
     (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
 
+  /*
+    The two words come from the dictionary via data attributes rather than from
+    the theme value itself. `textContent = theme` was the shortest possible way
+    to print "light" or "dark", and also the one place a locale could not reach.
+  */
   const sync = () => {
     const theme = current()
-    if (label) label.textContent = theme
+    if (label) {
+      label.textContent =
+        (theme === 'dark' ? label.dataset.labelDark : label.dataset.labelLight) ?? theme
+    }
     button?.setAttribute('aria-pressed', String(theme === 'dark'))
   }
 

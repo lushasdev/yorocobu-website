@@ -9,7 +9,14 @@
  */
 import knowledge from '../generated/knowledge.json'
 import Founders from './Founders.astro'
+import { useTranslations, defaultLocale, type Locale } from '../i18n/ui.ts'
 
+interface Props {
+  locale?: Locale
+}
+
+const { locale = defaultLocale } = Astro.props
+const t = useTranslations(locale)
 const { entries } = knowledge
 ---
 
@@ -23,7 +30,7 @@ const { entries } = knowledge
             <span class="region__sep" aria-hidden="true">
               /
             </span>
-            updated {entry.last_updated}
+            {t('index.updated', { date: entry.last_updated })}
           </p>
           <h2>{entry.title}</h2>
         </header>

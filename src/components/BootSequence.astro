@@ -11,7 +11,24 @@
  * time, so nothing shifts when this resolves, and nothing is communicated only here.
  */
 import knowledge from '../generated/knowledge.json'
+import { useTranslations, defaultLocale } from '../i18n/ui.ts'
 
+interface Props {
+  locale?: 'en' | 'ja'
+}
+
+const { locale = defaultLocale } = Astro.props
+const t = useTranslations(locale)
+
+/*
+  The status lines are TOKENS plus numbers, not assembled English.
+
+  build-knowledge.mjs used to emit "5 in development" and "17 technologies" as
+  finished phrases, which cannot be translated without translating a sentence
+  that was built by concatenation. It now emits { labelKey, valueKey, count }
+  and the dictionary does the rendering, so the number lands where the language
+  puts it rather than where English does.
+*/
 const { bootLines } = knowledge
 ---
 
@@ -54,19 +71,19 @@ const { bootLines } = knowledge
 
   <dl class="boot__status">
     <div class="boot__line boot__line--title" style="--i:1">
-      <dt>Yorocobu</dt>
+      <dt>{t('boot.title')}</dt>
     </div>
     {
       bootLines.map((line, i) => (
         <div class="boot__line" style={`--i:${i + 2}`}>
-          <dt>{line.label}</dt>
-          <dd>{line.value}</dd>
+          <dt>{t(line.labelKey)}</dt>
+          <dd>{t(line.valueKey, line.count === undefined ? undefined : { count: line.count })}</dd>
         </div>
       ))
     }
   </dl>
 
-  <p class="boot__skip mono">Press any key to skip</p>
+  <p class="boot__skip mono">{t('boot.skip')}</p>
 </div>
 
 <style>

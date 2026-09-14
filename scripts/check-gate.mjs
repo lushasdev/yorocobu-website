@@ -27,7 +27,7 @@ const results = []
 const check = (name, pass, detail = '') => results.push({ name, pass, detail })
 
 /** A fresh visitor: no storage, boot sequence run to completion, gate showing. */
-async function arrive({ reducedMotion } = {}) {
+async function arrive({ reducedMotion, tree = '/' } = {}) {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
     ...(reducedMotion ? { reducedMotion: 'reduce' } : {}),
@@ -45,7 +45,7 @@ async function arrive({ reducedMotion } = {}) {
   )
 
   const page = await context.newPage()
-  await page.goto(BASE, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}${tree}`, { waitUntil: 'networkidle' })
   // The gate opens only once calibration hands off, so wait for it rather than
   // for a fixed delay.
   await page.waitForSelector('.gate', { timeout: 6000 }).catch(() => {})
@@ -217,6 +217,42 @@ const gateText = (page) => page.textContent('.gate').catch(() => null)
   const { context, page } = await arrive({ reducedMotion: true })
   const text = await gateText(page)
   check('the gate still appears under reduced motion', /Are you here to watch/i.test(text ?? ''), text ?? 'no .gate')
+  await context.close()
+}
+
+/*
+  All four gate paths, on BOTH language trees: eight in total.
+
+  The film language is asked independently of the site language, so every
+  combination has to work — an English reader wanting the Japanese cut is not an
+  edge case, it is half the reason the second question exists.
+*/
+console.log('')
+for (const [tree, label, yes, no] of [
+  ['/', 'en', 'Yes', 'No, I am just looking'],
+  ['/ja/', 'ja', 'はい', 'いいえ、見て回っているだけです'],
+]) {
+  for (const [film, expect] of [
+    ['English', DOC_EN],
+    ['日本語', DOC_JA],
+  ]) {
+    const { context, page } = await arrive({ tree })
+    await page.click(`.gate button:has-text("${yes}")`)
+    const link = page.locator(`.gate a:has-text("${film}")`)
+    const opened = context.waitForEvent('page')
+    await link.click()
+    const tab = await opened
+    check(`${label} site -> ${film} film`, tab.url().includes(expect), tab.url())
+    await context.close()
+  }
+
+  // And the decline, on each tree, landing in that tree's own greeting.
+  const { context, page } = await arrive({ tree })
+  await page.click(`.gate button:has-text("${no}")`)
+  await page.waitForTimeout(150)
+  const gone = (await page.locator('.gate').count()) === 0
+  const greeting = await page.textContent('.intro__body')
+  check(`${label} site -> no -> the ${label} greeting`, gone && Boolean(greeting?.trim()), greeting ?? '')
   await context.close()
 }
 

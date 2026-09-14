@@ -18,29 +18,22 @@
  */
 
 /*
-  The copy, in one place.
-
-  English only for now — Unit A ships before the locale dictionary exists. It is
-  collected here rather than inlined in the component so that Phase 2 is a move
-  rather than a hunt, and so the strings are already shaped as a dictionary: flat
-  keys, no sentences assembled from fragments, nothing that assumes English word
-  order.
+  The gate's copy now lives in src/i18n/ui.ts with everything else. The keys are
+  listed here so the component does not spell them out inline, and so the two
+  questions stay visibly separate: `gate.ask` is about whether they came for the
+  film, `gate.language` is about which cut they want. Nothing derives the second
+  from the site locale.
 */
-export const GATE_COPY = {
-  ask: 'One thing before anything else. Are you here to watch Ethan’s documentary?',
-  yes: 'Yes',
-  no: 'No, I am just looking',
-  language: 'Which language would you like to watch in?',
-  languageAgain: 'Happy to. Which language would you like to watch in?',
-  en: 'English',
-  ja: '日本語',
-  /*
-    The confirmation keeps the link visible as text. A popup blocker that eats
-    the new tab would otherwise leave the visitor with nothing at all, having
-    just told the site exactly what they came for.
-  */
-  opened: 'Opening 忘れ者 now. If your browser held the tab back, the link is here.',
-  dismiss: 'Never mind',
+export const GATE_KEYS = {
+  ask: 'gate.ask',
+  yes: 'gate.yes',
+  no: 'gate.no',
+  language: 'gate.language',
+  languageAgain: 'gate.languageAgain',
+  en: 'gate.filmEnglish',
+  ja: 'gate.filmJapanese',
+  opened: 'gate.opened',
+  dismiss: 'gate.dismiss',
 }
 
 /** A link we are willing to render. Anything else means the gate does not exist. */
