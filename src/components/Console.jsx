@@ -491,8 +491,8 @@ export default function Console({ docUrls = null, locale = defaultLocale, answer
 
     False on the server (no window), which is why the gate renders closed in the
     SSR output and opens in an effect rather than during render: an arrival
-    state read from localStorage cannot be server-rendered without a hydration
-    mismatch.
+    state read from sessionStorage cannot be server-rendered without a
+    hydration mismatch.
   */
   const gateWillOpen = useMemo(
     () => Boolean(docUrls) && typeof window !== 'undefined' && !gateAlreadyShown(),

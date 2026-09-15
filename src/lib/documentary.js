@@ -76,22 +76,35 @@ export function documentaryUrls(source = {}) {
   return { en, ja }
 }
 
-/** Remembered across visits, not just this session. */
+/*
+  Remembered for the session, not for the browser.
+
+  sessionStorage rather than localStorage, so the gate returns on a new visit
+  and stays away within one. Asked once per arrival is the right frequency for
+  a question about what someone came for: a visitor who said no last week may
+  well be back for the film today, and localStorage meant they would never be
+  asked again on that machine.
+
+  It also matches the boot sequence, which keeps `yorocobu:booted` in
+  sessionStorage for the same reason. The gate opens as Joy's first message
+  after calibration hands off, so the two now have the same lifetime — one
+  arrival shows both, and a return visit shows both again.
+*/
 export const GATE_STORAGE_KEY = 'yorocobu:documentary-gate'
 
 export function gateAlreadyShown() {
   try {
-    return window.localStorage.getItem(GATE_STORAGE_KEY) === '1'
+    return window.sessionStorage.getItem(GATE_STORAGE_KEY) === '1'
   } catch {
-    // Private mode. The gate asks again next visit, which is a better failure
-    // than never asking.
+    // Private mode. The gate asks again, which is a better failure than never
+    // asking at all.
     return false
   }
 }
 
 export function rememberGateShown() {
   try {
-    window.localStorage.setItem(GATE_STORAGE_KEY, '1')
+    window.sessionStorage.setItem(GATE_STORAGE_KEY, '1')
   } catch {
     /* private mode; see above */
   }

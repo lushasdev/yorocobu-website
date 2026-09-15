@@ -162,7 +162,7 @@ const gateText = (page) => page.textContent('.gate').catch(() => null)
   await context.close()
 }
 
-// ── it does not come back on a later visit ──────────────────────────────────
+// ── it stays away for the rest of the session ───────────────────────────────
 {
   const { context, page } = await arrive()
   await page.click('.gate button:has-text("No, I am just looking")')
@@ -171,8 +171,53 @@ const gateText = (page) => page.textContent('.gate').catch(() => null)
   const afterReload = await page.locator('.gate').count()
   check('the gate does not reappear on reload', afterReload === 0, `${afterReload} gate(s)`)
 
-  const stored = await page.evaluate(() => localStorage.getItem('yorocobu:documentary-gate'))
-  check('the gate records that it was shown', stored === '1', `localStorage=${stored}`)
+  const stored = await page.evaluate(() => sessionStorage.getItem('yorocobu:documentary-gate'))
+  check('the gate records that it was shown', stored === '1', `sessionStorage=${stored}`)
+
+  /*
+    And it is SESSION storage, not local. The distinction is the whole point of
+    the change, and asserting the key's value alone would pass either way — so
+    this asserts localStorage is untouched, which is what separates the two.
+  */
+  const leaked = await page.evaluate(() => localStorage.getItem('yorocobu:documentary-gate'))
+  check('nothing is written to localStorage', leaked === null, `localStorage=${leaked}`)
+  await context.close()
+}
+
+/*
+  ── and it comes BACK on a new visit ────────────────────────────────────────
+
+  The discriminating test. sessionStorage is per tab, so a second tab in the
+  same browser is a new session — while localStorage would be shared across
+  both and the gate would stay hidden. Under the old behaviour this case
+  failed; under the new one it is the whole point.
+
+  Deliberately the same browser context, not a fresh one. A fresh context would
+  pass either way, because it clears both storages and therefore proves
+  nothing about which one is in use.
+*/
+{
+  const { context, page } = await arrive()
+  await page.click('.gate button:has-text("No, I am just looking")')
+  await page.waitForTimeout(150)
+  const firstTab = await page.locator('.gate').count()
+  check('the gate is gone in the tab that answered it', firstTab === 0, `${firstTab} gate(s)`)
+
+  const second = await context.newPage()
+  await second.goto(BASE, { waitUntil: 'networkidle' })
+  await second.waitForSelector('.gate', { timeout: 6000 }).catch(() => {})
+  const returned = await second.locator('.gate').count()
+  check('the gate returns in a new session', returned === 1, `${returned} gate(s) in the second tab`)
+
+  // The two tabs really are separate sessions, which is what makes the above
+  // meaningful rather than incidental.
+  const answered = await page.evaluate(() => sessionStorage.getItem('yorocobu:documentary-gate'))
+  const fresh = await second.evaluate(() => sessionStorage.getItem('yorocobu:documentary-gate'))
+  check(
+    'each tab keeps its own session state',
+    answered === '1' && fresh === null,
+    `answered=${answered} fresh=${fresh}`
+  )
   await context.close()
 }
 
@@ -182,8 +227,8 @@ const gateText = (page) => page.textContent('.gate').catch(() => null)
   await page.fill('#console-input', 'who runs it')
   await page.press('#console-input', 'Enter')
   await page.waitForTimeout(1800)
-  const stored = await page.evaluate(() => localStorage.getItem('yorocobu:documentary-gate'))
-  check('ignoring the gate still counts as shown', stored === '1', `localStorage=${stored}`)
+  const stored = await page.evaluate(() => sessionStorage.getItem('yorocobu:documentary-gate'))
+  check('ignoring the gate still counts as shown', stored === '1', `sessionStorage=${stored}`)
   await context.close()
 }
 
