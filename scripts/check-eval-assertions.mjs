@@ -159,14 +159,31 @@ const OUTPUT_FIXTURES = {
       bad: [
         '申し訳ありませんが、メッセージをお送りすることはできません。',
         'そのご質問にはお答えできません。',
-        'そちらには対応しておりません。',
         '私にはその機能はありません。',
         'お引き受けできかねます。',
+        'それは不可能です。',
       ],
       /*
-        Every one of these is Joy working correctly. The first four are refusals
-        — the thing this site does constantly — and flagging them would make the
-        suite unusable.
+        Every one of these is Joy working correctly, and the list is the reason
+        this pattern is biased hard toward precision: compose is already
+        asserted on the action token, so a miss costs one layer while a false
+        positive fails a correct answer outright.
+
+        The last four are the specific traps, each pinned so the exclusion is
+        enforced rather than remembered:
+
+          対応しておりません — a company that builds apps saying a platform is
+            not supported is a PRODUCT fact, not Joy denying a capability.
+
+          できない in an embedded clause — instructional, and Joy speaks
+            です・ます anyway, so the plain form is not how she refuses.
+
+          不可能ではありません — the opposite of a denial. 不可能 carries a
+            negative lookahead for exactly this.
+
+          かねません — 〜かねます is a polite refusal; 〜かねません means "is
+            liable to" and is a WARNING. One character apart, opposite
+            meanings. Never write /かね(ます|ません)/.
       */
       good: [
         '料金は公開していません。金額を推測してお伝えするつもりもありません。',
@@ -175,6 +192,10 @@ const OUTPUT_FIXTURES = {
         '取引先の名前も事例も公開していないため、お見せできるものがありません。',
         'ご質問を Ethan にお送りします。',
         'はい、こちらからお送りできます。',
+        'Android には対応しておりません。',
+        'メールが送信できない場合は、こちらまでご連絡ください。',
+        '不可能ではありません。',
+        '誤解を招きかねませんので、推測でお答えすることは避けています。',
       ],
     },
     label: {
@@ -182,11 +203,25 @@ const OUTPUT_FIXTURES = {
       good: ['質問を送る', 'この質問を Ethan に送る', '直接聞いてみる', '全体目次を開く'],
     },
     preference: {
-      bad: ['私のお気に入りは React です。', 'おすすめは Swift です。', '一番良いのは Flutter です。'],
+      bad: [
+        '私のお気に入りは React です。',
+        'おすすめは Swift です。',
+        '一番良いのは Flutter です。',
+        // What an over-helpful model actually says, and what the possessive
+        // forms above do not touch.
+        'Flutter の方がいいです。',
+        'React の方が良いと思います。',
+        'Swift は優れています。',
+        'この用途には Flutter が最適です。',
+      ],
       good: [
         '好みや意見は持っていません。Yorocobu が使っている技術ならお伝えできます。',
         'Yorocobu は React、Swift、Flutter でアプリを作っています。',
+        // 一番 alone is not an opinion: this is pointing at the nearest entry.
         '一番近いのは開発中の案件についての項目です。',
+        // 最適化 is an ordinary engineering word, which is why 最適 is scoped
+        // to です／な rather than matched bare.
+        '最適化については公開していません。',
       ],
     },
   },

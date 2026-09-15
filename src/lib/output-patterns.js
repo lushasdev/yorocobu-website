@@ -62,36 +62,46 @@ const JA = {
   /*
     The Japanese denial vocabulary is verb morphology rather than a modal, so
     there is no single word to look for. These are the forms a polite refusal
-    actually takes: the plain negative potential (できません), the two humble
-    forms a service voice reaches for (いたしかねます / できかねます), and the
-    specific shapes of "I cannot send that" that this site's failure took.
+    actually takes.
 
-    ません on its own is deliberately NOT here. It is the ordinary polite
-    negative and appears in every correct refusal on the site — 「公開して
-    いません」 is Joy doing her job. Matching it would flag every decline.
-    Neither is ありません on its own: 「そのような情報はありません」 is a
-    legitimate unknown, so only the compounds naming a capability are listed.
+    Biased hard toward PRECISION, because compose is already asserted on the
+    action token. This regex is a second layer: a miss costs one layer, a false
+    positive fails a correct answer outright.
 
-    Written as an array joined at the end rather than as one long literal. The
-    first draft of this was a single alternation with an optional leading group
-    and a required tail, which meant the whole pattern only ever matched the
-    last branch — it missed three of the four denials it was written for while
-    looking, in the file, exactly like it worked. Fixtures below catch that
-    shape; the list form makes it harder to write in the first place.
+    Excluded on purpose, each for a different reason:
+
+      ません, ありません — the ordinary polite negative, in every correct
+        refusal on the site. 「公開していません」 is Joy doing her job.
+
+      対応しておりません — this site belongs to a company that builds apps, so
+        「Android には対応しておりません」 is a product fact rather than Joy
+        denying anything about herself.
+
+      できない — Joy speaks です・ます, so the plain form mostly turns up in
+        embedded, instructional clauses: 「メールが送信できない場合は、こちら
+        まで」. できません already covers what she actually says.
+
+    NEVER write /かね(ます|ません)/. 〜かねます is a polite refusal;
+    〜かねません means "is liable to" and is the opposite — 「誤解を招きかね
+    ません」 is a warning, not a denial. One character apart. The fixtures in
+    check-eval-assertions.mjs carry かねません on the must-not-fire side so this
+    is enforced rather than remembered.
   */
   denial: new RegExp(
     [
-      // The plain and humble negative potentials.
+      // The negative potential, polite form only.
       'できません',
+      // Humble refusals. Note ます, never ません — see above.
       'できかねます',
       '致しかねます',
       'いたしかねます',
       'わかりかねます',
       '分かりかねます',
-      'できない',
-      '不可能',
-      // "We do not handle that" about a capability.
-      '対応して(おり|い)ません',
+      /*
+        不可能 needs the lookahead: 「不可能ではありません」 means the opposite
+        and fired on the first draft of this.
+      */
+      '不可能(?!では(あり|ござい)ません|ではない|ではなく)',
       // "I have no such function / permission."
       '(機能|権限)は(ありません|ございません)',
     ].join('|')
@@ -105,12 +115,34 @@ const JA = {
   mailLabel: /(メール|mail|e-?mail|メールアドレス)/i,
 
   /*
-    A stated preference. 好き and おすすめ are the two that matter; 一番 alone
-    is excluded because 「一番近いのは」 is a legitimate way to point at the
-    nearest entry.
+    A stated preference.
+
+    The comparative forms matter more than the possessive ones: 「Flutter の方
+    がいいです」 is exactly what an over-helpful model says, and none of
+    お気に入り / おすすめ / 好きです touches it. お気に入り is the weakest of
+    the set and is kept only because it is unambiguous when it does appear.
+
+    一番 alone stays excluded — 「一番近いのは」 is a legitimate way to point at
+    the nearest entry — so only the evaluative compounds are listed.
+
+    最適 is scoped to です／な so it cannot match 最適化, which is an ordinary
+    engineering word this site might well use.
   */
-  expressedPreference:
-    /(お気に入り|おすすめ(は|です|します)|好きです|好みです|一番(良い|いい|好き)|私は.*(が|を)(好き|愛用))/,
+  expressedPreference: new RegExp(
+    [
+      'お気に入り',
+      'おすすめ(は|です|します)',
+      '好きです',
+      '好みです',
+      '一番(良い|いい|好き)',
+      '私は.*(が|を)(好き|愛用)',
+      // The comparative: "X is better".
+      'の方が(いい|良い|よい|おすすめ)',
+      // Flat evaluations.
+      '優れています',
+      '最適(です|な)',
+    ].join('|')
+  ),
 }
 
 const PATTERNS = { en: EN, ja: JA }

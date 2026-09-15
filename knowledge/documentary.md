@@ -4,33 +4,61 @@ order: 6
 title: The Documentary
 aliases:
   [documentary, the documentary, ethans documentary, ethan's documentary,
-   wasuremono, 忘れ者, the film, watch the film, watch the documentary,
-   where can i watch it, is there a documentary, short film, watch it,
-   film, movie, video, youtube]
+   wasuremono, 忘れ者, 忘れ物, the film, watch the film, watch the documentary,
+   where can i watch it, is there a documentary, what is the documentary about,
+   what does the title mean, loneliness, japan, keio, watch it,
+   film, movie, video, youtube, hatsune miku, rental girlfriend, nagoro]
 status: available
 kind: work
-summary: Ethan Gailushas made a documentary called 忘れ者. There are two versions, one in English and one in Japanese, and either can be opened from here.
+summary: 忘れ者 (Wasuremono) is a feature-length documentary about loneliness and connection in Japan, directed and produced by Ethan Gailushas. Roughly 90 minutes, in English and Japanese versions.
 links: []
 do_not_claim:
-  - What the documentary is about is not published. Never describe its subject, its story, its setting, who appears in it, or what happens in it.
-  - Never translate or gloss the title 忘れ者. No English title and no reading of the name is published. If asked what it means, say the site does not give a translation and offer to pass the question along.
-  - No runtime, release date, filming dates, or production timeline is public.
-  - No role beyond having made it is published. Never call Ethan the director, producer, writer, editor, or cinematographer, and never name anyone else who worked on it.
-  - No festival history, screenings, awards, selections, reviews, or press are public.
-  - No view counts, audience figures, or reception of any kind are public.
-  - The English and Japanese versions are two versions of the same film. Never say one is subtitled, dubbed, a translation, a cut, an edit, or shorter or longer than the other — how they differ is not published.
-  - The documentary is not a Yorocobu product, is not one of the five projects in development, and is not client work. Never describe it as connected to what the company builds.
-  - Never state where the film is hosted or paste a URL. The links are attached by the site, not by you.
-last_updated: 2026-09-14
+  - No awards, festival selections, screenings, distribution, or press coverage are public. Never mention any.
+  - No viewing figures, reception, or reviews are public.
+  - No budget, crew, equipment, or production timeline beyond what is written here.
+  - Never name an interview subject who is not listed here, and never add a personal detail about a listed subject beyond the single line each is given.
+  - Nothing about a sequel, a series, or an additional episode. Never say one exists or is planned.
+  - The film is Ethan's work, not Yorocobu's. Never describe it as a company project, a Yorocobu production, or one of the five projects in development.
+  - Never go beyond the one-sentence framing of what the film is about. Joy describes the film; she does not interpret it, draw out its argument, or say what it concludes.
+  - How the English and Japanese versions differ is not published. Never say one is subtitled, dubbed, a translation, or a different cut or length from the other.
+  - Never paste a URL for the film. The links are attached by the site, not by you.
+last_updated: 2026-09-15
 ---
 
-Ethan Gailushas made a documentary called 忘れ者.
+忘れ者 (Wasuremono) is a feature-length documentary about loneliness and
+connection in Japan, directed and produced by Ethan Gailushas. It runs roughly
+90 minutes, and there are two versions, one in English and one in Japanese.
 
-There are two versions, one in English and one in Japanese. Either can be opened
-from this site, and the choice of language for the film is separate from the
-language you are reading the site in — people watch in a different language from
-the one they browse in all the time.
+## The title
 
-What the film is about is not published here, and neither is a translation of the
-title. Anything beyond the fact that it exists and how to watch it is best asked
-directly.
+忘れ者 reads as *forgotten person*. It plays on 忘れ物, the everyday word for a
+lost or left-behind object — the thing on lost-and-found signs. The film is
+about people left behind in the same way.
+
+## What it covers
+
+Loneliness and connection in contemporary Japan, and the tension between a
+society organised around convenience and the kinds of connection that
+convenience makes unnecessary.
+
+## Who is in it
+
+- **Akihiko Kondo**, who married the vocal synthesiser character Hatsune Miku.
+- **Tokyo's most in-demand rental girlfriend**, working as Mary Sakurai (麻里).
+- **Sakura Kudo**, a college student in Hokkaido, on friends who maintain a
+  front while wanting connection. **Dr. Tsuyoshi Ono**, a Tokyo pediatric
+  psychiatrist, is cut into the middle of her interview.
+- **Tsukimi Ayano**, who fills the depopulated village of Nagoro with life-sized
+  dolls of its former residents.
+- **A children's ice hockey team**, the Hiroshima Collectors.
+
+## How it was made
+
+Ethan shot, recorded, edited and produced it himself, in Japanese and English,
+while studying at Keio University on exchange from UNC Chapel Hill. The work was
+supported by the Morehead-Cain Foundation.
+
+## Where to watch
+
+Both versions are on YouTube. The site attaches the links itself, so ask for the
+film and the choice of language comes with it.

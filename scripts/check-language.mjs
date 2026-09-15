@@ -25,7 +25,12 @@
  */
 
 import { createServer } from 'node:http'
-import { localeViolation, japaneseShare, resultLocaleViolation } from '../netlify/functions/_shared/language.mjs'
+import {
+  localeViolation,
+  japaneseShare,
+  japaneseProseShare,
+  resultLocaleViolation,
+} from '../netlify/functions/_shared/language.mjs'
 
 let failures = 0
 const report = (ok, line) => {
@@ -47,6 +52,34 @@ const ENGLISH_THAT_MUST_PASS = [
   'The standard romanization of 喜ぶ is yorokobu, with a k. The company name is spelled yorocobu, with a c.',
   'Yorocobu LLC finds holes in niche markets and builds apps to fill them.',
   'I do not have that one. I can tell you about what Yorocobu builds or who is behind it, or I can send your question to Ethan.',
+
+  /*
+    The title gloss. The documentary entry explains 忘れ者 against 忘れ物, so a
+    correct English answer about the title carries TWO Japanese terms in one
+    short sentence — the densest correct English this site can produce.
+
+    These are the fixtures that killed the plain-ratio version of this check.
+    "The title is 忘れ者, a play on 忘れ物." measures 26% and was being refused;
+    "忘れ者 plays on 忘れ物." measures 46%. Both are correct. Under prose-run
+    detection both are 0%, because neither contains a run longer than a name.
+  */
+  'The title 忘れ者 reads as forgotten person. It plays on 忘れ物, the everyday word for a lost or left-behind object, the thing on lost-and-found signs.',
+  'The title is 忘れ者, a play on 忘れ物.',
+  '忘れ者 plays on 忘れ物.',
+  '忘れ者 means forgotten person, and it plays on 忘れ物, the everyday word for a lost object.',
+
+  /*
+    A Japanese name inside an English sentence. 初音ミク is four characters and
+    ドキュメンタリー is eight, which is why QUOTE_MAX is 6 rather than 4 — a
+    short sentence naming a subject in Japanese would otherwise be refused.
+
+    Only spellings the knowledge base itself uses appear here. An invented
+    kanji spelling in a fixture is a fact this repo does not have, and a test
+    is no better a place to keep one than a page is.
+  */
+  'One subject is 近藤顕彦, who married 初音ミク.',
+  'Akihiko Kondo (近藤顕彦) married the vocal synthesiser character Hatsune Miku (初音ミク).',
+  'One subject works under the name Mary Sakurai (麻里).',
 ]
 
 /*
@@ -57,9 +90,14 @@ const ENGLISH_THAT_MUST_PASS = [
 const JAPANESE_THAT_MUST_FAIL = [
   'Yorocobu は、ニッチな市場に残された穴を見つけて、それを埋めるアプリを作っています。',
   '料金は公開していません。金額を推測してお伝えするつもりもありません。',
+  // The Latin-heaviest realistic Japanese reply: two full names and a title.
   'Ethan Gailushas と Bence Burton の二名が創業しました。どちらも Co-Founder です。',
   'それについては分かりません。ご質問を Ethan にお送りすることもできます。',
   '「忘れ者」は Ethan が作ったドキュメンタリー作品です。英語版と日本語版があります。',
+  // Latin-heavy again, and short: the case the prose signal alone would miss.
+  'Yorocobu は React と Swift でアプリを作っています。',
+  // Short enough to have no long run at all: caught by the overall backstop.
+  'はい、できます。',
 ]
 
 console.log('\n  the detector accepts correct English that quotes Japanese')
@@ -67,7 +105,7 @@ for (const text of ENGLISH_THAT_MUST_PASS) {
   const reason = localeViolation(text, 'en')
   report(
     reason === null,
-    `${(Math.round(japaneseShare(text) * 100) + '%').padStart(4)}  ${text.slice(0, 56)}`
+    `${(Math.round(japaneseProseShare(text) * 100) + '/' + Math.round(japaneseShare(text) * 100)).padStart(7)}  ${text.slice(0, 52)}`
   )
 }
 
@@ -76,7 +114,7 @@ for (const text of JAPANESE_THAT_MUST_FAIL) {
   const reason = localeViolation(text, 'en')
   report(
     reason !== null,
-    `${(Math.round(japaneseShare(text) * 100) + '%').padStart(4)}  ${text.slice(0, 44)}`
+    `${(Math.round(japaneseProseShare(text) * 100) + '/' + Math.round(japaneseShare(text) * 100)).padStart(7)}  ${text.slice(0, 44)}`
   )
 }
 

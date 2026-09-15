@@ -43,42 +43,74 @@ export function japaneseShare(text) {
   return japanese / (japanese + latin)
 }
 
-/*
-  Why a ratio and not "contains any Japanese".
-
-  A correct ENGLISH answer from this knowledge base routinely contains Japanese
-  characters, because two of the things the site publishes are Japanese words it
-  is explaining: the name comes from 喜ぶ, the mark is 喜, and the documentary is
-  called 忘れ者 — which contains a hiragana れ, so even "kana means Japanese"
-  would flag it. Measured against the real entries, the worst realistic English
-  answer sits around 11% (a short reply that is mostly the film's title); the
-  name entry's answer is under 3%.
-
-  A typical Japanese reply is 80% or more, because Japanese spends few
-  characters on the Latin alphabet. The narrowest case is a short Japanese
-  sentence that is mostly proper nouns this site keeps in Latin — "Ethan
-  Gailushas と Bence Burton の二名が創業しました。どちらも Co-Founder です。"
-  measures 33%, and that is the closest a real Japanese reply gets.
-
-  So the honest gap is 12% to 33%, not 12% to 80%. 0.25 sits between them with
-  roughly equal room either side, and both ends are pinned by fixtures in
-  scripts/check-language.mjs so that narrowing the gap breaks a test rather than
-  quietly degrading. If a future entry pushes an English answer past 25% — a
-  reply that is mostly a Japanese title, say — the fixture is where it will
-  show up first.
-*/
-const JAPANESE_THRESHOLD = 0.25
+/**
+ * The maximal runs of Japanese characters in a text, longest first.
+ *
+ * Punctuation is not Japanese script here, so 。、「」 break a run. That is
+ * deliberate: it splits Japanese prose into clause-sized pieces, which is the
+ * scale this is measuring at.
+ */
+function japaneseRuns(text) {
+  return (String(text ?? '').match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+/gu) ?? [])
+    .map((run) => run.length)
+    .sort((a, b) => b - a)
+}
 
 /*
-  The mirror, for when Japanese is the requested locale.
+  Why a ratio ALONE is not enough, and what replaced it.
 
-  Looser, because a correct Japanese answer carries more Latin than a correct
-  English one carries Japanese: "Yorocobu", "Joy", "React", "Swift", "Flutter"
-  and both founders' names all stay in Latin script by design, and a short
-  Japanese answer that names three technologies can be a third Latin without
-  anything being wrong.
+  A correct ENGLISH answer from this knowledge base routinely contains Japanese,
+  because several things the site publishes are Japanese words it is explaining:
+  the name comes from 喜ぶ, the mark is 喜, and the documentary is called 忘れ者
+  — a title the entry glosses against 忘れ物, the everyday word for a lost
+  object. So a correct answer about the title carries two Japanese terms in one
+  short sentence.
+
+  A plain share broke on exactly that. "The title is 忘れ者, a play on 忘れ物."
+  measures 26% and was refused; "忘れ者 plays on 忘れ物." measures 46%. Both are
+  correct English. Raising the threshold to clear them would have put it above
+  the 33% that a real Japanese reply full of Latin proper nouns measures, and
+  the two classes would have overlapped with nothing to separate them.
+
+  The signal that does separate them is RUN LENGTH, not quantity. A quoted term
+  is a short island of Japanese in a Latin sentence — 忘れ者 is three characters,
+  工藤さくら is five. Japanese prose has long runs, because whole clauses are
+  Japanese: 「の二名が創業しました」 is nine, 「でアプリを作っています」 is
+  eleven. Counting only the characters in runs longer than a name leaves a
+  correct English answer at zero however many terms it quotes.
+
+  QUOTE_MAX is 6 rather than 4 so that the documentary's interview subjects —
+  工藤さくら, 綾野月見, 初音ミク — are treated as the names they are.
+
+  The overall share survives as a backstop, for a reply that is Japanese without
+  containing any long run. Neither signal alone is right; the pair is.
+
+  Every number here is pinned by fixtures in scripts/check-language.mjs, from
+  both directions, so moving one breaks a test rather than quietly degrading.
 */
-const LATIN_THRESHOLD = 0.7
+const QUOTE_MAX = 6
+const PROSE_THRESHOLD = 0.15
+const OVERALL_THRESHOLD = 0.5
+
+/** The share of a text that is Japanese PROSE, ignoring quoted terms. */
+export function japaneseProseShare(text) {
+  const prose = japaneseRuns(text)
+    .filter((length) => length > QUOTE_MAX)
+    .reduce((total, length) => total + length, 0)
+  const latin = count(text, LATIN)
+  if (prose + latin === 0) return 0
+  return prose / (prose + latin)
+}
+
+/**
+ * Is this text Japanese, as opposed to English that quotes Japanese?
+ *
+ * One predicate, used in both directions, so the two locales cannot drift into
+ * disagreeing about what counts as Japanese.
+ */
+export function looksJapanese(text) {
+  return japaneseProseShare(text) > PROSE_THRESHOLD || japaneseShare(text) > OVERALL_THRESHOLD
+}
 
 /**
  * Whether a string is plausibly in the requested locale.
@@ -92,20 +124,17 @@ export function localeViolation(text, locale) {
   // Nothing to judge. An empty reply is a different failure, caught elsewhere.
   if (!value.trim()) return null
 
-  const share = japaneseShare(value)
+  const japanese = looksJapanese(value)
+  const detail =
+    `${Math.round(japaneseProseShare(value) * 100)}% prose, ` +
+    `${Math.round(japaneseShare(value) * 100)}% overall`
 
   if (locale === 'en') {
-    if (share > JAPANESE_THRESHOLD) {
-      return `expected English, got ${Math.round(share * 100)}% Japanese script`
-    }
-    return null
+    return japanese ? `expected English, read as Japanese (${detail})` : null
   }
 
   if (locale === 'ja') {
-    if (share < 1 - LATIN_THRESHOLD && count(value, LATIN) > 0) {
-      return `expected Japanese, got ${Math.round((1 - share) * 100)}% Latin script`
-    }
-    return null
+    return japanese ? null : `expected Japanese, read as English (${detail})`
   }
 
   // An unknown locale is a programming error, not a response to judge. Say so
