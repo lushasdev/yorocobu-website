@@ -193,10 +193,16 @@ for (const q of MUST_NOT_DENY) {
   const r = await call(q)
   const denies = deniesCapability(r.reply ?? '', LOCALE)
   const compose = (r.actions ?? []).filter((a) => a.type === 'compose')
-  // "Email Ethan" on the send-from-here control is the denial in button form.
-  // Same pattern the function uses, from the same module, so the test and the
-  // thing it tests cannot drift apart again.
-  const badLabel = compose.some((a) => labelSaysEmail(a.label ?? '', LOCALE))
+  /*
+    The label is a closed token now, rendered by the locale dictionary, so
+    there is no free text here to inspect for the word "email". What can still
+    go wrong is the WRONG token — open_index on a compose control would render
+    "Open the full index" on a button that opens the message form.
+
+    The dictionary's own labels are checked in scripts/check-i18n.mjs, which is
+    where the words actually live.
+  */
+  const badLabel = compose.some((a) => !a.label_token || a.label_token === 'open_index')
   report(
     !r.error && !denies && compose.length > 0 && !badLabel,
     `${JSON.stringify(q).padEnd(42)} denies=${denies} offers-send=${compose.length > 0} label-ok=${!badLabel}`

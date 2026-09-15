@@ -23,6 +23,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative, extname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ui, locales, defaultLocale } from '../src/i18n/ui.ts'
+import { labelSaysEmail } from '../src/lib/output-patterns.js'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -101,6 +102,38 @@ console.log('\n  every placeholder survives translation')
   report(drifted.length === 0, `${drifted.length} key(s) with mismatched placeholders`)
   for (const key of drifted) {
     console.log(`          ${key}: en[${placeholders(ui.en[key])}] ja[${placeholders(ui.ja[key])}]`)
+  }
+}
+
+/*
+  Action labels are ours now, not the model's.
+
+  Labels used to be free text from the model and fixComposeLabels rewrote any
+  that said "email", because a compose control that says email teaches the
+  visitor the opposite of what it does. The label is a closed token now and the
+  words below are the only words it can render — so this is where that check
+  belongs, and it costs nothing to keep.
+*/
+console.log('\n  no compose label sends the visitor to their own mail client')
+{
+  const composeLabels = [
+    'action.sendMessage',
+    'action.sendQuestion',
+    'action.sendTheQuestion',
+    'action.sendQuestionToEthan',
+    'action.askDirectly',
+    'action.askAboutProject',
+    'action.askAboutClientWork',
+    'action.askToBeKeptPosted',
+    'action.askAboutIt',
+  ]
+  for (const locale of locales) {
+    const offenders = composeLabels.filter((key) => labelSaysEmail(ui[locale][key], locale))
+    report(
+      offenders.length === 0,
+      `${locale.padEnd(4)} ${composeLabels.length} compose labels, ${offenders.length} that say email`
+    )
+    for (const key of offenders) console.log(`          ${key} = ${JSON.stringify(ui[locale][key])}`)
   }
 }
 

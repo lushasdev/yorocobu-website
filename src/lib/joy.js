@@ -254,8 +254,26 @@ export async function askJoy({
 }
 
 /**
- * The model returns action *types*, never URLs. Real links are attached here
- * from the entry the answer was grounded in, so an invented link is impossible.
+ * The closed label tokens from the answer schema, mapped to dictionary keys.
+ * Kept beside normalise() rather than in the dictionary itself, because the
+ * token vocabulary belongs to the model contract and the keys belong to the
+ * copy — they are two different things that happen to line up.
+ */
+const ACTION_LABEL_KEYS = {
+  send_message: 'action.sendMessage',
+  send_question: 'action.sendQuestion',
+  ask_directly: 'action.askDirectly',
+  ask_about_project: 'action.askAboutProject',
+  ask_about_client_work: 'action.askAboutClientWork',
+  ask_to_be_kept_posted: 'action.askToBeKeptPosted',
+  ask_about_it: 'action.askAboutIt',
+  open_index: 'action.openIndex',
+}
+
+/**
+ * The model returns action *types* and label *tokens*, never URLs and never
+ * free text. Real links are attached here from the entry the answer was
+ * grounded in, so an invented link is impossible.
  */
 function normalise(result, mode, question, locale = defaultLocale) {
   const t = useTranslations(locale)
@@ -269,17 +287,26 @@ function normalise(result, mode, question, locale = defaultLocale) {
     }
   }
 
+  /*
+    The model chooses a token; the dictionary chooses the words.
+
+    There is no free-text label coming back any more, which is what made
+    fixComposeLabels unnecessary rather than something to duplicate per
+    language. A label cannot say "Email Ethan" in any locale, because a label is
+    no longer something the model writes.
+
+    An unrecognised token falls back by action type rather than rendering the
+    token itself: the schema pins the enum, so this only fires if the two ever
+    drift, and a visitor should see a slightly generic control rather than the
+    string "ask_about_project".
+  */
   const actions = (result.actions ?? [])
     .filter((a) => a && (a.type === 'compose' || a.type === 'index'))
     .map((a) => ({
       type: a.type,
-      /*
-        The model's label is used when it sends one, but the fallback comes from
-        the locale dictionary rather than from an English literal — an action
-        with no label must not be the one place English leaks back in.
-      */
-      label: String(
-        a.label ?? t(a.type === 'index' ? 'action.openIndex' : 'action.sendMessage')
+      label: t(
+        ACTION_LABEL_KEYS[a.label_token] ??
+          (a.type === 'index' ? 'action.openIndex' : 'action.sendMessage')
       ),
       value: a.type === 'index' ? '/full-index' : question,
     }))

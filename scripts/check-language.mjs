@@ -278,6 +278,64 @@ console.log('\n  end to end, against a stubbed model')
   )
 }
 
+/*
+  The offer rule, now that it reads a token instead of the reply's prose.
+
+  These are the cases the old GAP_SHAPED version got wrong. A complete answer
+  that names a boundary on its way out — "…and the site does not publish
+  anything further" — read as a dead end and collected an offer it had not
+  earned; four of six realistic complete answers did. Reading dead_end makes
+  that impossible to get wrong from phrasing, in either language.
+*/
+console.log('\n  the offer follows the dead_end token, not the prose')
+{
+  const base = { focus_section: 'company', actions: [], followups: [], unknown: false, used_entries: ['company'] }
+  const cases = [
+    [
+      'a complete answer that mentions a boundary keeps no offer',
+      { ...base, reply: 'Yorocobu builds apps for niche markets, and the site does not publish anything further.', dead_end: false },
+      false,
+    ],
+    [
+      'a genuine dead end gets one',
+      { ...base, reply: 'That is not something the site covers.', dead_end: true },
+      true,
+    ],
+    [
+      'an unknown gets one even with dead_end false',
+      { ...base, reply: 'I do not have that one.', dead_end: false, unknown: true },
+      true,
+    ],
+    [
+      'a contact answer keeps one regardless',
+      { ...base, focus_section: 'contact', reply: 'You can reach Ethan from here.', dead_end: false },
+      true,
+    ],
+    [
+      'a stray offer on a complete answer is stripped',
+      { ...base, reply: 'Yorocobu builds apps for niche markets.', dead_end: false, actions: [{ type: 'compose', label_token: 'send_message' }] },
+      false,
+    ],
+  ]
+  for (const [name, payload, wantOffer] of cases) {
+    const got = await ask('anything', 'en', payload)
+    const has = (got.result?.actions ?? []).some((a) => a.type === 'compose')
+    report(has === wantOffer, `${name}  (offer=${has}, wanted ${wantOffer})`)
+  }
+
+  // An added offer carries a token, never words, and its followups are real text.
+  const added = await ask('anything', 'en', { ...base, reply: 'Not covered.', dead_end: true })
+  const action = (added.result?.actions ?? [])[0]
+  report(
+    action?.label_token === 'send_question' && action.label === undefined,
+    `an injected offer carries a token and no free text  (${JSON.stringify(action)})`
+  )
+  report(
+    (added.result?.followups ?? []).every((f) => typeof f === 'string' && !/^[a-z]+$/.test(f)),
+    `injected followups are rendered text, not entry ids  (${JSON.stringify(added.result?.followups)})`
+  )
+}
+
 stub.close()
 
 console.log(

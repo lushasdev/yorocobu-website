@@ -19,6 +19,7 @@ import { resolve as resolveLocal } from '../../src/lib/navigator.js'
 import { json, callerId, overRateLimit } from './_shared/limits.mjs'
 import { recordQuality } from './_shared/quality.mjs'
 import { resultLocaleViolation } from './_shared/language.mjs'
+import { useTranslations } from '../../src/i18n/ui.ts'
 
 /** One place. Short retrieval over eight entries, not reasoning. */
 const MODEL = 'gpt-5.6-luna'
@@ -37,16 +38,18 @@ const MAX_COMPOSE_TURNS = 3
 
   This is the same fence as patternsFor() in the offline matcher, on the other
   path. The client sends the locale it wants; the server decides what it gets,
-  because a locale the guards cannot police is not a locale this function may
-  answer in. Every guard downstream of here keys on English: decideOffer splits
-  sentences on English punctuation, GAP_SHAPED is an English alternation,
-  fixComposeLabels looks for the English word "mail". In Japanese all three
-  match nothing and fail OPEN — they stop catching the failures they were
-  written for, silently, which is the worst shape a guard can take.
+  because a locale whose answers cannot be checked is not a locale this function
+  may answer in.
 
-  So until those guards are locale-aware and a Japanese eval suite passes, a
-  request asking for Japanese is answered in English and the console says so
-  above the input. Unit C adds 'ja' here, and this comment goes with it.
+  The guards themselves no longer key on English. decideOffer reads a dead_end
+  token, action labels are closed tokens the dictionary renders, and the
+  language check works on script rather than vocabulary. What still gates this
+  list is rescueFalseUnknown, which delegates to the offline matcher — so a
+  locale belongs here once that matcher has a pattern set AND its eval suite
+  passes, not before.
+
+  Not trusting the client is the point either way: a stray locale in a request
+  body must not be able to reach a path nothing has verified.
 
   Not trusting the client is the point: a stray locale in a request body must
   not be able to switch off the guards.
@@ -82,10 +85,29 @@ const context = knowledge.entries
 
 const ENTRY_IDS = knowledge.entries.map((e) => e.id)
 
+/*
+  The closed set of action labels.
+
+  The model picks a TOKEN; the locale dictionary turns it into words. That is
+  what makes fixComposeLabels unnecessary rather than something to duplicate per
+  language — there is no free-text label left for the model to get wrong, in any
+  language, so there is nothing to repair afterwards.
+*/
+const LABEL_TOKENS = [
+  'send_message',
+  'send_question',
+  'ask_directly',
+  'ask_about_project',
+  'ask_about_client_work',
+  'ask_to_be_kept_posted',
+  'ask_about_it',
+  'open_index',
+]
+
 const ANSWER_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['reply', 'focus_section', 'actions', 'followups', 'unknown', 'used_entries'],
+  required: ['reply', 'focus_section', 'actions', 'followups', 'unknown', 'dead_end', 'used_entries'],
   properties: {
     reply: { type: 'string', description: 'What Joy says. Plain prose, no markdown.' },
     focus_section: {
@@ -99,16 +121,19 @@ const ANSWER_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['type', 'label'],
+        required: ['type', 'label_token'],
         properties: {
           // A closed set. There is deliberately no url field.
           type: { type: 'string', enum: ['compose', 'index'] },
-          label: {
+          label_token: {
             type: 'string',
+            enum: LABEL_TOKENS,
             description:
-              'What the control does. For compose, it opens the message form ' +
-              'right here — label it that way ("Send it to Ethan from here"), ' +
-              'never "Email …": the visitor is not leaving the site.',
+              'Which label the control carries. The site renders it in the ' +
+              'visitor\'s language; you are choosing which one fits, not ' +
+              'writing the words. Use open_index only with type index. A ' +
+              'compose control opens the message form right here — the ' +
+              'visitor is not leaving the site.',
           },
         },
       },
@@ -122,6 +147,29 @@ const ANSWER_SCHEMA = {
         'them. Leave empty only when nothing sensibly follows.',
     },
     unknown: { type: 'boolean' },
+    /*
+      Whether this answer is a DEAD END: a question the site cannot take any
+      further, either because the knowledge base lacks it or because it is not
+      published. Structured rather than inferred.
+
+      This replaces reading the opening sentence of the reply for phrases like
+      "not public" or "I do not have". That test could not survive translation —
+      the sentence splitter keyed on English punctuation, so a Japanese reply
+      came back as one sentence and the pattern matched nothing — and adding a
+      second pattern set would have brought back the false positives the
+      first-sentence-only rule was invented to remove. The model already knows
+      whether it hit a wall; asking it is cheaper and more honest than guessing
+      from its prose.
+    */
+    dead_end: {
+      type: 'boolean',
+      description:
+        'True when this answer is a dead end for the visitor: the knowledge ' +
+        'base does not contain what they asked for, or it is explicitly not ' +
+        'published. False when you answered the question, even if the answer ' +
+        'mentions a boundary in passing. A complete answer that ends "and the ' +
+        'site does not publish anything further" is NOT a dead end.',
+    },
     used_entries: { type: 'array', items: { type: 'string', enum: ENTRY_IDS } },
   },
 }
@@ -174,7 +222,19 @@ WHEN TO ATTACH THE COMPOSE ACTION. Only in these three cases:
   3. The question is about working together, and the next step is a conversation.
 An answer that fully answers the question gets NO action. The offer is a way out
 of a dead end, not a signature on every reply — attaching it to a complete answer
-makes the whole site read as a contact form.`
+makes the whole site read as a contact form.
+
+DEAD_END. Set it true when the visitor has hit a wall: the knowledge base does
+not contain what they asked for, or it is there only as something explicitly not
+published. Set it false when you answered them. Naming a boundary on the way out
+of a complete answer is not a dead end — "Yorocobu builds X and Y, and the site
+does not publish anything further" ANSWERED the question. This field decides
+whether the message form is offered, so guessing high turns every answer into a
+contact form and guessing low strands people.
+
+LABELS. You choose a label_token, not words. The site renders it in the
+visitor's language. Pick the one that fits what the control will do; do not
+worry about how it reads.`
 
 const GROUNDING = `Answer only from the knowledge base below. It is the complete
 and only source of truth about Yorocobu. Do not use outside knowledge about the
@@ -283,33 +343,6 @@ ${LOCALE_NAMES[locale]}. Everything you say around it still follows the rule.`
   built from. It cannot be missed regardless of what the model returns.
 */
 /*
-  A compose action labelled "Email Ethan" is the denial in button form: the
-  control sends the message from right here, and a label that says email
-  teaches the visitor the opposite. The schema description asks the model not
-  to; this makes it not matter if it does anyway.
-*/
-function fixComposeLabels(result) {
-  if (!result?.actions?.length) return result
-  return {
-    ...result,
-    actions: result.actions.map((a) =>
-      a?.type === 'compose' && /\b(e-?mail|mail)\b/i.test(a.label ?? '')
-        ? { ...a, label: 'Send it to Ethan from here' }
-        : a
-    ),
-  }
-}
-
-/*
-  What a dead end sounds like. One definition, used in both directions: an
-  answer that says this is a dead end EARNS the offer, and an answer that does
-  not say so cannot keep one. Editing this changes both, which is the point —
-  the two rules are the same rule.
-*/
-const GAP_SHAPED =
-  /\b(not (public|published|covered)|(does|do)(n't| not) (publish|cover|say|describe|explain|have)|i (do not|don't) (have|know)|isn'?t (public|published)|nothing (is )?(public|published)|no [a-z ]{0,24}(is|are) public|and (stops|stop) there|and nothing more|without guessing|have nothing to point)\b/i
-
-/*
   Where an offer belongs on an answer that is not a dead end: the conversation
   cases. Same derivation the eval asserts against, so the function and the test
   cannot drift apart.
@@ -360,32 +393,37 @@ function rescueFalseUnknown(result, question, mode) {
 /**
  * One decision about the offer, enforced in both directions.
  *
- * This replaces a pair of functions that keyed on the same regex — one adding
- * the offer where a reply looked like a dead end, the other stripping it where
- * it did not. Sharing the key was meant to make them one rule; what it did was
- * make them collude. The adder fired, and the stripper then exempted exactly
- * what the adder had just created, so `stripped_offers` read 0 on every call
- * while stray offers went out anyway.
- *
- * The second bug was the key itself. GAP_SHAPED was tested against the whole
- * reply, and a good complete answer routinely names a boundary in passing —
- * "…and the site does not publish anything further." Four of six realistic
- * complete answers were misread as dead ends that way. A dead end announces
- * itself in its OPENING sentence; a caveat arrives after the answer has landed.
- * Testing the first sentence only separates them: 0 of 6 false positives.
- *
  * The model may suggest a compose action; this decides whether it keeps one.
  * Four rounds of prompt instructions did not stop stray offers, and the eval
  * showed why a fifth would not either — within one entry, "who is in charge"
  * came back clean while "who runs the company" did not, and the two swapped
  * places on the next run. That is per-request guessing, not a rule applied
- * imperfectly.
+ * imperfectly, so the rule is applied here instead.
+ *
+ * WHAT CHANGED FOR THE SECOND LANGUAGE. This used to take the opening sentence
+ * of the reply and test it against GAP_SHAPED, an English alternation. Both
+ * halves broke in Japanese: the splitter keyed on `[.!?]` followed by a space,
+ * and Japanese ends sentences with 。 and no space, so `opening` came back as
+ * the entire reply; the pattern then matched nothing regardless. The rule did
+ * not merely stop working, it INVERTED — offers were stripped from genuine dead
+ * ends and kept only where focus happened to be contact or services.
+ *
+ * Patching both would have meant two pattern sets and a sentence splitter per
+ * language, and testing the whole reply again reintroduces exactly the false
+ * positives that first-sentence-only was invented to remove: four of six
+ * complete answers read as dead ends, because a good answer routinely names a
+ * boundary in passing.
+ *
+ * So the prose test is gone. `dead_end` is a field in the structured output.
+ * The model knows whether it hit a wall — it does not have to be inferred from
+ * how it phrased the reply — and a boolean means the same thing in every
+ * language. OFFER_FOCUS was already token-based and is unchanged.
  */
-function decideOffer(result, mode) {
+function decideOffer(result, mode, locale) {
+  const t = useTranslations(locale)
   if (!result || mode === 'compose') return { result, offer: 'n/a' }
 
-  const opening = String(result.reply ?? '').split(/(?<=[.!?])\s/)[0]
-  const deadEnd = Boolean(result.unknown) || GAP_SHAPED.test(opening)
+  const deadEnd = Boolean(result.unknown) || Boolean(result.dead_end)
   const shouldOffer = deadEnd || OFFER_FOCUS.includes(result.focus_section)
 
   const actions = result.actions ?? []
@@ -397,8 +435,13 @@ function decideOffer(result, mode) {
       offer: 'added',
       result: {
         ...result,
-        actions: [...actions, { type: 'compose', label: 'Send the question to Ethan' }],
-        followups: result.followups?.length ? result.followups : offers.map((d) => d.query),
+        actions: [...actions, { type: 'compose', label_token: 'send_question' }],
+        /*
+          The injected fallback followups are rendered here rather than shipped
+          as ids, because the client renders whatever string it is given. Ids
+          would have appeared on screen as "portfolio" and "founders".
+        */
+        followups: result.followups?.length ? result.followups : offers.map((d) => t(`ask.${d.id}`)),
       },
     }
   }
@@ -671,11 +714,8 @@ export default async (req) => {
         } catch {
           console.error('joy: model output was not valid json')
         }
-        // Guarantee first, then strip: the guarantee only ever adds where a dead
-        // end earned it, and the strip only ever removes where none did, so the
-        // order cannot have them fighting over the same answer.
-        // Rescue first: a false unknown replaces the whole result, and the offer
-        // decision must then run over what is actually being sent.
+        // Rescue first: a false unknown replaces the whole result, and the
+        // offer decision must then run over what is actually being sent.
         /*
           The language constraint, checked rather than trusted.
 
@@ -708,8 +748,13 @@ export default async (req) => {
         }
 
         const { result: checked, rescued } = rescueFalseUnknown(result, question, mode)
-        const { result: decided, offer } = decideOffer(checked, mode)
-        const finished = fixComposeLabels(decided)
+        /*
+          fixComposeLabels used to run here, rewriting any compose label that
+          said "email". It is gone: the label is a closed token now and the
+          locale dictionary supplies the words, so there is no free-text label
+          left for the model to get wrong and nothing to repair.
+        */
+        const { result: finished, offer } = decideOffer(checked, mode, replyLocale)
         send({ done: true, result: finished, source: 'model' })
 
         /*
