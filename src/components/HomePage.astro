@@ -43,16 +43,19 @@ const docUrls = documentaryUrls({
 })
 
 /*
-  Joy answers in English on both trees for now.
+  Joy answers in the language of the page.
 
-  The page is fully Japanese; her replies are not, and the console says so
-  above the input. That is the honest version of today's state. The alternative
-  the audit found is worse: the matcher answering every Japanese question
-  confidently and wrongly. When the Japanese guards and eval suite land, this
-  becomes `locale` and the notice disappears on its own, because the console
-  only shows it when the two differ.
+  This was pinned to 'en' while the guards were English-keyed, with a notice
+  above the input saying so. Both halves of that are now gone: the guards are
+  token-based and locale-independent, the offline matcher has a Japanese
+  pattern set, and REPLY_LOCALES on the server serves ja.
+
+  null rather than the literal 'ja': the console falls back to the page locale,
+  so there is one place that decides the answer language and it is this file.
+  Setting it back to 'en' restores the notice automatically, because the notice
+  renders precisely when the two locales differ.
 */
-const answerLocale = 'en'
+const answerLocale = null
 ---
 
 <Base title={t('home.title')} description={t('home.description')} locale={locale}>

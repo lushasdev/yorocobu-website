@@ -143,13 +143,17 @@ console.log('\n  the Japanese tree')
   const hint = await page.textContent('.bar__hint')
   check('the input hint is Japanese', hint?.trim() === ui.ja['console.placeholder'], hint ?? '')
 
-  // The honest limitation, on the Japanese tree only.
-  const notice = await page.textContent('.bar__notice').catch(() => null)
-  check(
-    'the Japanese tree says Joy answers in English',
-    notice?.trim() === ui.ja['console.englishOnlyNotice'],
-    notice ?? 'no notice'
-  )
+  /*
+    The English-only notice is GONE now that Joy answers in Japanese.
+
+    It was never deleted, only deactivated: the console renders it whenever the
+    answer locale differs from the page locale, and HomePage.astro now passes
+    null so they match. Asserting its absence here is what would catch the
+    notice coming back — which would mean answerLocale had been pinned again
+    without anyone noticing.
+  */
+  const notices = await page.locator('.bar__notice').count()
+  check('the Japanese tree no longer says Joy answers in English', notices === 0, `${notices} notice(s)`)
 
   // The chips are the site map and have to be Japanese too.
   const chips = await page.locator('.suggestions .chip').allTextContents()

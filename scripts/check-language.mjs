@@ -271,41 +271,61 @@ const JAPANESE_PAYLOAD = {
 
 console.log('\n  end to end, against a stubbed model')
 {
-  // The control: an English reply to a Japanese question is exactly right.
-  const good = await ask('Yorocobu とは何ですか', 'ja', ENGLISH_PAYLOAD)
+  /*
+    Both locales are served now, so the assertion in each direction is the same
+    one: the reply must be in the language that was ASKED for, and anything else
+    is refused rather than served.
+
+    Refusing rather than repairing is the whole design. There is no honest way
+    to fix a reply in the wrong language from here — rewriting it would mean
+    translating it, and this function has no business inventing prose the model
+    did not produce. Failing hands the request to the browser's existing
+    fallback, which answers from the offline index in the right language.
+  */
+  const jaGood = await ask('Yorocobu とは何ですか', 'ja', JAPANESE_PAYLOAD)
   report(
-    good.error === null && good.result?.reply === ENGLISH_PAYLOAD.reply,
-    `Japanese question, English reply -> served  (${good.error ?? 'ok'})`
+    jaGood.error === null && jaGood.result?.reply === JAPANESE_PAYLOAD.reply,
+    `Japanese question, Japanese reply -> served  (${jaGood.error ?? 'ok'})`
+  )
+
+  const enGood = await ask('what is yorocobu', 'en', ENGLISH_PAYLOAD)
+  report(
+    enGood.error === null && enGood.result?.reply === ENGLISH_PAYLOAD.reply,
+    `English question, English reply -> served  (${enGood.error ?? 'ok'})`
   )
 
   /*
-    The case this whole fence exists for: Japanese input, and the model answers
-    in Japanese anyway. It must NOT be served. The browser then falls back to
-    the offline index, which answers in English and says it did — keeping the
-    notice above the input true.
+    The failure that matters most now that 'ja' is open: a model reaching for
+    its default and answering a Japanese visitor in English. Before the gate
+    opened this was the CORRECT behaviour, which is exactly why it needs an
+    assertion of its own — the expectation inverted, and an un-updated test
+    would have gone on passing while asserting the opposite of the design.
   */
-  const bad = await ask('Yorocobu とは何ですか', 'ja', JAPANESE_PAYLOAD)
+  const jaBad = await ask('Yorocobu とは何ですか', 'ja', ENGLISH_PAYLOAD)
   report(
-    bad.error === 'wrong language' && bad.result === null,
-    `Japanese question, Japanese reply -> refused  (error=${bad.error}, result=${bad.result ? 'SERVED' : 'none'})`
+    jaBad.error === 'wrong language' && jaBad.result === null,
+    `Japanese question, English reply -> refused  (error=${jaBad.error}, result=${jaBad.result ? 'SERVED' : 'none'})`
   )
 
-  // The same refusal when the request did not mention a locale at all.
+  const enBad = await ask('what is yorocobu', 'en', JAPANESE_PAYLOAD)
+  report(
+    enBad.error === 'wrong language' && enBad.result === null,
+    `English question, Japanese reply -> refused  (error=${enBad.error})`
+  )
+
+  // An absent locale is English, and is policed as English.
   const noLocale = await ask('what is yorocobu', undefined, JAPANESE_PAYLOAD)
   report(
     noLocale.error === 'wrong language',
     `no locale in the request, Japanese reply -> refused  (error=${noLocale.error})`
   )
 
-  // A client asking for Japanese must not be able to switch the fence off.
-  const sysPrompt = joy.buildModelInput({ mode: 'answer', question: 'x', locale: 'ja' })[0].content
+  // A locale the server does not serve falls back to English rather than
+  // reaching a path nothing has verified.
+  const unknown = joy.buildModelInput({ mode: 'answer', question: 'x', locale: 'de' })[0].content
   report(
-    /Write your entire response in English\./.test(sysPrompt),
-    'a client asking for Japanese still gets an English-pinned prompt'
-  )
-  report(
-    !/Write your entire response in Japanese/.test(sysPrompt),
-    'the prompt never asks for a locale the guards cannot police'
+    /Write your entire response in English\./.test(unknown),
+    'an unserved locale falls back to an English-pinned prompt'
   )
 }
 
@@ -368,30 +388,60 @@ console.log('\n  the offer follows the dead_end token, not the prose')
 }
 
 /*
-  The tripwire on REPLY_LOCALES.
+  The gate is open for 'ja', so the assertion is what the fence must do at
+  runtime rather than which locales are listed.
 
-  Joy answering Japanese is gated on a paid eval run that cannot happen in this
-  check. So rather than leave the gate as a comment nobody reads, the current
-  state is asserted: this test FAILS the moment 'ja' is added, which forces
-  whoever adds it to come here, read why, and confirm the Japanese suite
-  actually passed before editing the expectation.
-
-  Everything else is ready. The detector accepts Japanese for a 'ja' request
-  already, the guards are locale-independent, and the offline matcher has its
-  own Japanese cases in check-navigator.mjs. This one line is the gate.
+  A tripwire used to sit here asserting REPLY_LOCALES was still ['en']. It was
+  meant to make opening the gate a deliberate act; it has been, so it is gone
+  rather than left as a test that has to be edited to stay green.
 */
-console.log('\n  the locale gate is still closed')
+console.log('\n  both served locales are policed, not just English')
 {
   report(
-    JSON.stringify(joy.REPLY_LOCALES) === JSON.stringify(['en']),
-    `REPLY_LOCALES is ${JSON.stringify(joy.REPLY_LOCALES)} — if you just opened this ` +
-      `gate, confirm EVAL_LOCALE=ja passed and update this expectation deliberately`
+    joy.REPLY_LOCALES.includes('ja'),
+    `REPLY_LOCALES is ${JSON.stringify(joy.REPLY_LOCALES)}`
   )
-  // And the mirror half is genuinely ready: a Japanese reply is what a 'ja'
-  // request would need to accept, and the detector already does.
+
+  // A Japanese reply to a Japanese request is now SERVED, not refused.
+  const served = await ask('Yorocobu とは何ですか', 'ja', {
+    reply: 'Yorocobu は、サービスが行き届いていない市場に残された穴を見つけて、それを埋めるアプリを作っています。',
+    focus_section: 'company',
+    actions: [],
+    followups: ['社名の由来は'],
+    unknown: false,
+    dead_end: false,
+    used_entries: ['company'],
+  })
   report(
-    localeViolation('料金は公開していません。金額を推測してお伝えするつもりもありません。', 'ja') === null,
-    'the detector already accepts a Japanese reply for a Japanese request'
+    served.error === null && served.result?.focus_section === 'company',
+    `a Japanese reply to a Japanese request is served  (${served.error ?? 'ok'})`
+  )
+
+  /*
+    And the fence still bites in the other direction. Opening a locale must not
+    mean the language check stops mattering — an ENGLISH reply to a Japanese
+    request is just as wrong as the reverse, and is what a model reaching for
+    its default would produce.
+  */
+  const wrongWay = await ask('Yorocobu とは何ですか', 'ja', {
+    reply: 'Yorocobu LLC finds holes in niche markets and builds apps to fill them.',
+    focus_section: 'company',
+    actions: [],
+    followups: ['what does the name mean'],
+    unknown: false,
+    dead_end: false,
+    used_entries: ['company'],
+  })
+  report(
+    wrongWay.error === 'wrong language' && wrongWay.result === null,
+    `an English reply to a Japanese request is refused  (error=${wrongWay.error})`
+  )
+
+  // The prompt asks for Japanese now, rather than pinning everything to English.
+  const sys = joy.buildModelInput({ mode: 'answer', question: 'x', locale: 'ja' })[0].content
+  report(
+    /Write your entire response in Japanese/.test(sys),
+    'a Japanese request gets a Japanese-pinned prompt'
   )
 }
 

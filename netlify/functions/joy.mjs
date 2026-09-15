@@ -37,24 +37,42 @@ const MAX_COMPOSE_TURNS = 3
   Which locales Joy is allowed to ANSWER in, decided on the server.
 
   This is the same fence as patternsFor() in the offline matcher, on the other
-  path. The client sends the locale it wants; the server decides what it gets,
-  because a locale whose answers cannot be checked is not a locale this function
-  may answer in.
-
-  The guards themselves no longer key on English. decideOffer reads a dead_end
-  token, action labels are closed tokens the dictionary renders, and the
-  language check works on script rather than vocabulary. What still gates this
-  list is rescueFalseUnknown, which delegates to the offline matcher — so a
-  locale belongs here once that matcher has a pattern set AND its eval suite
-  passes, not before.
-
-  Not trusting the client is the point either way: a stray locale in a request
-  body must not be able to reach a path nothing has verified.
-
+  path. The client sends the locale it wants; the server decides what it gets.
   Not trusting the client is the point: a stray locale in a request body must
-  not be able to switch off the guards.
+  not be able to reach a path nothing has verified.
+
+  ── 'ja' IS OPEN, AND THE PAID SUITES HAVE NOT BEEN RUN ──────────────────────
+
+  Everything checkable without spending money passes: the offline matcher has a
+  Japanese pattern set with 62 cases of its own, the language check works in
+  both directions, and every Japanese assertion is validated against Japanese
+  fixtures. The model's own Japanese has not been measured — that was a
+  deliberate call to test against the live model instead.
+
+  So what stands between a Japanese visitor and a wrong answer here is the
+  RUNTIME fence rather than a test result, and all four parts of it are
+  language-independent by construction:
+
+    - the prompt pins the response to the requested locale
+    - _shared/language.mjs checks what actually came back and REFUSES a reply
+      in the wrong language, falling back to the offline index rather than
+      serving it
+    - decideOffer reads a dead_end token, so the offer rule cannot invert the
+      way it did when it read English prose
+    - action labels are closed tokens the dictionary renders, so a label
+      cannot be wrong in any language
+
+  Reverting is this one line. The console notice comes back on its own when it
+  does, because HomePage.astro passes answerLocale: null and the notice renders
+  whenever the answer locale differs from the page locale.
+
+  To run the suites later:
+
+      node scripts/check-eval-assertions.mjs          # free, run this first
+      OPENAI_API_KEY=... node scripts/eval-knowledge.mjs
+      OPENAI_API_KEY=... EVAL_LOCALE=ja node scripts/eval-knowledge.mjs
 */
-export const REPLY_LOCALES = ['en']
+export const REPLY_LOCALES = ['en', 'ja']
 const FALLBACK_REPLY_LOCALE = 'en'
 
 /** What the model is told to answer in, whatever the client asked for. */
