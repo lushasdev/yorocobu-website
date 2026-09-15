@@ -31,24 +31,40 @@ const CURRENT_TIMEOUT = Number(
   )?.[1] ?? 0
 )
 
+const LOCALE = process.env.EVAL_LOCALE ?? 'en'
+if (!['en', 'ja'].includes(LOCALE)) {
+  console.error(`\n  EVAL_LOCALE must be en or ja, got "${LOCALE}"\n`)
+  process.exit(2)
+}
+
+/* Each locale's own cases. Japanese assertions are written against Japanese. */
+const suffix = LOCALE === 'en' ? '' : '_JA'
+const MUST_ANSWER = CASES[`MUST_ANSWER${suffix}`]
+const MUST_NOT_DENY = CASES[`MUST_NOT_DENY${suffix}`]
+const MUST_DECLINE = CASES[`MUST_DECLINE${suffix}`]
+const MUST_BE_UNKNOWN = CASES[`MUST_BE_UNKNOWN${suffix}`]
+const NO_PREFERENCES = CASES[`NO_PREFERENCES${suffix}`]
+const { GLOSSARY_JA, ENGLISH_LEAK } = CASES
+
 if (!process.env.OPENAI_API_KEY) {
   console.error('\n  OPENAI_API_KEY is not set. Nothing to run against.\n')
   process.exit(2)
 }
 
-import {
-  MUST_ANSWER,
-  MUST_NOT_DENY,
-  MUST_DECLINE,
-  MUST_BE_UNKNOWN,
-  NO_PREFERENCES,
-  deniesCapability,
-  expressesPreference,
-  labelSaysEmail,
-} from './eval-cases.mjs'
+import * as CASES from './eval-cases.mjs'
+import { deniesCapability, expressesPreference } from '../src/lib/output-patterns.js'
 
-/** Which locale this run is judging. Both suites are run separately. */
-const LOCALE = process.env.EVAL_LOCALE ?? 'en'
+/*
+  Which locale this run is judging.
+
+  The two suites are run SEPARATELY and reported separately — never averaged.
+  An average hides the case that matters: a Japanese pass rate of 60% behind an
+  English one of 100% reads as 80%, which is a number nobody would act on.
+
+    node scripts/eval-knowledge.mjs                  English
+    EVAL_LOCALE=ja node scripts/eval-knowledge.mjs   Japanese
+*/
+
 /*
   First-token latency, recorded on every call.
 
@@ -74,7 +90,7 @@ async function call(question) {
     new Request('https://yorocobu.org/api/joy', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ mode: 'answer', question }),
+      body: JSON.stringify({ mode: 'answer', question, locale: LOCALE }),
     })
   )
   if (!response.body) return { error: `status ${response.status}` }
@@ -148,6 +164,7 @@ const judge = (r, section) => {
   }
 }
 
+console.log(`\n  ══ ${LOCALE.toUpperCase()} ══`)
 console.log('\n  must answer, twice — complete answers carry no offer, and answers do not wobble')
 const unstable = []
 for (const [q, section] of MUST_ANSWER) {
@@ -209,6 +226,32 @@ for (const q of MUST_NOT_DENY) {
   )
 }
 
+/*
+  Japanese only: leakage and glossary adherence.
+
+  Both are failures the token-based assertions cannot see. An answer can route
+  correctly, carry the right action and still be half in English, or call Ethan
+  ガルシアス — which is a different person's name.
+*/
+let extra = 0
+if (LOCALE === 'ja') {
+  console.log('\n  no English fragments in a Japanese answer')
+  for (const [q] of MUST_ANSWER) {
+    const r = await call(q)
+    const leaked = ENGLISH_LEAK.exec(r.reply ?? '')
+    report(!r.error && !leaked, `${JSON.stringify(q).slice(0, 34).padEnd(36)} ${leaked ? `LEAK "${leaked[0]}"` : 'clean'}`)
+    extra++
+  }
+
+  console.log('\n  glossary terms are used verbatim')
+  for (const { q, must, mustNot, why } of GLOSSARY_JA) {
+    const r = await call(q)
+    const ok = !r.error && must.test(r.reply ?? '') && !mustNot.test(r.reply ?? '')
+    report(ok, `${JSON.stringify(q).slice(0, 30).padEnd(32)} ${why}`)
+    extra++
+  }
+}
+
 // The answer block is judged once per case over two passes, so it contributes
 // its length, not twice its length.
 const total =
@@ -216,8 +259,13 @@ const total =
   MUST_DECLINE.length +
   MUST_BE_UNKNOWN.length +
   NO_PREFERENCES.length +
-  MUST_NOT_DENY.length
-console.log(`\n  ${total - failures}/${total} passed`)
+  MUST_NOT_DENY.length +
+  extra
+console.log(`\n  ${LOCALE.toUpperCase()}: ${total - failures}/${total} passed`)
+console.log(
+  `  Report this number on its own. The two suites are never averaged — an\n` +
+    `  average hides the locale that is failing behind the one that is not.`
+)
 
 if (latencies.length) {
   const p50 = percentile(latencies, 50)

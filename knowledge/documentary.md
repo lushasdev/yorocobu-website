@@ -10,7 +10,7 @@ aliases:
    film, movie, video, youtube, hatsune miku, rental girlfriend, nagoro]
 status: available
 kind: work
-summary: 忘れ者 (Wasuremono) is a feature-length documentary about loneliness and connection in Japan, directed and produced by Ethan Gailushas. Roughly 90 minutes, in English and Japanese versions.
+summary: 忘れ者 (Wasuremono) is a feature-length documentary about loneliness and connection in Japan, directed and produced by Ethan Gailushas. Roughly 90 minutes, in two versions — the Japanese one is fully Japanese audio with Japanese subtitles, the English one is in English.
 links: []
 do_not_claim:
   - No awards, festival selections, screenings, distribution, or press coverage are public. Never mention any.
@@ -20,14 +20,18 @@ do_not_claim:
   - Nothing about a sequel, a series, or an additional episode. Never say one exists or is planned.
   - The film is Ethan's work, not Yorocobu's. Never describe it as a company project, a Yorocobu production, or one of the five projects in development.
   - Never go beyond the one-sentence framing of what the film is about. Joy describes the film; she does not interpret it, draw out its argument, or say what it concludes.
-  - How the English and Japanese versions differ is not published. Never say one is subtitled, dubbed, a translation, or a different cut or length from the other.
+  - Never write an interview subject's name in Japanese script. The credited forms are not in this knowledge base, so a Japanese spelling would be invented; use the Latin spellings above in every language until the credited forms are added here.
   - Never paste a URL for the film. The links are attached by the site, not by you.
 last_updated: 2026-09-15
 ---
 
 忘れ者 (Wasuremono) is a feature-length documentary about loneliness and
 connection in Japan, directed and produced by Ethan Gailushas. It runs roughly
-90 minutes, and there are two versions, one in English and one in Japanese.
+90 minutes.
+
+There are two versions. The Japanese version is fully Japanese audio with
+Japanese subtitles; the English version is in English. Which one to watch is the
+first thing worth knowing, so the site asks before it hands over a link.
 
 ## The title
 
@@ -44,7 +48,7 @@ convenience makes unnecessary.
 ## Who is in it
 
 - **Akihiko Kondo**, who married the vocal synthesiser character Hatsune Miku.
-- **Tokyo's most in-demand rental girlfriend**, working as Mary Sakurai (麻里).
+- **Tokyo's most in-demand rental girlfriend**, working as Mary Sakurai.
 - **Sakura Kudo**, a college student in Hokkaido, on friends who maintain a
   front while wanting connection. **Dr. Tsuyoshi Ono**, a Tokyo pediatric
   psychiatrist, is cut into the middle of her interview.

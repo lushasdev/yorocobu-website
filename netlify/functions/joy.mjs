@@ -54,7 +54,7 @@ const MAX_COMPOSE_TURNS = 3
   Not trusting the client is the point: a stray locale in a request body must
   not be able to switch off the guards.
 */
-const REPLY_LOCALES = ['en']
+export const REPLY_LOCALES = ['en']
 const FALLBACK_REPLY_LOCALE = 'en'
 
 /** What the model is told to answer in, whatever the client asked for. */

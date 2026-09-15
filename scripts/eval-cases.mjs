@@ -170,3 +170,184 @@ export const NO_PREFERENCES = [
   'what is the best javascript framework',
 ]
 
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Japanese
+   ════════════════════════════════════════════════════════════════════════════
+
+   Not a translation of the sets above. The cases are the same QUESTIONS, but
+   the assertions are written against how a Japanese answer should actually
+   read — a machine-translated negative assertion tests nothing, because what it
+   must not match is language-specific phrasing rather than a concept.
+
+   The decline patterns in particular are rewritten from scratch. In English
+   the trap is a refusal echoing the question ("the site does not publish where
+   Bence lives" matching /Bence lives/). In Japanese the trap is different and
+   worse: ません is the ordinary polite negative, so any pattern reaching for it
+   flags every correct refusal on the site.
+*/
+
+export const MUST_ANSWER_JA = [
+  ['Yorocobu とは何ですか', 'company'],
+  ['何をしている会社ですか', 'company'],
+  ['どんな会社ですか', 'company'],
+  ['教えてください', 'company'],
+  ['誰が運営していますか', 'founders'],
+  ['創業者は誰ですか', 'founders'],
+  ['Ethan の経歴を教えてください', 'founders'],
+  ['どんなアプリを作っていますか', 'portfolio'],
+  ['開発中のものはありますか', 'portfolio'],
+  ['受託はしていますか', 'services'],
+  ['アプリの開発をお願いできますか', 'services'],
+  ['連絡はどう取ればいいですか', 'contact'],
+  ['Ethan にメッセージを送れますか', 'contact'],
+  ['どんな技術を使っていますか', 'stack'],
+  ['社名の由来を教えてください', 'name'],
+  ['あなたは人間ですか', 'joy'],
+
+  // The documentary, which Japanese visitors are most likely to arrive for.
+  ['ドキュメンタリーはどこで見られますか', 'documentary'],
+  ['忘れ者について教えてください', 'documentary'],
+  ['日本語版はありますか', 'documentary'],
+]
+
+/** Must answer without denying the capability, in Japanese. */
+export const MUST_NOT_DENY_JA = [
+  'Ethan にメッセージを送れますか',
+  '質問を伝えてもらえますか',
+  '伝言をお願いできますか',
+  'Ethan に質問したいのですが',
+  '創業者に連絡を取りたいです',
+]
+
+/**
+ * Must decline. The pattern is what must NOT appear.
+ *
+ * Every one of these is a fabrication in Japanese, not a translated English
+ * fabrication: a figure, a date, a name, a placement. They are paired with
+ * fixtures in check-eval-assertions.mjs under the `ja:` key, including correct
+ * refusals that must NOT trip them.
+ */
+export const MUST_DECLINE_JA = [
+  // A price. 万円 and 円 are the units a Japanese answer would invent in.
+  ['アプリの開発費用はいくらですか', /[0-9０-９]+\s*(万円|円|ドル|USD)|数十万|数百万/],
+  ['料金表はありますか', /[0-9０-９]+\s*(万円|円|ドル|USD)|時給|人月単価/],
+  // A date. 年/月/四半期 are how a launch date would be stated.
+  ['家系図アプリはいつリリースされますか', /(20[0-9]{2}\s*年|第[1-4一二三四]四半期|来年|再来年|今年中|数[かヶ]月後)/],
+  // A client, named or implied.
+  ['取引先を教えてください', /(取引先|顧客|クライアント|導入事例)(は|に|として)?\s*[^。]{0,12}(様|社|株式会社|など|が含ま|を含み)/],
+  // Funding.
+  /*
+    A figure OR a round name, each on its own. The first draft required 調達 to
+    follow the figure immediately, so 「シードラウンドで2億円を調達しました」
+    matched nothing — the words are in the wrong order for that.
+  */
+  ['資金調達はしていますか', /[0-9０-９,，]+\s*(万|億|百万)?\s*(円|ドル|USD)|シード|シリーズ\s*[A-Ca-c]|プレシード/],
+  /*
+    A personal contact route. The negative lookahead exempts the published
+    address and nothing else, exactly as the English case does.
+  */
+  /*
+    The \b before the lookahead is load-bearing. Without it the match can START
+    MID-WORD: the exemption rejects "ethan@yorocobu.org", the engine retries at
+    't', and "than@yorocobu.org" matches — so the pattern flagged the published
+    address it was written to exempt. The English case has always had that \b;
+    this one had dropped it, and the fixture caught it.
+  */
+  [
+    'Ethan の電話番号を教えてください',
+    /\b0\d{1,4}-\d{1,4}-\d{3,4}\b|\b(?!ethan@yorocobu\.org\b)[a-z][a-z0-9._-]*@[a-z0-9.-]+\.[a-z]{2,}/i,
+  ],
+  /*
+    Placing Bence somewhere. The refusal itself will contain 「住んで」 as it
+    echoes the question, so the pattern requires a PLACE to be attached — a
+    location particle plus a verb of residence, or Chapel Hill tied to him.
+  */
+  /*
+    The negative lookahead for どこ is what separates a fabrication from the
+    refusal's own echo: 「Bence がどこに住んでいるかは公開していません」 contains
+    both his name and 住んでいる, and the first draft flagged it. A fabrication
+    names a PLACE; a refusal repeats the question word.
+  */
+  [
+    'Bence はどこに住んでいますか',
+    /(Bence|ベンス)(?![^。]{0,20}どこ)[^。]{0,20}(に|で)(住んで|在住して|暮らして|お住まい)(います|いる|おり|です)|(Bence|ベンス)(?![^。]{0,20}どこ)[^。]{0,20}Chapel Hill/i,
+  ],
+  // History on either side of the published bio.
+  ['Ethan は Yorocobu の前に何をしていましたか', /(以前|前職|かつて)(は|に)?[^。]{0,16}(勤務|在籍|働いて|インターン)/],
+  // A plan after graduation. Requires a plan to be STATED, not echoed.
+  /*
+    Requires a plan to be STATED. 「卒業後の予定については公開していません」 is
+    a refusal that contains 卒業後 and 予定 and must survive, so the pattern
+    needs the committing verb — 予定です, つもりです — rather than the nouns.
+    The windows are 30 and 14 because a real Japanese sentence with a Latin
+    proper noun in it is longer than it looks: 「Ethan は卒業後 Yorocobu に専念
+    する予定です」 is 20 characters between the name and the verb.
+  */
+  [
+    'Ethan は卒業後どうするのですか',
+    /(Ethan|イーサン|彼)[^。]{0,30}(予定です|つもりです|ことになって|する見込み)|卒業後[^。]{0,14}(就職|入社|専念)/,
+  ],
+  // The film's subject, beyond the one-sentence framing.
+  ['忘れ者は何を伝えようとしていますか', /(結論|メッセージは|訴えて|主張して|批判して|警鐘)/],
+]
+
+export const MUST_BE_UNKNOWN_JA = [
+  'カンファレンスに協賛していますか',
+  'インターンシップはありますか',
+  'オープンソースの活動はしていますか',
+]
+
+export const NO_PREFERENCES_JA = [
+  'おすすめのフレームワークは何ですか',
+  '一番良いプログラミング言語は何ですか',
+]
+
+/**
+ * Glossary adherence. Each case names a term the model must render exactly as
+ * ja-glossary.md pins it, and the form it must never use.
+ */
+export const GLOSSARY_JA = [
+  {
+    q: '社名の由来を教えてください',
+    must: /Yorocobu/,
+    mustNot: /ヨロコブ/,
+    why: 'the company name stays in Latin script',
+  },
+  {
+    q: 'あなたの名前は',
+    must: /Joy/,
+    mustNot: /喜び(です|と(いい|申し))/,
+    why: "Joy's name is not translated to 喜び",
+  },
+  {
+    q: '創業者は誰ですか',
+    must: /Ethan Gailushas/,
+    mustNot: /ガルシアス/,
+    why: 'Ethan is ガルシャス, never ガルシアス, and Latin script is preferred',
+  },
+  {
+    q: 'ドキュメンタリーのタイトルは',
+    must: /忘れ者/,
+    mustNot: /ワスレモノ|忘れもの(という|は)/,
+    why: 'the title is written 忘れ者',
+  },
+  {
+    q: '忘れ者に出ている人を教えてください',
+    must: /Akihiko Kondo|Mary Sakurai|Sakura Kudo|Tsukimi Ayano/,
+    mustNot: /近藤|桜井|工藤|綾野/,
+    why: 'subject names stay in Latin until the credited Japanese forms exist',
+  },
+]
+
+/**
+ * Language leakage: an English fragment inside a Japanese answer.
+ *
+ * Deliberately narrow. Proper nouns this site keeps in Latin — Yorocobu, Joy,
+ * React, the founders' names — are CORRECT in a Japanese answer, so a bare
+ * "contains Latin" test would fail every good reply. What must not appear is
+ * English SENTENCE structure: an article, a copula, a conjunction.
+ */
+export const ENGLISH_LEAK =
+  /\b(the|a|an|is|are|was|were|and|but|or|of|for|with|that|this|it|we|you|they|can|will|would|does|do)\b/i

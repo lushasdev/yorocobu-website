@@ -29,8 +29,17 @@ import {
   localeViolation,
   japaneseShare,
   japaneseProseShare,
+  runCount,
+  grammarRuns,
   resultLocaleViolation,
 } from '../netlify/functions/_shared/language.mjs'
+
+/** All four signals at a glance, so a failure says which one moved. */
+const detail = (text) =>
+  `${String(Math.round(japaneseProseShare(text) * 100)).padStart(3)}p` +
+  `${String(Math.round(japaneseShare(text) * 100)).padStart(4)}o` +
+  `${String(runCount(text)).padStart(3)}r` +
+  `${String(grammarRuns(text)).padStart(3)}g`
 
 let failures = 0
 const report = (ok, line) => {
@@ -69,17 +78,25 @@ const ENGLISH_THAT_MUST_PASS = [
   '忘れ者 means forgotten person, and it plays on 忘れ物, the everyday word for a lost object.',
 
   /*
-    A Japanese name inside an English sentence. 初音ミク is four characters and
-    ドキュメンタリー is eight, which is why QUOTE_MAX is 6 rather than 4 — a
-    short sentence naming a subject in Japanese would otherwise be refused.
+    Interview subjects are written in Latin in every language until the credited
+    Japanese forms are added to the knowledge base, so there is deliberately no
+    fixture here with a person's name in kanji. A spelling this repo does not
+    have is no better kept in a test than on a page.
 
-    Only spellings the knowledge base itself uses appear here. An invented
-    kanji spelling in a fixture is a fact this repo does not have, and a test
-    is no better a place to keep one than a page is.
+    QUOTE_MAX stays at 6 rather than dropping to 4 for two reasons: it is the
+    headroom a credited name will need once ja-glossary.md supplies them, and
+    ordinary quoted vocabulary already reaches it — 開発中の案件 is six.
   */
-  'One subject is 近藤顕彦, who married 初音ミク.',
-  'Akihiko Kondo (近藤顕彦) married the vocal synthesiser character Hatsune Miku (初音ミク).',
-  'One subject works under the name Mary Sakurai (麻里).',
+  'Akihiko Kondo married the vocal synthesiser character Hatsune Miku.',
+  'The Japanese version is labelled 日本語版.',
+  'The portfolio entry is headed 開発中の案件 on the Japanese tree.',
+
+  /*
+    Three quoted terms is the most a correct English answer reaches, which is
+    why the run-count signal fires at four. Pinned here so lowering it breaks a
+    test rather than starting to refuse correct answers.
+  */
+  'The name comes from 喜ぶ, the mark is 喜, and the film is 忘れ者.',
 ]
 
 /*
@@ -98,6 +115,20 @@ const JAPANESE_THAT_MUST_FAIL = [
   'Yorocobu は React と Swift でアプリを作っています。',
   // Short enough to have no long run at all: caught by the overall backstop.
   'はい、できます。',
+
+  /*
+    The register that defeats prose share and overall share together: every noun
+    kept in Latin, only particles and copulas left in Japanese. Runs are さんは,
+    の, です — none over QUOTE_MAX, overall share low. Three runs, so the
+    run-count signal alone does not reach it either; what catches it is that all
+    three runs are bare hiragana, which is grammar rather than vocabulary.
+  */
+  'Mary Sakurai さんは Tokyo の rental girlfriend です。',
+  // 、 fragments a clause into shorter runs, so it makes this register harder,
+  // not easier. Same sentence, same verdict.
+  'Mary Sakurai さんは、Tokyo の rental girlfriend です。',
+  // Longer in the same register: caught by run count as well.
+  'Mary Sakurai さんは Tokyo の rental girlfriend で、Sakura Kudo さんは Hokkaido の学生です。',
 ]
 
 console.log('\n  the detector accepts correct English that quotes Japanese')
@@ -105,7 +136,7 @@ for (const text of ENGLISH_THAT_MUST_PASS) {
   const reason = localeViolation(text, 'en')
   report(
     reason === null,
-    `${(Math.round(japaneseProseShare(text) * 100) + '/' + Math.round(japaneseShare(text) * 100)).padStart(7)}  ${text.slice(0, 52)}`
+    `${detail(text)}  ${text.slice(0, 48)}`
   )
 }
 
@@ -114,7 +145,7 @@ for (const text of JAPANESE_THAT_MUST_FAIL) {
   const reason = localeViolation(text, 'en')
   report(
     reason !== null,
-    `${(Math.round(japaneseProseShare(text) * 100) + '/' + Math.round(japaneseShare(text) * 100)).padStart(7)}  ${text.slice(0, 44)}`
+    `${detail(text)}  ${text.slice(0, 44)}`
   )
 }
 
@@ -333,6 +364,34 @@ console.log('\n  the offer follows the dead_end token, not the prose')
   report(
     (added.result?.followups ?? []).every((f) => typeof f === 'string' && !/^[a-z]+$/.test(f)),
     `injected followups are rendered text, not entry ids  (${JSON.stringify(added.result?.followups)})`
+  )
+}
+
+/*
+  The tripwire on REPLY_LOCALES.
+
+  Joy answering Japanese is gated on a paid eval run that cannot happen in this
+  check. So rather than leave the gate as a comment nobody reads, the current
+  state is asserted: this test FAILS the moment 'ja' is added, which forces
+  whoever adds it to come here, read why, and confirm the Japanese suite
+  actually passed before editing the expectation.
+
+  Everything else is ready. The detector accepts Japanese for a 'ja' request
+  already, the guards are locale-independent, and the offline matcher has its
+  own Japanese cases in check-navigator.mjs. This one line is the gate.
+*/
+console.log('\n  the locale gate is still closed')
+{
+  report(
+    JSON.stringify(joy.REPLY_LOCALES) === JSON.stringify(['en']),
+    `REPLY_LOCALES is ${JSON.stringify(joy.REPLY_LOCALES)} — if you just opened this ` +
+      `gate, confirm EVAL_LOCALE=ja passed and update this expectation deliberately`
+  )
+  // And the mirror half is genuinely ready: a Japanese reply is what a 'ja'
+  // request would need to accept, and the detector already does.
+  report(
+    localeViolation('料金は公開していません。金額を推測してお伝えするつもりもありません。', 'ja') === null,
+    'the detector already accepts a Japanese reply for a Japanese request'
   )
 }
 

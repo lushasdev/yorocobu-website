@@ -129,8 +129,37 @@ function DocumentaryGate({ urls, start = 'ask', onDismiss, t }) {
   )
 }
 
+/**
+ * Where a reply may be cut, as character offsets into it.
+ *
+ * English splits on spaces, which is what it has always done and what the feel
+ * was tuned against. Everything else goes through Intl.Segmenter, which is the
+ * only way to find a word boundary in a script that does not write them.
+ */
+const streamSegmenters = new Map()
+
+function wordBoundaries(text, locale) {
+  if (locale === defaultLocale) {
+    const cuts = []
+    let at = 0
+    for (const word of text.split(' ')) {
+      at += word.length + 1
+      cuts.push(Math.min(at - 1, text.length))
+    }
+    return cuts.length ? cuts : [text.length]
+  }
+
+  if (!streamSegmenters.has(locale)) {
+    streamSegmenters.set(locale, new Intl.Segmenter(locale, { granularity: 'word' }))
+  }
+  const cuts = [...streamSegmenters.get(locale).segment(text)].map(
+    (piece) => piece.index + piece.segment.length
+  )
+  return cuts.length ? cuts : [text.length]
+}
+
 /** Reveal a reply progressively. A response that appears all at once reads as a page load. */
-function useStreamedReply() {
+function useStreamedReply(locale = defaultLocale) {
   const [text, setText] = useState('')
   const [streaming, setStreaming] = useState(false)
   const timer = useRef(null)
@@ -150,20 +179,34 @@ function useStreamedReply() {
       }
       setText('')
       setStreaming(true)
-      // Word by word rather than character by character: fast enough to feel live,
-      // slow enough to read as arriving.
-      const words = full.split(' ')
+      /*
+        Word by word rather than character by character: fast enough to feel
+        live, slow enough to read as arriving.
+
+        `full.split(' ')` was the whole of this, and it is an assumption about
+        English. Japanese does not put spaces between words, so a Japanese
+        reply came back as ONE chunk and appeared in a single frame after a
+        22ms pause — the streaming feel, which is the entire interface, lost
+        for one of the two languages.
+
+        Intl.Segmenter splits by actual word boundaries, and slicing by
+        character index rather than re-joining tokens means no separator is
+        invented: the text that renders is the text that was passed in, cut at
+        different points. Joining with ' ' would have inserted spaces into
+        Japanese that were never there.
+      */
+      const boundaries = wordBoundaries(full, locale)
       let i = 0
       timer.current = window.setInterval(() => {
         i += 1
-        setText(words.slice(0, i).join(' '))
-        if (i >= words.length) {
+        setText(full.slice(0, boundaries[i - 1] ?? full.length))
+        if (i >= boundaries.length) {
           stop()
           setStreaming(false)
         }
       }, 22)
     },
-    [stop]
+    [stop, locale]
   )
 
   /** A delta straight from the model: already arriving, no simulation needed. */
@@ -423,7 +466,7 @@ export default function Console({ docUrls = null, locale = defaultLocale, answer
   const inputRef = useRef(null)
   const mirrorRef = useRef(null)
   const [caretX, setCaretX] = useState(0)
-  const { text, streaming, stream, live, settle, setText } = useStreamedReply()
+  const { text, streaming, stream, live, settle, setText } = useStreamedReply(replyIn)
 
   /*
     Only shown when the page language and the answer language differ, so it

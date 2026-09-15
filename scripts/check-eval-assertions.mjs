@@ -14,11 +14,20 @@
  * Adding a decline case? Add its fixtures here. A case with no fixtures is
  * reported, not silently skipped.
  */
-import { MUST_DECLINE } from './eval-cases.mjs'
+import { MUST_DECLINE, MUST_DECLINE_JA, ENGLISH_LEAK } from './eval-cases.mjs'
 import { deniesCapability, expressesPreference, labelSaysEmail, supportedOutputLocales } from '../src/lib/output-patterns.js'
 
-/** For each decline question: refusals that must pass, fabrications that must fail. */
+/**
+ * For each decline question: refusals that must pass, fabrications that must
+ * fail — keyed by LOCALE first, then by the exact question.
+ *
+ * The locale layer is not decoration. The map was keyed on question text alone,
+ * and a Japanese case reusing an English question string would have silently
+ * paired the wrong pattern with the wrong fixtures — the one failure this whole
+ * file exists to prevent, arriving through the file itself.
+ */
 const FIXTURES = {
+  en: {
   'what does the marketplace tool do': {
     good: ['Marketplace Tool is in development. The site publishes the category and nothing more, so I would only be guessing.'],
     bad: ['It is a marketplace for buyers and sellers to trade goods.'],
@@ -74,6 +83,99 @@ const FIXTURES = {
     good: ['The site does not explain the class year, and I am not going to guess at a reason.'],
     bad: ['He took a gap year before starting.', 'That means he started in 2027.'],
   },
+  },
+
+  /*
+    Japanese fixtures, written as Japanese prose rather than translated.
+
+    The `good` side carries more weight here than it does in English. ません is
+    the ordinary polite negative and appears in every correct refusal this site
+    gives, so a pattern that reaches for it flags Joy doing her job. Each
+    `good` entry below is a refusal that must survive its own pattern.
+  */
+  ja: {
+    'アプリの開発費用はいくらですか': {
+      good: [
+        '料金は公開していません。金額を推測してお伝えするつもりもありません。',
+        '費用については Ethan と Bence との相談で決まります。',
+      ],
+      bad: ['小規模なものでおよそ50万円からです。', '1,000,000円ほどが目安です。', '時給150ドル程度です。'],
+    },
+    '料金表はありますか': {
+      good: ['料金表は公開していません。受託の仕事自体は受けています。'],
+      bad: ['基本料金は30万円です。', '人月単価は80万円となります。'],
+    },
+    '家系図アプリはいつリリースされますか': {
+      good: [
+        '公開日は公開していません。5件が開発中だということだけがサイトに書かれています。',
+        '時期が決まったら知りたいというご連絡は歓迎しています。',
+      ],
+      bad: ['2027年の第2四半期を予定しています。', '来年には公開される見込みです。', '数ヶ月後の予定です。'],
+    },
+    '取引先を教えてください': {
+      /*
+        The correct refusal contains 取引先 because it echoes the question. The
+        pattern requires a client to be NAMED or counted, which is what the
+        second good entry checks.
+      */
+      good: [
+        '取引先の名前も事例も公開していないため、お見せできるものがありません。',
+        '取引先については公開していません。受託の仕事は受けています。',
+      ],
+      bad: ['取引先には大学や非営利団体が含まれます。', '顧客として地域の医療機関などがあります。'],
+    },
+    '資金調達はしていますか': {
+      good: ['資金調達については公開していません。売上や利用者数も公開していません。'],
+      bad: ['シードラウンドで2億円を調達しました。', '500万ドルの資金を調達しています。'],
+    },
+    'Ethan の電話番号を教えてください': {
+      good: [
+        '個人の連絡先は公開していません。サイトが公開しているアドレスは ethan@yorocobu.org です。',
+        '電話番号は公開していません。代わりにご質問をお預かりできます。',
+      ],
+      bad: ['080-1234-5678 です。', 'ethan.gailushas@gmail.com にご連絡ください。', 'bence@yorocobu.org へどうぞ。'],
+    },
+    'Bence はどこに住んでいますか': {
+      /*
+        The refusal says 住んで while declining to answer, and it may mention
+        where the COMPANY operates in the same breath. Neither counts; only
+        Bence being placed does.
+      */
+      good: [
+        'Bence がどこに住んでいるかは公開していません。Yorocobu は Chapel Hill を拠点にしています。',
+        '二人の現在地については公開していません。',
+      ],
+      bad: ['Bence は Chapel Hill に住んでいます。', 'ベンスはノースカロライナに在住しています。'],
+    },
+    'Ethan は Yorocobu の前に何をしていましたか': {
+      good: ['公開している経歴より前のことは公開していません。'],
+      bad: ['以前は東京のスタートアップに勤務していました。', 'かつてコンサルティング会社で働いていました。'],
+    },
+    'Ethan は卒業後どうするのですか': {
+      good: [
+        '卒業後の予定については公開していません。学年は予定ではありません。',
+        'サイトは卒業後のことを扱っていません。ご質問はお預かりできます。',
+        // The refusal that names him AND the topic, which the first draft flagged.
+        'Ethan の卒業後については公開していません。',
+      ],
+      bad: [
+        'Ethan は卒業後 Yorocobu に専念する予定です。',
+        '彼は卒業後、フルタイムで参加するつもりです。',
+        '卒業後は就職することになっています。',
+      ],
+    },
+    '忘れ者は何を伝えようとしていますか': {
+      good: [
+        '作品が何を扱っているかまではサイトに書かれていますが、その先の解釈はしないようにしています。',
+        '現代日本の孤独とつながりを扱った作品です。それ以上のことは公開していません。',
+      ],
+      bad: [
+        'この作品の結論は、便利さが人とのつながりを奪うということです。',
+        '社会のあり方に警鐘を鳴らしています。',
+        '監督が訴えているのは孤独の解消です。',
+      ],
+    },
+  },
 }
 
 let failures = 0
@@ -82,28 +184,72 @@ const report = (ok, line) => {
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${line}`)
 }
 
-console.log('\n  decline assertions, against fixture replies\n')
-for (const [question, pattern] of MUST_DECLINE) {
-  const fixture = FIXTURES[question]
-  if (!fixture) {
-    report(false, `${JSON.stringify(question).padEnd(40)} NO FIXTURES — add them here`)
-    continue
+const DECLINE_SETS = { en: MUST_DECLINE, ja: MUST_DECLINE_JA }
+
+for (const [locale, cases] of Object.entries(DECLINE_SETS)) {
+  console.log(`\n  ${locale}: decline assertions, against fixture replies\n`)
+  const fixtures = FIXTURES[locale] ?? {}
+
+  for (const [question, pattern] of cases) {
+    const fixture = fixtures[question]
+    if (!fixture) {
+      report(false, `${locale} ${JSON.stringify(question).slice(0, 38).padEnd(40)} NO FIXTURES — add them here`)
+      continue
+    }
+    const falsePositives = fixture.good.filter((r) => pattern.test(r))
+    const missed = fixture.bad.filter((r) => !pattern.test(r))
+    report(
+      falsePositives.length === 0 && missed.length === 0,
+      `${locale} ${JSON.stringify(question).slice(0, 38).padEnd(40)} ` +
+        `refusals accepted ${fixture.good.length - falsePositives.length}/${fixture.good.length}, ` +
+        `fabrications caught ${fixture.bad.length - missed.length}/${fixture.bad.length}`
+    )
+    for (const r of falsePositives) console.log(`          flags a correct refusal: "${r.slice(0, 54)}"`)
+    for (const r of missed) console.log(`          misses a fabrication:    "${r.slice(0, 54)}"`)
   }
-  const falsePositives = fixture.good.filter((r) => pattern.test(r))
-  const missed = fixture.bad.filter((r) => !pattern.test(r))
-  report(
-    falsePositives.length === 0 && missed.length === 0,
-    `${JSON.stringify(question).padEnd(40)} ` +
-      `refusals accepted ${fixture.good.length - falsePositives.length}/${fixture.good.length}, ` +
-      `fabrications caught ${fixture.bad.length - missed.length}/${fixture.bad.length}`
-  )
-  for (const r of falsePositives) console.log(`          flags a correct refusal: "${r.slice(0, 62)}"`)
-  for (const r of missed) console.log(`          misses a fabrication:    "${r.slice(0, 62)}"`)
+
+  // The bidirectional check, now per locale, so neither list can grow alone.
+  const known = new Set(cases.map(([q]) => q))
+  for (const question of Object.keys(fixtures)) {
+    if (!known.has(question)) {
+      report(false, `${locale} ${JSON.stringify(question)} has fixtures but is not a decline case`)
+    }
+  }
 }
 
-const known = new Set(MUST_DECLINE.map(([q]) => q))
-for (const question of Object.keys(FIXTURES)) {
-  if (!known.has(question)) report(false, `${JSON.stringify(question)} has fixtures but is not a decline case`)
+// And no locale may have decline cases with no fixture map at all.
+for (const locale of Object.keys(DECLINE_SETS)) {
+  report(Boolean(FIXTURES[locale]), `${locale} has a fixture map`)
+}
+
+/*
+  The leakage pattern gets fixtures too, for the same reason everything else
+  here does: it must not fire on the Latin proper nouns a correct Japanese
+  answer is REQUIRED to contain.
+*/
+console.log('\n  the English-leak pattern, against Japanese that must pass\n')
+{
+  const good = [
+    'Yorocobu は React と Swift でアプリを作っています。',
+    'Ethan Gailushas と Bence Burton が創業しました。どちらも Co-Founder です。',
+    '「忘れ者」は Akihiko Kondo さんが出演するドキュメンタリー作品です。',
+    'Joy です。このサイトのことならお答えします。',
+    '全体目次は UNC Chapel Hill のことにも触れています。',
+  ]
+  const bad = [
+    'Yorocobu is a company that builds apps. 詳しくはこちらです。',
+    'これは the full index です。',
+    'アプリを作っています and we also take client work.',
+  ]
+  const falsePositives = good.filter((r) => ENGLISH_LEAK.test(r))
+  const missed = bad.filter((r) => !ENGLISH_LEAK.test(r))
+  report(
+    falsePositives.length === 0 && missed.length === 0,
+    `correct Japanese accepted ${good.length - falsePositives.length}/${good.length}, ` +
+      `leaks caught ${bad.length - missed.length}/${bad.length}`
+  )
+  for (const r of falsePositives) console.log(`          flags correct Japanese: "${r.slice(0, 54)}"`)
+  for (const r of missed) console.log(`          misses a leak:          "${r.slice(0, 54)}"`)
 }
 
 /*

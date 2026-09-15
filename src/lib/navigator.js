@@ -74,22 +74,41 @@ function matchProject(query) {
   company is. Those route to the overview rather than to a refusal.
 */
 /*
-  Normalisation keeps every script.
+  Normalisation keeps every script, and splits it the way the script is written.
 
-  This used to be .replace(/[^a-z0-9\s]/g, ' '), which deleted all Japanese and
-  reduced every non-Latin query to the empty string. Punctuation is what we
-  actually want gone, so punctuation is what is removed — \p{P} and \p{S},
-  leaving letters and marks in any script intact.
+  Two separate fixes live here. The first: this used to be
+  .replace(/[^a-z0-9\s]/g, ' '), which deleted all Japanese and reduced every
+  non-Latin query to the empty string. Punctuation is what we actually want
+  gone, so punctuation is what is removed, leaving letters and marks in any
+  script intact.
+
+  The second: splitting on whitespace is an assumption about English. Japanese
+  does not put spaces between words, so /\s+/ returns ONE token for a whole
+  sentence and every comparison downstream runs against that single blob.
+  Intl.Segmenter does the real work, and `isWordLike` drops the particles and
+  punctuation that segmenting surfaces.
+
+  English keeps the whitespace split rather than going through the segmenter.
+  It is what the offline cases were tuned against, and there is nothing to gain
+  from re-tokenising a language that already has spaces.
 */
-const normalize = (text) =>
-  (text ?? '')
-    .toLowerCase()
-    .replace(/[\p{P}\p{S}]/gu, ' ')
-    .split(/\s+/)
-    .filter(Boolean)
+const segmenters = new Map()
 
-const subject = (text, scaffolding = new Set()) =>
-  normalize(text).filter((w) => !scaffolding.has(w))
+function segment(text, locale) {
+  if (locale === defaultLocale) return text.split(/\s+/)
+  if (!segmenters.has(locale)) {
+    segmenters.set(locale, new Intl.Segmenter(locale, { granularity: 'word' }))
+  }
+  return [...segmenters.get(locale).segment(text)]
+    .filter((piece) => piece.isWordLike)
+    .map((piece) => piece.segment)
+}
+
+const normalize = (text, locale = defaultLocale) =>
+  segment((text ?? '').toLowerCase().replace(/[\p{P}\p{S}]/gu, ' '), locale).filter(Boolean)
+
+const subject = (text, scaffolding = new Set(), locale = defaultLocale) =>
+  normalize(text, locale).filter((w) => !scaffolding.has(w))
 
 /**
  * Overlap of what a query is about with what a candidate phrase is about,
@@ -109,9 +128,9 @@ function overlap(queryWords, candidateWords) {
  * Score an entry against a query. 10 for an exact alias, otherwise scaled
  * subject overlap against the best-matching alias.
  */
-export function scoreEntry(entry, query, scaffolding = new Set()) {
-  const queryWords = subject(query, scaffolding)
-  const queryPhrase = normalize(query).join(' ')
+export function scoreEntry(entry, query, scaffolding = new Set(), locale = defaultLocale) {
+  const queryWords = subject(query, scaffolding, locale)
+  const queryPhrase = normalize(query, locale).join(' ')
 
   /*
     An empty normalisation is the ABSENCE of a match, never an exact one.
@@ -135,10 +154,10 @@ export function scoreEntry(entry, query, scaffolding = new Set()) {
 
   let best = 0
   for (const candidate of candidates) {
-    const candidatePhrase = normalize(candidate).join(' ')
+    const candidatePhrase = normalize(candidate, locale).join(' ')
     if (!candidatePhrase) continue
     if (candidatePhrase === queryPhrase) return 10
-    best = Math.max(best, overlap(queryWords, subject(candidate, scaffolding)))
+    best = Math.max(best, overlap(queryWords, subject(candidate, scaffolding, locale)))
   }
   return best * 10
 }
@@ -284,7 +303,7 @@ export function resolve(query, locale = defaultLocale) {
   }
 
   const ranked = entries
-    .map((entry) => ({ entry, score: scoreEntry(entry, trimmed, scaffolding) }))
+    .map((entry) => ({ entry, score: scoreEntry(entry, trimmed, scaffolding, locale) }))
     // Ties break toward the entry that reads first on the full index, which puts
     // the overview ahead of the more specific entries.
     .sort((a, b) => b.score - a.score || (a.entry.order ?? 99) - (b.entry.order ?? 99))
@@ -299,7 +318,7 @@ export function resolve(query, locale = defaultLocale) {
     refusing one is the worst failure this interface has. Unknown is for
     specifics the knowledge base genuinely lacks.
   */
-  if (subject(trimmed, scaffolding).length === 0 || patterns.identity.test(trimmed)) {
+  if (subject(trimmed, scaffolding, locale).length === 0 || patterns.identity.test(trimmed)) {
     return overview(t)
   }
 
