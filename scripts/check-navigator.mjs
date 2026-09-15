@@ -13,7 +13,17 @@
  *   npm run knowledge && node scripts/check-navigator.mjs
  */
 
-import { resolve, DESTINATIONS } from '../src/lib/navigator.js'
+import {
+  resolve,
+  resolveEntry,
+  scoreEntry,
+  destinationLabel,
+  destinationIdFor,
+  DESTINATIONS,
+} from '../src/lib/navigator.js'
+import { locales } from '../src/i18n/ui.ts'
+import { deniesCapability } from '../src/lib/output-patterns.js'
+import { ENGLISH_LEAK } from './eval-cases.mjs'
 import knowledge from '../src/generated/knowledge-client.json' with { type: 'json' }
 
 /** Must produce a confident answer. `section` of null means any entry will do. */
@@ -57,6 +67,16 @@ const MUST_ANSWER = [
   // Filed in Wyoming, operating from Chapel Hill. Both public as of round 12.
   { q: 'where are you based', section: 'company' },
   { q: 'when was yorocobu founded', section: 'company' },
+
+  /*
+    The documentary. The gate is the arrival route, but it fires once and the
+    film has to stay reachable by asking for it — including after the gate has
+    been dismissed, and on the offline path where there is no model to be
+    reasonable about it.
+  */
+  { q: 'the documentary', section: 'documentary' },
+  { q: 'where can i watch the documentary', section: 'documentary' },
+  { q: "ethans documentary", section: 'documentary' },
 
   { q: 'what do you build with', section: 'stack' },
   { q: 'what does the name mean', section: 'name' },
@@ -123,6 +143,51 @@ const report = (ok, line) => {
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${line}`)
 }
 
+/*
+  Scoring guards.
+
+  An empty normalisation must never read as an exact alias hit. It did: a query
+  in a non-Latin script and an alias of a single kanji both normalise to '', and
+  comparing them returned 10. Every Japanese question was answered at maximum
+  confidence from whichever entry carried such an alias.
+
+  Tested directly rather than only through resolve(), because resolve() has an
+  empty-subject fallback that reaches the overview anyway and would mask a
+  regression here as a still-plausible answer.
+*/
+console.log('\n  scoring: an empty normalisation is never an exact match')
+{
+  const name = knowledge.entries.find((e) => e.id === 'name')
+  const synthetic = { id: 'synthetic', title: '???', aliases: ['!!', '—', '###'] }
+  const zero = [
+    ['a punctuation-only query against punctuation-only aliases', scoreEntry(synthetic, '???')],
+    ['a punctuation-only query against a real entry', scoreEntry(name, '!!!')],
+    ['an emoji-only query against a real entry', scoreEntry(name, '★★')],
+  ]
+  for (const [label, score] of zero) {
+    report(score === 0, `${label.padEnd(56)} score=${score}`)
+  }
+
+  // The guard must not have cost a genuine exact match, in either script.
+  const exact = scoreEntry(name, 'what does yorocobu mean')
+  report(exact === 10, `${'a real alias still scores an exact hit'.padEnd(56)} score=${exact}`)
+
+  /*
+    normalize() keeps every script now, so a Japanese alias is a real token
+    rather than an empty string, and 喜ぶ matching the name entry is the correct
+    answer. Locking it in here is what stops a future "strip non-ASCII" from
+    quietly coming back.
+
+    The alias is 喜ぶ, the verb, not the bare 喜. Whole-query equality made the
+    single kanji safe today, but 喜 is a common character and the Japanese
+    matcher segments rather than comparing whole strings — as a token it would
+    match far more than the name entry. The verb is specific enough to mean what
+    it says.
+  */
+  const kanji = scoreEntry(name, '喜ぶ')
+  report(kanji === 10, `${'the 喜ぶ alias matches as itself, not as emptiness'.padEnd(56)} score=${kanji}`)
+}
+
 console.log('\n  must answer')
 for (const { q, section } of MUST_ANSWER) {
   const r = resolve(q)
@@ -160,7 +225,7 @@ console.log('\n  must know a message can be sent')
 for (const q of MUST_OFFER_TO_SEND) {
   const r = resolve(q)
   // Not merely routed: the answer must not deny the capability in words.
-  const denies = /\b(can(no|')t|cannot|can not|unable|not able|do not have)\b/i.test(r.reply)
+  const denies = deniesCapability(r.reply, 'en')
   const offers = r.actions.some((a) => a.type === 'compose')
   report(
     r.focus_section === 'contact' && !denies && offers,
@@ -180,14 +245,46 @@ for (const q of MUST_OFFER_TO_SEND) {
   entry forever and catch nothing. An entry that only the full index reaches is
   invisible to anyone using the site as designed.
 */
-console.log('\n  every chip reaches its own entry')
+/*
+  Chips resolve by id, in every locale.
+
+  They used to be matched by comparing the typed text with the destination's
+  stored English label, which is the coupling that made the six nav strings
+  untranslatable: translating a label broke navigation to it. Resolving by id
+  means the label is display text and nothing else, and it means a chip works
+  identically in a language the MATCHER cannot handle — which is the state
+  Japanese is in until Unit C.
+*/
+console.log('\n  every chip reaches its own entry, in every locale')
 for (const destination of DESTINATIONS) {
-  const r = resolve(destination.query)
-  report(
-    r.focus_section === destination.id && !r.unknown,
-    `${destination.label.padEnd(22)} -> ${r.unknown ? 'UNKNOWN' : r.focus_section}` +
-      (r.focus_section === destination.id ? '' : `  (wanted ${destination.id})`)
-  )
+  for (const locale of locales) {
+    let r
+    try {
+      r = resolveEntry(destination.id, locale)
+    } catch (error) {
+      r = null
+    }
+    const label = destinationLabel(destination.id, locale)
+    report(
+      Boolean(r) && r.focus_section === destination.id && !r.unknown,
+      `${locale}  ${label.padEnd(22)} -> ${r ? r.focus_section : 'THREW'}` +
+        (r?.focus_section === destination.id ? '' : `  (wanted ${destination.id})`)
+    )
+  }
+}
+
+/*
+  Typing a chip's exact label is still the chip, in whichever language it is
+  being displayed in. This is the half that would silently stop working if the
+  labels were translated without the lookup moving to the dictionary.
+*/
+console.log('\n  typing a chip label finds it, in every locale')
+for (const destination of DESTINATIONS) {
+  for (const locale of locales) {
+    const label = destinationLabel(destination.id, locale)
+    const found = destinationIdFor(label, locale)
+    report(found === destination.id, `${locale}  ${JSON.stringify(label).padEnd(26)} -> ${found}`)
+  }
 }
 
 console.log('\n  every entry is reachable from the console')
@@ -199,12 +296,143 @@ for (const entry of knowledge.entries) {
   report(Boolean(chip || asked), `${entry.id.padEnd(12)} ${how}`)
 }
 
+/* ─── Japanese, offline ──────────────────────────────────────────────────── */
+
+/*
+  The same three behaviours, in the language the matcher could not reason about
+  at all until this unit. These run free and instant like the English ones, and
+  they are what makes the Japanese pattern set a thing that is TESTED rather
+  than a thing that exists.
+
+  Note what is NOT here: the model. These cases cover the offline navigator
+  only — the fallback a Japanese visitor gets when the API is unreachable, which
+  is exactly when nobody is watching. The model's Japanese is covered by
+  scripts/eval-knowledge.mjs, which costs money and needs a key.
+*/
+const JA_MUST_ANSWER = [
+  { q: 'Yorocobu とは何ですか', section: 'company' },
+  { q: '何をしている会社ですか', section: 'company' },
+  { q: '教えてください', section: 'company' },
+  { q: 'これは何ですか', section: 'company' },
+  { q: '誰が運営していますか', section: 'founders' },
+  { q: '創業者は誰ですか', section: 'founders' },
+  { q: 'Ethan の経歴を教えてください', section: 'founders' },
+  { q: 'イーサンってどんな人ですか', section: 'founders' },
+  { q: 'どんなアプリを作っていますか', section: 'portfolio' },
+  { q: '開発中のものはありますか', section: 'portfolio' },
+  { q: '受託はしていますか', section: 'services' },
+  { q: 'アプリの開発をお願いできますか', section: 'services' },
+  { q: '連絡はどう取ればいいですか', section: 'contact' },
+  { q: 'Ethan にメッセージを送れますか', section: 'contact' },
+  { q: 'どんな技術を使っていますか', section: 'stack' },
+  { q: '社名の由来を教えてください', section: 'name' },
+  { q: 'あなたは人間ですか', section: 'joy' },
+  { q: 'ドキュメンタリーはどこで見られますか', section: 'documentary' },
+  { q: '忘れ者について教えてください', section: 'documentary' },
+  { q: '', section: 'company' },
+]
+
+const JA_MUST_DECLINE = [
+  { q: 'アプリの開発費用はいくらですか', guard: 'pricing' },
+  { q: '料金表はありますか', guard: 'pricing' },
+  { q: '家系図アプリはいつリリースされますか', guard: 'timeline' },
+  { q: '取引先を教えてください', guard: 'clients' },
+  { q: '資金調達はしましたか', guard: 'company-metrics' },
+  { q: 'Ethan の電話番号を教えてください', guard: 'founder-private' },
+  { q: 'Bence はどこに住んでいますか', guard: 'founder-private' },
+  { q: 'Ethan は卒業後どうするのですか', guard: 'founder-private' },
+]
+
+const JA_MUST_OFFER_TO_SEND = [
+  'Ethan にメッセージを送れますか',
+  '質問を伝えてもらえますか',
+  '伝言をお願いできますか',
+  'Ethan に質問したいのですが',
+]
+
+const JA_MUST_BE_UNKNOWN = [
+  'カンファレンスに協賛していますか',
+  'インターンシップはありますか',
+  'オープンソースの活動はしていますか',
+]
+
+console.log('\n  ja: must answer')
+for (const { q, section } of JA_MUST_ANSWER) {
+  const r = resolve(q, 'ja')
+  const ok = !r.unknown && !r.guard && r.focus_section === section
+  report(
+    ok,
+    `${JSON.stringify(q).slice(0, 30).padEnd(32)} -> ${r.unknown ? 'UNKNOWN' : r.focus_section}` +
+      (r.guard ? ` [refused by ${r.guard}]` : '') +
+      (ok ? '' : `  (wanted ${section})`)
+  )
+}
+
+console.log('\n  ja: must decline, by the right guard')
+for (const { q, guard } of JA_MUST_DECLINE) {
+  const r = resolve(q, 'ja')
+  report(
+    r.guard === guard,
+    `${JSON.stringify(q).slice(0, 32).padEnd(34)} ${(r.guard ? `[${r.guard}]` : `<${r.focus_section}>`).padEnd(18)}` +
+      (r.guard === guard ? '' : `  wanted [${guard}]`)
+  )
+}
+
+console.log('\n  ja: must know a message can be sent')
+for (const q of JA_MUST_OFFER_TO_SEND) {
+  const r = resolve(q, 'ja')
+  const denies = deniesCapability(r.reply, 'ja')
+  const offers = r.actions.some((a) => a.type === 'compose')
+  report(
+    r.focus_section === 'contact' && !denies && offers,
+    `${JSON.stringify(q).slice(0, 30).padEnd(32)} <${r.focus_section}> denies=${denies} offers-send=${offers}`
+  )
+}
+
+console.log('\n  ja: must be unknown, and must still offer something')
+for (const q of JA_MUST_BE_UNKNOWN) {
+  const r = resolve(q, 'ja')
+  const offers = r.followups.length > 0 && r.actions.length > 0
+  report(r.unknown && offers, `${JSON.stringify(q).slice(0, 32).padEnd(34)} unknown=${r.unknown} offers=${offers}`)
+}
+
+/*
+  Every Japanese reply the offline path can produce is actually Japanese.
+
+  The dictionary is complete and the guards read from it, so this should hold by
+  construction — which is exactly why it is worth asserting. A single key
+  reached through an English literal would be invisible here otherwise, and it
+  would surface as English text in front of a Japanese visitor at the moment the
+  API is down.
+*/
+console.log('\n  ja: no English leaks out of the offline path')
+for (const { q } of [...JA_MUST_ANSWER, ...JA_MUST_DECLINE]) {
+  if (!q) continue
+  const r = resolve(q, 'ja')
+  const parts = [r.reply, ...r.actions.map((a) => a.label), ...r.followups].filter(Boolean)
+  // Entry summaries are English by design — the knowledge base is canonical
+  // English — so only the strings this locale OWNS are checked.
+  const owned = [...r.actions.map((a) => a.label), ...r.followups]
+  const leaked = owned.filter((text) => ENGLISH_LEAK.test(text))
+  report(
+    leaked.length === 0,
+    `${JSON.stringify(q).slice(0, 30).padEnd(32)} ${owned.length} owned string(s), ${leaked.length} leaking`
+  )
+  for (const text of leaked) console.log(`          ${JSON.stringify(text)}`)
+}
+
 const total =
+  5 + // the scoring guards above
+  JA_MUST_ANSWER.length +
+  JA_MUST_DECLINE.length +
+  JA_MUST_OFFER_TO_SEND.length +
+  JA_MUST_BE_UNKNOWN.length +
+  (JA_MUST_ANSWER.length - 1 + JA_MUST_DECLINE.length) + // the leak check
   MUST_ANSWER.length +
   MUST_DECLINE.length +
   MUST_BE_UNKNOWN.length +
   MUST_OFFER_TO_SEND.length +
-  DESTINATIONS.length +
+  DESTINATIONS.length * locales.length * 2 +
   knowledge.entries.length
 console.log(`\n  ${total - failures}/${total} passed\n`)
 process.exit(failures ? 1 : 0)

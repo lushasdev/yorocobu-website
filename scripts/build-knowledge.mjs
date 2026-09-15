@@ -96,7 +96,16 @@ function toArray(value) {
 
 /**
  * Boot sequence status lines, derived entirely from the entries above so they
- * cannot go stale. Lines that describe an absent entry are simply omitted.
+ * cannot go stale.
+ *
+ * Emitted as TOKENS plus numbers, never as finished phrases. This used to build
+ * "5 in development" and "17 technologies" here, which is a sentence assembled
+ * by concatenation in English word order — untranslatable without rebuilding it
+ * per language. Now the line carries { labelKey, valueKey, count } and the
+ * locale dictionary renders it, so the count lands where the language wants it.
+ *
+ * The counts themselves are still derived from the entries, so they cannot go
+ * stale in either language. Lines describing an absent entry are simply omitted.
  */
 function buildBootLines(entries) {
   const byId = Object.fromEntries(entries.map((e) => [e.id, e]))
@@ -105,7 +114,30 @@ function buildBootLines(entries) {
   // plumbing rather than about Yorocobu, and it invites the visitor to wonder
   // what the missing entries would have been. Every other line below is a real
   // derived figure that reads as information.
-  const lines = [{ label: 'knowledge base', value: 'indexed' }]
+  const lines = [{ labelKey: 'boot.label.knowledgeBase', valueKey: 'boot.value.indexed' }]
+
+  /*
+    A status word from front matter maps to a dictionary key. An unmapped status
+    is a build failure rather than a silent English leak into the Japanese boot
+    sequence — adding a status to an entry should make someone translate it.
+  */
+  const STATUS_KEYS = {
+    'in development': 'boot.value.inDevelopment',
+    open: 'boot.value.open',
+    active: 'boot.value.active',
+    online: 'boot.value.online',
+    available: 'boot.value.available',
+  }
+  const statusKey = (status, where) => {
+    const key = STATUS_KEYS[status]
+    if (!key) {
+      fail(
+        `${where} has status "${status}", which has no boot-sequence translation. ` +
+          `Add it to STATUS_KEYS here and to every locale in src/i18n/ui.ts.`
+      )
+    }
+    return key
+  }
 
   const portfolio = byId.portfolio
   if (portfolio) {
@@ -115,22 +147,37 @@ function buildBootLines(entries) {
       return acc
     }, {})
     for (const [status, count] of Object.entries(counts)) {
-      lines.push({ label: 'portfolio', value: `${count} ${status}` })
+      lines.push({
+        labelKey: 'boot.label.portfolio',
+        valueKey: statusKey(status, 'portfolio project'),
+        count,
+      })
     }
   }
 
-  if (byId.services) lines.push({ label: 'client work', value: byId.services.status })
+  if (byId.services) {
+    lines.push({
+      labelKey: 'boot.label.clientWork',
+      valueKey: statusKey(byId.services.status, 'knowledge/services.md'),
+    })
+  }
   if (byId.stack) {
     const primary = toArray(byId.stack.primary).length
     const additional = toArray(byId.stack.additional).length
-    lines.push({ label: 'stack', value: `${primary + additional} technologies` })
+    lines.push({
+      labelKey: 'boot.label.stack',
+      valueKey: 'boot.value.technologies',
+      count: primary + additional,
+    })
   }
   if (byId.founders) {
     const count = toArray(byId.founders.people).length
-    if (count) lines.push({ label: 'founders', value: String(count) })
+    if (count) {
+      lines.push({ labelKey: 'boot.label.founders', valueKey: 'boot.value.count', count })
+    }
   }
 
-  lines.push({ label: 'navigator', value: 'online' })
+  lines.push({ labelKey: 'boot.label.navigator', valueKey: 'boot.value.online' })
   return lines
 }
 
@@ -188,11 +235,47 @@ function buildContext(entries) {
   return `${header}${body}\n`
 }
 
+/** The model-facing guidance block, appended to the grounding context. */
+function buildGuidance(files) {
+  return [
+    '',
+    '---',
+    '',
+    '# How to write, when writing in another language',
+    '',
+    'The entries above are the facts, in English, and they are the only source',
+    'of truth. What follows is not a fact about Yorocobu and is never quoted to',
+    'a visitor: it fixes how specific things are written, so the same thing is',
+    'not called three names across three answers. Use these renderings verbatim',
+    'and translate everything else at answer time.',
+    '',
+    ...files.map((f) => f.detail),
+    '',
+  ].join('\n')
+}
+
 function today() {
   return new Date().toISOString().slice(0, 10)
 }
 
-const entries = readEntries()
+const all = readEntries()
+
+/*
+  Two kinds of file live in /knowledge/.
+
+  Entries are content: a visitor can read them on the full index, ask about
+  them, and be pointed at them. Guidance is instructions for the model —
+  ja-glossary.md is the spelling authority for Japanese answers, not a fact
+  about Yorocobu — and a visitor should never see it, never be routed to it,
+  and never have it offered as a next step.
+
+  Splitting them here rather than filtering at each use means guidance cannot
+  leak by someone forgetting one call site. It stays out of the rendered pages,
+  out of the client bundle, out of the focus_section enum, and out of the
+  reachability check that would otherwise demand it be linked from somewhere.
+*/
+const entries = all.filter((e) => e.kind !== 'glossary')
+const guidance = all.filter((e) => e.kind === 'glossary')
 const bootLines = buildBootLines(entries)
 
 /*
@@ -208,7 +291,11 @@ const destinations = entries
   // not the same as reading order on the full index.
   .sort((a, b) => a.order - b.order)
   .map(({ id, label, query }) => ({ id, label, query }))
-const context = buildContext(entries)
+/*
+  Guidance goes to the model, appended after the entries, never mixed in with
+  them: it is told how to write, not what is true.
+*/
+const context = buildContext(entries) + (guidance.length ? buildGuidance(guidance) : '')
 
 // What the browser needs to run the offline navigator: enough to match a question
 // and quote an answer, and nothing more. do_not_claim and detail stay server-side.
@@ -241,7 +328,8 @@ writeFileSync(join(OUT_DIR, 'knowledge-context.md'), context)
 // the whole base as context and revisit only past ~30k tokens.
 const estimatedTokens = Math.round(context.length / 4)
 console.log(
-  `  knowledge: ${entries.length} entries, ${destinations.length} destinations -> src/generated/ ` +
+  `  knowledge: ${entries.length} entries, ${guidance.length} guidance, ` +
+    `${destinations.length} destinations -> src/generated/ ` +
     `(context ~${estimatedTokens.toLocaleString()} tokens)`
 )
 if (estimatedTokens > 30000) {

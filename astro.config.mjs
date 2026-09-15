@@ -17,7 +17,42 @@ import sitemap from '@astrojs/sitemap'
 */
 export default defineConfig({
   site: 'https://yorocobu.org',
-  integrations: [react(), sitemap()],
+
+  /*
+    Two real URL trees, not a client-side string swap.
+
+    English serves from /, Japanese from /ja/. That makes the Japanese site
+    linkable, shareable and indexable, and it means a Japanese visitor never
+    sees a frame of English before the swap lands — the page arrives in the
+    language it is going to stay in.
+
+    prefixDefaultLocale: false keeps every existing English URL exactly where it
+    is. Inbound links to / and /full-index do not move.
+
+    No redirectToDefaultLocale and no manual routing: detection belongs at the
+    edge, before the page is served, where it can read Accept-Language and the
+    cookie. See netlify/edge-functions/locale.js.
+  */
+  i18n: {
+    defaultLocale: 'en',
+    locales: ['en', 'ja'],
+    routing: { prefixDefaultLocale: false },
+  },
+
+  integrations: [
+    react(),
+    /*
+      i18n here is what puts both trees in the sitemap with reciprocal
+      hreflang, rather than listing the English pages and leaving the Japanese
+      ones undiscoverable.
+    */
+    sitemap({
+      i18n: {
+        defaultLocale: 'en',
+        locales: { en: 'en', ja: 'ja' },
+      },
+    }),
+  ],
 
   fonts: [
     {

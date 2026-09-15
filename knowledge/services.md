@@ -1,6 +1,6 @@
 ---
 id: services
-order: 6
+order: 7
 nav: working together
 nav_order: 4
 title: Client Work

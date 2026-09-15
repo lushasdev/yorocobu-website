@@ -2,19 +2,51 @@
 import { Font } from 'astro:assets'
 import Frame from '../components/Frame.astro'
 import ThemeToggle from '../components/ThemeToggle.astro'
+import LanguageSwitch from '../components/LanguageSwitch.astro'
+import {
+  useTranslations,
+  pathForLocale,
+  htmlLang,
+  ogLocale,
+  locales,
+  defaultLocale,
+  type Locale,
+} from '../i18n/ui.ts'
 import '../styles/global.css'
 
 interface Props {
   title: string
   description: string
+  locale?: Locale
 }
 
-const { title, description } = Astro.props
+const { title, description, locale = defaultLocale } = Astro.props
+const t = useTranslations(locale)
 const canonical = new URL(Astro.url.pathname, Astro.site).href
+
+/*
+  Reciprocal hreflang, on every page of both trees.
+
+  Each page names itself and its counterpart, so a search engine can tell that /
+  and /ja/ are the same page in two languages rather than duplicates competing
+  with each other. Built from pathForLocale so the pairing is derived from the
+  URL rather than hand-maintained per page — the failure mode of hand-written
+  hreflang is a page that points at the wrong counterpart, which is worse than
+  none at all.
+
+  x-default points at English: it is what a search engine serves when it cannot
+  match any of the declared languages to the user.
+*/
+const alternates = locales.map((code) => ({
+  code,
+  href: new URL(pathForLocale(Astro.url.pathname, code), Astro.site).href,
+}))
+const xDefault = new URL(pathForLocale(Astro.url.pathname, defaultLocale), Astro.site).href
+const otherLocale = locales.find((code) => code !== locale) ?? defaultLocale
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={htmlLang[locale]}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -23,11 +55,16 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
 
+    {alternates.map(({ code, href }) => <link rel="alternate" hreflang={code} href={href} />)}
+    <link rel="alternate" hreflang="x-default" href={xDefault} />
+
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Yorocobu" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={ogLocale[locale]} />
+    <meta property="og:locale:alternate" content={ogLocale[otherLocale]} />
     <meta property="og:image" content={new URL('/images/yweb1.png', Astro.site).href} />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content={title} />
@@ -73,9 +110,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href
   </head>
 
   <body>
-    <a class="skip" href="#main">Skip to content</a>
+    <a class="skip" href="#main">{t('skip.toContent')}</a>
     <Frame />
-    <ThemeToggle />
+    <LanguageSwitch locale={locale} />
+    <ThemeToggle locale={locale} />
     <slot />
   </body>
 </html>

@@ -10,6 +10,7 @@
 
 import { resolve } from './navigator.js'
 import { composeFallback } from './compose-fallback.js'
+import { useTranslations, defaultLocale } from '../i18n/ui.ts'
 
 /*
   Past this, the local answer is better than a spinner. Two budgets, because a
@@ -90,8 +91,30 @@ export function partialString(buffer, field) {
     if (char === '\\') {
       const next = buffer[i + 1]
       if (next === undefined) break
-      out += next === 'n' ? '\n' : next === 't' ? '\t' : next === 'u' ? '' : next
-      if (next === 'u') i += 4
+
+      /*
+        A \uXXXX escape is DECODED, not discarded.
+
+        This used to append nothing and skip four characters, which is invisible
+        in English — JSON has no reason to escape ASCII — and erases a Japanese
+        reply entirely if the model ever emits escaped output. The streaming
+        preview would show blank while text arrived, then snap to the full reply
+        at completion: unreproducible on demand, and maximally visible in a demo.
+
+        A truncated escape at the buffer's edge stops the loop rather than
+        decoding garbage. The next delta brings the rest of it and the whole
+        field is re-parsed from the start, so nothing is lost by waiting.
+      */
+      if (next === 'u') {
+        const hex = buffer.slice(i + 2, i + 6)
+        if (hex.length < 4 || !/^[0-9a-fA-F]{4}$/.test(hex)) break
+        out += String.fromCharCode(Number.parseInt(hex, 16))
+        i += 5
+        continue
+      }
+
+      out +=
+        next === 'n' ? '\n' : next === 't' ? '\t' : next === 'r' ? '\r' : next === 'b' ? '\b' : next === 'f' ? '\f' : next
       i += 1
       continue
     }
@@ -109,7 +132,15 @@ export function partialString(buffer, field) {
  * @param {(text: string) => void} options.onDelta  called with the reply so far
  * @param {AbortSignal} [options.signal]
  */
-export async function askJoy({ mode = 'answer', question, turns = [], seed = '', onDelta, signal }) {
+export async function askJoy({
+  mode = 'answer',
+  question,
+  turns = [],
+  seed = '',
+  locale = defaultLocale,
+  onDelta,
+  signal,
+}) {
   const controller = new AbortController()
   const abort = () => controller.abort()
   signal?.addEventListener('abort', abort, { once: true })
@@ -127,7 +158,7 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
     const response = await fetch('/api/joy', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ mode, question, turns, seed }),
+      body: JSON.stringify({ mode, question, turns, seed, locale }),
       signal: controller.signal,
     })
     if (!response.ok || !response.body) {
@@ -180,11 +211,13 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
 
     if (!final) throw new Error('no result')
     record({ n, mode, budgetMs, firstTokenMs, outcome: 'model', status: response.status })
-    return { ...normalise(final, mode, question), firstTokenMs }
+    return { ...normalise(final, mode, question, locale), firstTokenMs }
   } catch (error) {
     // Any failure at all lands here, including an abort on the timeout.
     const fallback =
-      mode === 'compose' ? composeFallback(turns, question, seed) : resolve(question)
+      mode === 'compose'
+        ? composeFallback(turns, question, seed, locale)
+        : resolve(question, locale)
     fallback.source = 'local'
     fallback.degraded = true
     fallback.degradedReason = error?.kind === 'config' ? 'config' : 'transient'
@@ -221,10 +254,29 @@ export async function askJoy({ mode = 'answer', question, turns = [], seed = '',
 }
 
 /**
- * The model returns action *types*, never URLs. Real links are attached here
- * from the entry the answer was grounded in, so an invented link is impossible.
+ * The closed label tokens from the answer schema, mapped to dictionary keys.
+ * Kept beside normalise() rather than in the dictionary itself, because the
+ * token vocabulary belongs to the model contract and the keys belong to the
+ * copy — they are two different things that happen to line up.
  */
-function normalise(result, mode, question) {
+const ACTION_LABEL_KEYS = {
+  send_message: 'action.sendMessage',
+  send_question: 'action.sendQuestion',
+  ask_directly: 'action.askDirectly',
+  ask_about_project: 'action.askAboutProject',
+  ask_about_client_work: 'action.askAboutClientWork',
+  ask_to_be_kept_posted: 'action.askToBeKeptPosted',
+  ask_about_it: 'action.askAboutIt',
+  open_index: 'action.openIndex',
+}
+
+/**
+ * The model returns action *types* and label *tokens*, never URLs and never
+ * free text. Real links are attached here from the entry the answer was
+ * grounded in, so an invented link is impossible.
+ */
+function normalise(result, mode, question, locale = defaultLocale) {
+  const t = useTranslations(locale)
   if (mode === 'compose') {
     return {
       reply: String(result.reply ?? ''),
@@ -235,11 +287,27 @@ function normalise(result, mode, question) {
     }
   }
 
+  /*
+    The model chooses a token; the dictionary chooses the words.
+
+    There is no free-text label coming back any more, which is what made
+    fixComposeLabels unnecessary rather than something to duplicate per
+    language. A label cannot say "Email Ethan" in any locale, because a label is
+    no longer something the model writes.
+
+    An unrecognised token falls back by action type rather than rendering the
+    token itself: the schema pins the enum, so this only fires if the two ever
+    drift, and a visitor should see a slightly generic control rather than the
+    string "ask_about_project".
+  */
   const actions = (result.actions ?? [])
     .filter((a) => a && (a.type === 'compose' || a.type === 'index'))
     .map((a) => ({
       type: a.type,
-      label: String(a.label ?? (a.type === 'index' ? 'Open the full index' : 'Send a message')),
+      label: t(
+        ACTION_LABEL_KEYS[a.label_token] ??
+          (a.type === 'index' ? 'action.openIndex' : 'action.sendMessage')
+      ),
       value: a.type === 'index' ? '/full-index' : question,
     }))
 

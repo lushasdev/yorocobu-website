@@ -1,12 +1,165 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { resolve, DESTINATIONS } from '../lib/navigator.js'
+import { resolve, resolveEntry, destinationLabel, destinationIdFor, DESTINATIONS } from '../lib/navigator.js'
 import { askJoy } from '../lib/joy.js'
-import { COMPOSE_QUESTIONS } from '../lib/compose-fallback.js'
+import { composeQuestions } from '../lib/compose-fallback.js'
+import { GATE_KEYS, gateAlreadyShown, rememberGateShown } from '../lib/documentary.js'
+import { useTranslations, defaultLocale } from '../i18n/ui.ts'
 
-const PLACEHOLDER = 'ask Joy for anything on this site'
+/**
+ * The documentary gate, as Joy's own question rather than a dialog over the page.
+ *
+ * A modal would contradict the premise of the site: everything here happens by
+ * talking to the console, so the gate is a message in it.
+ *
+ * Two entry points, one component. `start: 'ask'` is arrival — Joy asks whether
+ * the visitor came for the film at all. `start: 'language'` is the recovery
+ * path, reached by asking Joy about the documentary, where the first question
+ * has already been answered by the act of asking.
+ *
+ * The film-language choices are anchors, not buttons, because they navigate.
+ * That keeps them keyboard-reachable, gives the browser a genuine user-initiated
+ * navigation rather than a scripted window.open, and means the URL is real even
+ * before it is clicked.
+ */
+function DocumentaryGate({ urls, start = 'ask', onDismiss, t }) {
+  // 'dismissed' renders nothing, so both call sites drop the gate the same way
+  // and neither has to carry a flag of its own for it.
+  const [step, setStep] = useState(start)
+  const [opened, setOpened] = useState(null)
+  const firstChoiceRef = useRef(null)
+
+  // Focus lands on the first choice whenever a new question appears, so the
+  // gate is operable without a pointer and does not silently take the caret
+  // away from someone who is already typing.
+  useEffect(() => {
+    if (step === 'ask' || step === 'language') firstChoiceRef.current?.focus()
+  }, [step])
+
+  const decline = () => {
+    rememberGateShown()
+    setStep('dismissed')
+    onDismiss?.()
+  }
+
+  const choose = (language) => {
+    rememberGateShown()
+    setOpened({ language, url: urls[language] })
+    setStep('opened')
+  }
+
+  // Escape anywhere in the gate drops it into the normal greeting. Stopped here
+  // so it does not also reach the console input's own Escape handling.
+  const onKeyDown = (event) => {
+    if (event.key !== 'Escape') return
+    event.stopPropagation()
+    decline()
+  }
+
+  if (step === 'dismissed') return null
+
+  return (
+    <div className="gate unmask" onKeyDown={onKeyDown}>
+      {step === 'ask' && (
+        <>
+          <p className="gate__question">{t(GATE_KEYS.ask)}</p>
+          <div className="gate__choices">
+            <button
+              ref={firstChoiceRef}
+              type="button"
+              className="action action--button"
+              onClick={() => setStep('language')}
+            >
+              {t(GATE_KEYS.yes)}
+            </button>
+            <button type="button" className="chip" onClick={decline}>
+              <span className="chip__bullet" aria-hidden="true" />
+              {t(GATE_KEYS.no)}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 'language' && (
+        <>
+          <p className="gate__question">
+            {t(start === 'language' ? GATE_KEYS.languageAgain : GATE_KEYS.language)}
+          </p>
+          <div className="gate__choices">
+            {/*
+              Deliberately not preselected from the site locale, and deliberately
+              always asked. Which language someone reads a site in says nothing
+              about which language they want to watch a film in.
+            */}
+            <a
+              ref={firstChoiceRef}
+              className="action"
+              href={urls.en}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => choose('en')}
+            >
+              {t(GATE_KEYS.en)}
+            </a>
+            <a
+              className="action"
+              href={urls.ja}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => choose('ja')}
+            >
+              {t(GATE_KEYS.ja)}
+            </a>
+            <button type="button" className="chip" onClick={decline}>
+              <span className="chip__bullet" aria-hidden="true" />
+              {t(GATE_KEYS.dismiss)}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 'opened' && opened && (
+        <p className="gate__question" role="status">
+          {t(GATE_KEYS.opened)}{' '}
+          <a className="gate__link" href={opened.url} target="_blank" rel="noopener noreferrer">
+            {opened.url}
+          </a>
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Where a reply may be cut, as character offsets into it.
+ *
+ * English splits on spaces, which is what it has always done and what the feel
+ * was tuned against. Everything else goes through Intl.Segmenter, which is the
+ * only way to find a word boundary in a script that does not write them.
+ */
+const streamSegmenters = new Map()
+
+function wordBoundaries(text, locale) {
+  if (locale === defaultLocale) {
+    const cuts = []
+    let at = 0
+    for (const word of text.split(' ')) {
+      at += word.length + 1
+      cuts.push(Math.min(at - 1, text.length))
+    }
+    return cuts.length ? cuts : [text.length]
+  }
+
+  if (!streamSegmenters.has(locale)) {
+    streamSegmenters.set(locale, new Intl.Segmenter(locale, { granularity: 'word' }))
+  }
+  const cuts = [...streamSegmenters.get(locale).segment(text)].map(
+    (piece) => piece.index + piece.segment.length
+  )
+  return cuts.length ? cuts : [text.length]
+}
 
 /** Reveal a reply progressively. A response that appears all at once reads as a page load. */
-function useStreamedReply() {
+function useStreamedReply(locale = defaultLocale) {
   const [text, setText] = useState('')
   const [streaming, setStreaming] = useState(false)
   const timer = useRef(null)
@@ -26,20 +179,34 @@ function useStreamedReply() {
       }
       setText('')
       setStreaming(true)
-      // Word by word rather than character by character: fast enough to feel live,
-      // slow enough to read as arriving.
-      const words = full.split(' ')
+      /*
+        Word by word rather than character by character: fast enough to feel
+        live, slow enough to read as arriving.
+
+        `full.split(' ')` was the whole of this, and it is an assumption about
+        English. Japanese does not put spaces between words, so a Japanese
+        reply came back as ONE chunk and appeared in a single frame after a
+        22ms pause — the streaming feel, which is the entire interface, lost
+        for one of the two languages.
+
+        Intl.Segmenter splits by actual word boundaries, and slicing by
+        character index rather than re-joining tokens means no separator is
+        invented: the text that renders is the text that was passed in, cut at
+        different points. Joining with ' ' would have inserted spaces into
+        Japanese that were never there.
+      */
+      const boundaries = wordBoundaries(full, locale)
       let i = 0
       timer.current = window.setInterval(() => {
         i += 1
-        setText(words.slice(0, i).join(' '))
-        if (i >= words.length) {
+        setText(full.slice(0, boundaries[i - 1] ?? full.length))
+        if (i >= boundaries.length) {
           stop()
           setStreaming(false)
         }
       }, 22)
     },
-    [stop]
+    [stop, locale]
   )
 
   /** A delta straight from the model: already arriving, no simulation needed. */
@@ -69,7 +236,7 @@ function useStreamedReply() {
  * It is the only conversion path on the site, so it has to work when the API
  * does not.
  */
-function Compose({ seed, onClose }) {
+function Compose({ seed, onClose, locale, t }) {
   const [turns, setTurns] = useState([])
   const [value, setValue] = useState('')
   const [prompt, setPrompt] = useState(null)
@@ -91,6 +258,7 @@ function Compose({ seed, onClose }) {
         question: answer,
         turns: history,
         seed,
+        locale,
         onDelta: setNote,
       })
       setNote(result.reply ?? '')
@@ -98,11 +266,11 @@ function Compose({ seed, onClose }) {
         setDraft(result.draft)
         setState('drafted')
       } else {
-        setPrompt(result.next_question ?? COMPOSE_QUESTIONS[0].ask)
+        setPrompt(result.next_question ?? composeQuestions(locale)[0].ask)
         setState('asking')
       }
     },
-    [seed]
+    [seed, locale]
   )
 
   // Always open on the first question. The seed is what the visitor typed to get
@@ -145,7 +313,7 @@ function Compose({ seed, onClose }) {
         }),
       })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error ?? 'that did not go through')
+      if (!response.ok) throw new Error(data.error ?? t('compose.genericError'))
       setReplying(Boolean(data.replying))
       setEmailed(Boolean(data.notified))
       setState('sent')
@@ -165,18 +333,20 @@ function Compose({ seed, onClose }) {
     return (
       <div className="compose compose--sent unmask" role="status">
         <p className="compose__note mono">
-          {emailed ? 'Sent.' : 'Recorded.'}{' '}
-          {emailed
-            ? replying
-              ? 'Ethan will reply to the address you gave.'
-              : 'No address in there, so this one is a note for Ethan rather than a reply to you.'
-            : replying
-              ? 'It is in the queue Ethan reads, and he will reply to the address you gave.'
-              : 'It is in the queue Ethan reads. There is no address in it, so treat it as a note rather than a conversation.'}
+          {t(emailed ? 'compose.sent' : 'compose.recorded')}{' '}
+          {t(
+            emailed
+              ? replying
+                ? 'compose.sentReplying'
+                : 'compose.sentNoAddress'
+              : replying
+                ? 'compose.recordedReplying'
+                : 'compose.recordedNoAddress'
+          )}
         </p>
         <button type="button" className="chip" onClick={onClose}>
           <span className="chip__bullet" aria-hidden="true" />
-          close
+          {t('compose.close')}
         </button>
       </div>
     )
@@ -189,7 +359,7 @@ function Compose({ seed, onClose }) {
       {(state === 'asking' || state === 'thinking') && (
         <form onSubmit={answer}>
           <label className="compose__label mono" htmlFor="compose-answer">
-            {prompt ?? COMPOSE_QUESTIONS[0].ask}
+            {prompt ?? composeQuestions(locale)[0].ask}
           </label>
           <div className="field compose__field">
             <input
@@ -205,11 +375,11 @@ function Compose({ seed, onClose }) {
           </div>
           <div className="compose__controls">
             <button type="submit" className="action action--button" disabled={state === 'thinking'}>
-              {state === 'thinking' ? 'One moment' : 'Next'}
+              {t(state === 'thinking' ? 'compose.thinking' : 'compose.next')}
             </button>
             <button type="button" className="chip" onClick={onClose}>
               <span className="chip__bullet" aria-hidden="true" />
-              never mind
+              {t('compose.neverMind')}
             </button>
           </div>
         </form>
@@ -218,7 +388,7 @@ function Compose({ seed, onClose }) {
       {(state === 'drafted' || state === 'sending' || state === 'error') && (
         <>
           <label className="compose__label mono" htmlFor="compose-draft">
-            Your message, edit anything
+            {t('compose.draftLabel')}
           </label>
           <textarea
             id="compose-draft"
@@ -235,11 +405,11 @@ function Compose({ seed, onClose }) {
               onClick={send}
               disabled={state === 'sending' || !draft?.trim()}
             >
-              {state === 'sending' ? 'Sending' : 'Send it'}
+              {t(state === 'sending' ? 'compose.sending' : 'compose.send')}
             </button>
             <button type="button" className="chip" onClick={onClose}>
               <span className="chip__bullet" aria-hidden="true" />
-              never mind
+              {t('compose.neverMind')}
             </button>
           </div>
         </>
@@ -259,7 +429,7 @@ function Compose({ seed, onClose }) {
 
       {state === 'error' && (
         <p className="compose__error mono" role="alert">
-          {error}. The address is on the full index if you would rather write directly.
+          {error}. {t('compose.errorSuffix')}
         </p>
       )}
     </div>
@@ -271,9 +441,23 @@ function extractEmail(text) {
   return text.match(/[^\s<>@]+@[^\s<>@.]+\.[^\s<>@]+/)?.[0] ?? ''
 }
 
-export default function Console() {
+export default function Console({ docUrls = null, locale = defaultLocale, answerLocale = null }) {
+  /*
+    Two locales, deliberately separate.
+
+    `locale` is the language of the page — every label, chip and boot line.
+    `answerLocale` is the language Joy answers in, which is not necessarily the
+    same. Until Joy's Japanese guards and eval suite land, a Japanese page
+    answers in English and says so above the input; conflating the two would
+    make that honest limitation impossible to express.
+  */
+  const t = useTranslations(locale)
+  const replyIn = answerLocale ?? locale
   const [value, setValue] = useState('')
   const [compose, setCompose] = useState({ open: false, seed: '' })
+  // The arrival gate. Closed on the server and on first paint; opened by the
+  // effect below once calibration has handed off.
+  const [gate, setGate] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [engaged, setEngaged] = useState(false)
   const [transcript, setTranscript] = useState([])
@@ -282,7 +466,14 @@ export default function Console() {
   const inputRef = useRef(null)
   const mirrorRef = useRef(null)
   const [caretX, setCaretX] = useState(0)
-  const { text, streaming, stream, live, settle, setText } = useStreamedReply()
+  const { text, streaming, stream, live, settle, setText } = useStreamedReply(replyIn)
+
+  /*
+    Only shown when the page language and the answer language differ, so it
+    disappears of its own accord the moment Joy speaks Japanese — there is no
+    flag to remember to turn off.
+  */
+  const noticeText = replyIn !== locale ? t('console.englishOnlyNotice') : ''
 
   const reducedMotion = useMemo(
     () =>
@@ -291,9 +482,52 @@ export default function Console() {
     []
   )
 
+  /*
+    Whether the gate is going to claim this arrival.
+
+    Decided once, up front, so the gate and the input-autofocus effect below
+    cannot race for the caret — the alternative is two effects both firing on
+    the same MutationObserver and the winner depending on scheduling.
+
+    False on the server (no window), which is why the gate renders closed in the
+    SSR output and opens in an effect rather than during render: an arrival
+    state read from localStorage cannot be server-rendered without a hydration
+    mismatch.
+  */
+  const gateWillOpen = useMemo(
+    () => Boolean(docUrls) && typeof window !== 'undefined' && !gateAlreadyShown(),
+    [docUrls]
+  )
+
+  /*
+    The gate opens as Joy's first message, once calibration has handed off —
+    never over the top of it, and never as a dialog above the page.
+
+    Reduced motion and a returning session both clear `data-booting` before this
+    runs, so the observer is only for the arrival that actually calibrates.
+  */
+  useEffect(() => {
+    if (!gateWillOpen) return
+    const root = document.documentElement
+    if (!root.dataset.booting) {
+      setGate(true)
+      return
+    }
+    const observer = new MutationObserver(() => {
+      if (!root.dataset.booting) {
+        setGate(true)
+        observer.disconnect()
+      }
+    })
+    observer.observe(root, { attributes: true, attributeFilter: ['data-booting'] })
+    return () => observer.disconnect()
+  }, [gateWillOpen])
+
   // Take the caret once calibration has handed off, but only where there is a
   // real pointer: focusing on touch would throw up the soft keyboard on arrival.
+  // The gate takes focus instead when it is the one arriving.
   useEffect(() => {
+    if (gateWillOpen) return
     if (!window.matchMedia('(pointer: fine)').matches) return
     const root = document.documentElement
     if (!root.dataset.booting) {
@@ -308,7 +542,7 @@ export default function Console() {
     })
     observer.observe(root, { attributes: true, attributeFilter: ['data-booting'] })
     return () => observer.disconnect()
-  }, [])
+  }, [gateWillOpen])
 
   /*
     Where the mark sits before the first question.
@@ -425,14 +659,29 @@ export default function Console() {
   const [degradedRun, setDegradedRun] = useState(0)
   const logoSlotRef = useRef(null)
 
+  /*
+    Shown is shown. Typing a question instead of answering the gate is still the
+    gate having been asked, so it is recorded the same way a yes or a no is —
+    otherwise a reload asks again, having already been ignored once.
+  */
+  const closeGate = useCallback(() => {
+    if (gate) rememberGateShown()
+    setGate(false)
+  }, [gate])
+
   const ask = useCallback(
     async (query, { navigate = false } = {}) => {
       const trimmed = query.trim()
-      const label = trimmed || 'what is yorocobu'
+      const label = navigate ? destinationLabel(query, locale) : trimmed || t('console.defaultQuery')
       const n = transcript.length + 1
-      // Typing a chip's exact label (or arrow-selecting it) is the chip.
-      const destination = DESTINATIONS.find((d) => d.query === trimmed)
-      const isNavigation = navigate || Boolean(destination)
+      /*
+        Typing a chip's exact label (or arrow-selecting it) is the chip.
+
+        Matched through the locale dictionary rather than against a stored
+        English string, so this works for whichever label is actually on screen.
+      */
+      const destinationId = navigate ? query : destinationIdFor(trimmed, locale)
+      const isNavigation = navigate || Boolean(destinationId)
 
       /*
         Navigation is not a question, so nobody answers it.
@@ -448,8 +697,15 @@ export default function Console() {
         and the entry's own controls still come along.
       */
       if (isNavigation) {
-        const local = resolve(destination?.query ?? trimmed)
+        /*
+          A chip is a site-map link, resolved by id. It never goes through the
+          matcher, so it cannot be mis-matched and it does not depend on the
+          answer language at all — which is why it is the one console path that
+          is already fully Japanese.
+        */
+        const local = resolveEntry(destinationId, locale) ?? resolve(trimmed, replyIn)
         setCompose({ open: false, seed: '' })
+        closeGate()
         setEngaged(true)
         setValue('')
         setHighlight(-1)
@@ -461,7 +717,7 @@ export default function Console() {
           query: label,
           result: { ...local, reply: '', pointer: true },
           navigate: true,
-          forcedFocus: destination?.id ?? local.focus_section,
+          forcedFocus: destinationId ?? local.focus_section,
         }
         setTranscript((prev) => [...prev, item])
         setActive(item)
@@ -471,6 +727,9 @@ export default function Console() {
       // The question and the migration land immediately; the answer follows.
       setActive({ n, query: label, result: null })
       setCompose({ open: false, seed: '' })
+      // Asking a question is an answer to the gate: they are not here for the
+      // film, or they will ask about it and reach the same choice below.
+      closeGate()
       setEngaged(true)
       setValue('')
       setHighlight(-1)
@@ -482,6 +741,7 @@ export default function Console() {
       const result = await askJoy({
         mode: 'answer',
         question: trimmed,
+        locale: replyIn,
         onDelta: (partial) => {
           setWaiting(false)
           live(partial)
@@ -514,12 +774,12 @@ export default function Console() {
         query: label,
         result,
         navigate: isNavigation,
-        forcedFocus: isNavigation ? (destination?.id ?? null) : null,
+        forcedFocus: isNavigation ? (destinationId ?? null) : null,
       }
       setTranscript((prev) => [...prev, item])
       setActive(item)
     },
-    [transcript.length, stream, live, settle, setText, reducedMotion]
+    [transcript.length, stream, live, settle, setText, reducedMotion, closeGate, replyIn, locale, t]
   )
 
   const restore = useCallback(
@@ -545,7 +805,7 @@ export default function Console() {
       const count = DESTINATIONS.length
       const next = (highlight + delta + count + 1) % (count + 1)
       setHighlight(next === count ? -1 : next)
-      setValue(next === count ? '' : DESTINATIONS[next]?.query ?? '')
+      setValue(next === count ? '' : destinationLabel(DESTINATIONS[next]?.id, locale))
     }
   }
 
@@ -561,7 +821,7 @@ export default function Console() {
 
       {/* Past queries, numbered, in a narrow left rail. */}
       {transcript.length > 0 && (
-        <nav className="rail" aria-label="Your questions">
+        <nav className="rail" aria-label={t('console.railLabel')}>
           <ol>
             {transcript.map((item) => (
               <li key={item.n}>
@@ -590,13 +850,29 @@ export default function Console() {
             */}
             {!streaming && active.result?.degraded && (
               <p className="answer__degraded mono">
-                {active.result.degradedReason === 'config'
-                  ? 'answering from the offline index — navigator not configured'
-                  : 'answering from the offline index'}
+                {t(
+                  active.result.degradedReason === 'config'
+                    ? 'console.degradedConfig'
+                    : 'console.degraded'
+                )}
               </p>
             )}
             {/* Navigation has no reply; the slot collapses rather than holding a line. */}
             {text && <p className="answer__text">{text}</p>}
+
+            {/*
+              The recovery path, and the reason the gate is not the only route
+              to the film.
+
+              Keyed on focus_section, which is a closed enum over the knowledge
+              entry ids — the same token the model is constrained to and the
+              offline matcher returns. So asking about the documentary reaches
+              the choice on both paths, in any language, without anything here
+              reading Joy's prose or the model being instructed to cooperate.
+            */}
+            {!streaming && docUrls && active.result?.focus_section === 'documentary' && (
+              <DocumentaryGate urls={docUrls} start="language" t={t} />
+            )}
 
             {!streaming && active.result?.actions?.length > 0 && (
               <div className="answer__actions unmask">
@@ -628,7 +904,12 @@ export default function Console() {
             )}
 
             {!streaming && compose.open && (
-              <Compose seed={compose.seed} onClose={() => setCompose({ open: false, seed: '' })} />
+              <Compose
+                seed={compose.seed}
+                locale={replyIn}
+                t={t}
+                onClose={() => setCompose({ open: false, seed: '' })}
+              />
             )}
 
             {!streaming && active.result?.followups?.length > 0 && (
@@ -655,7 +936,7 @@ export default function Console() {
       >
         <div className="bar__inner">
           <label className="visually-hidden" htmlFor="console-input">
-            Ask about Yorocobu
+            {t('console.inputLabel')}
           </label>
           {/*
             The introduction. The console replaced the nav bar, so it has to do a
@@ -675,10 +956,18 @@ export default function Console() {
                 travel out of its own removal.
               */}
               <span className="intro__logo-slot" ref={logoSlotRef} aria-hidden="true" />
-              <p className="intro__status mono">JOY // NAVIGATOR // ready</p>
-              <p className="intro__claim">This is the future of websites.</p>
-              <p className="intro__proof">No menus. No hunting. Just a guide.</p>
-              <p className="intro__body">This is Joy. She can help you find anything here.</p>
+              <p className="intro__status mono">{t('console.introStatus')}</p>
+              <p className="intro__claim">{t('console.introClaim')}</p>
+              <p className="intro__proof">{t('console.introProof')}</p>
+              <p className="intro__body">{t('console.introBody')}</p>
+              {gate && docUrls && (
+                <DocumentaryGate
+                  urls={docUrls}
+                  start="ask"
+                  t={t}
+                  onDismiss={() => setGate(false)}
+                />
+              )}
             </div>
           )}
 
@@ -693,10 +982,24 @@ export default function Console() {
           */}
           {degradedRun >= 2 && (
             <p className="bar__degraded mono" role="status">
-              navigator unreachable — {degradedRun} answers from the local index
+              {t('console.degradedRun', { count: degradedRun })}
             </p>
           )}
-          <p className="bar__hint mono">{engaged ? 'ask another' : PLACEHOLDER}</p>
+          {/*
+            The honest limitation, on the Japanese tree only. Joy answers in
+            English today; saying so plainly beats the alternative the audit
+            found, which was answering every Japanese question confidently and
+            wrongly. It sits above the input rather than under one answer,
+            because it is a property of the session, not of a question.
+          */}
+          {noticeText && (
+            <p className="bar__notice mono" role="status">
+              {noticeText}
+            </p>
+          )}
+          <p className="bar__hint mono">
+            {t(engaged ? 'console.hintEngaged' : 'console.placeholder')}
+          </p>
           <div className="field">
             <input
               id="console-input"
@@ -720,7 +1023,7 @@ export default function Console() {
             />
           </div>
           <button type="submit" className="visually-hidden">
-            Ask
+            {t('console.submit')}
           </button>
         </div>
 
@@ -731,17 +1034,17 @@ export default function Console() {
           drift from what the site actually holds.
         */}
         {!engaged && (
-          <nav className="suggestions" aria-label="Everything on this site">
+          <nav className="suggestions" aria-label={t('console.chipsLabel')}>
             {DESTINATIONS.map((destination, i) => (
               <button
                 key={destination.id}
                 type="button"
                 className="chip"
                 data-highlight={highlight === i || undefined}
-                onClick={() => ask(destination.query, { navigate: true })}
+                onClick={() => ask(destination.id, { navigate: true })}
               >
                 <span className="chip__bullet" aria-hidden="true" />
-                {destination.label}
+                {destinationLabel(destination.id, locale)}
               </button>
             ))}
           </nav>

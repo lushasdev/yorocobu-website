@@ -4,7 +4,7 @@ order: 2
 nav: the name
 nav_order: 5
 title: About the Name
-aliases: [what does yorocobu mean, name meaning, japanese, why yorocobu, 喜, yorokobu, pronunciation]
+aliases: [what does yorocobu mean, name meaning, japanese, why yorocobu, 喜ぶ, yorokobu, pronunciation]
 status: active
 kind: about
 summary: Yorocobu means "to have joy" in Japanese. Helping people find happiness drives everything the company does.

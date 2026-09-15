@@ -1,0 +1,124 @@
+---
+/**
+ * EN / 日本語.
+ *
+ * This control carries the whole bilingual premise, so it is visible without
+ * scrolling and it is part of the console chrome — the same fixed corner
+ * furniture as the mark and the theme dot, not a nav element bolted on above
+ * the page.
+ *
+ * It has to be obvious. Edge detection reads Accept-Language, which tells you a
+ * browser is configured for Japanese and nothing whatsoever about the person
+ * using it: plenty of Japanese speakers run English-locale machines, and plenty
+ * of English speakers have a Japanese phone. The switcher is what actually
+ * carries this feature; detection is a convenience on top of it.
+ *
+ * Both links are real anchors to real URLs, so this works with no JavaScript,
+ * is crawlable, and can be opened in a new tab. The script only adds the cookie.
+ */
+import { useTranslations, pathForLocale, defaultLocale, type Locale } from '../i18n/ui.ts'
+
+interface Props {
+  locale?: Locale
+}
+
+const { locale = defaultLocale } = Astro.props
+const t = useTranslations(locale)
+const here = Astro.url.pathname
+---
+
+<nav class="lang" aria-label={t('lang.label')} data-lang-switch>
+  <a
+    class="lang__option"
+    href={pathForLocale(here, 'en')}
+    hreflang="en"
+    lang="en"
+    data-lang="en"
+    aria-current={locale === 'en' ? 'true' : undefined}>{t('lang.toEnglish')}</a
+  >
+  <span class="lang__sep" aria-hidden="true">/</span>
+  <a
+    class="lang__option"
+    href={pathForLocale(here, 'ja')}
+    hreflang="ja"
+    lang="ja"
+    data-lang="ja"
+    aria-current={locale === 'ja' ? 'true' : undefined}>{t('lang.toJapanese')}</a
+  >
+</nav>
+
+<style>
+  .lang {
+    position: fixed;
+    top: calc(var(--frame-inset) + 14px);
+    right: calc(var(--frame-inset) + 74px);
+    z-index: 45;
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+  }
+
+  .lang__option {
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 4px 1px;
+  }
+
+  .lang__option:hover {
+    color: var(--primary-text);
+  }
+
+  /* The language you are already reading, marked without being a dead control. */
+  .lang__option[aria-current] {
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--primary);
+  }
+
+  .lang__sep {
+    color: var(--border-strong);
+  }
+
+  /* Hidden while calibrating, like the frame and the mark. */
+  :global(:root[data-booting]) .lang {
+    opacity: 0;
+  }
+
+  @media (max-width: 46rem) {
+    /*
+      The theme label is hidden at this width, so the dot moves in and the
+      switcher takes the space it leaves. The switcher never hides: it is the
+      one control a visitor on the wrong language needs to find.
+    */
+    .lang {
+      right: calc(var(--frame-inset) + 46px);
+    }
+  }
+</style>
+
+<script>
+  /*
+    A manual choice outranks the browser setting, permanently.
+
+    The cookie is what the edge function reads on the next visit, so choosing a
+    language here is remembered rather than re-decided from Accept-Language
+    every time. One year, Lax — it is read on a top-level navigation to this
+    site and nowhere else.
+
+    Set on click rather than on page load: landing on /ja/ because a browser
+    happens to be Japanese is not a choice, and writing the cookie then would
+    silently promote a guess into a permanent preference nobody made.
+  */
+  const YEAR = 60 * 60 * 24 * 365
+
+  for (const link of document.querySelectorAll('[data-lang-switch] a[data-lang]')) {
+    link.addEventListener('click', () => {
+      const chosen = (link as HTMLElement).dataset.lang
+      if (!chosen) return
+      const secure = location.protocol === 'https:' ? '; Secure' : ''
+      document.cookie = `yorocobu_lang=${chosen}; Max-Age=${YEAR}; Path=/; SameSite=Lax${secure}`
+    })
+  }
+</script>

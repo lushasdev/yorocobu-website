@@ -18,6 +18,8 @@ import knowledge from '../../src/generated/knowledge.json' with { type: 'json' }
 import { resolve as resolveLocal } from '../../src/lib/navigator.js'
 import { json, callerId, overRateLimit } from './_shared/limits.mjs'
 import { recordQuality } from './_shared/quality.mjs'
+import { resultLocaleViolation } from './_shared/language.mjs'
+import { useTranslations } from '../../src/i18n/ui.ts'
 
 /** One place. Short retrieval over eight entries, not reasoning. */
 const MODEL = 'gpt-5.6-luna'
@@ -30,6 +32,57 @@ const MAX_QUESTION = 500
 const RATE_LIMIT = 20
 const RATE_WINDOW_MS = 60 * 60 * 1000
 const MAX_COMPOSE_TURNS = 3
+
+/*
+  Which locales Joy is allowed to ANSWER in, decided on the server.
+
+  This is the same fence as patternsFor() in the offline matcher, on the other
+  path. The client sends the locale it wants; the server decides what it gets.
+  Not trusting the client is the point: a stray locale in a request body must
+  not be able to reach a path nothing has verified.
+
+  ── 'ja' IS OPEN, AND THE PAID SUITES HAVE NOT BEEN RUN ──────────────────────
+
+  Everything checkable without spending money passes: the offline matcher has a
+  Japanese pattern set with 62 cases of its own, the language check works in
+  both directions, and every Japanese assertion is validated against Japanese
+  fixtures. The model's own Japanese has not been measured — that was a
+  deliberate call to test against the live model instead.
+
+  So what stands between a Japanese visitor and a wrong answer here is the
+  RUNTIME fence rather than a test result, and all four parts of it are
+  language-independent by construction:
+
+    - the prompt pins the response to the requested locale
+    - _shared/language.mjs checks what actually came back and REFUSES a reply
+      in the wrong language, falling back to the offline index rather than
+      serving it
+    - decideOffer reads a dead_end token, so the offer rule cannot invert the
+      way it did when it read English prose
+    - action labels are closed tokens the dictionary renders, so a label
+      cannot be wrong in any language
+
+  Reverting is this one line. The console notice comes back on its own when it
+  does, because HomePage.astro passes answerLocale: null and the notice renders
+  whenever the answer locale differs from the page locale.
+
+  To run the suites later:
+
+      node scripts/check-eval-assertions.mjs          # free, run this first
+      OPENAI_API_KEY=... node scripts/eval-knowledge.mjs
+      OPENAI_API_KEY=... EVAL_LOCALE=ja node scripts/eval-knowledge.mjs
+*/
+export const REPLY_LOCALES = ['en', 'ja']
+const FALLBACK_REPLY_LOCALE = 'en'
+
+/** What the model is told to answer in, whatever the client asked for. */
+function replyLocaleFor(requested) {
+  if (REPLY_LOCALES.includes(requested)) return requested
+  return FALLBACK_REPLY_LOCALE
+}
+
+/** How each locale is named to the model. */
+const LOCALE_NAMES = { en: 'English', ja: 'Japanese (日本語)' }
 
 const context = knowledge.entries
   .map((e) =>
@@ -50,10 +103,29 @@ const context = knowledge.entries
 
 const ENTRY_IDS = knowledge.entries.map((e) => e.id)
 
+/*
+  The closed set of action labels.
+
+  The model picks a TOKEN; the locale dictionary turns it into words. That is
+  what makes fixComposeLabels unnecessary rather than something to duplicate per
+  language — there is no free-text label left for the model to get wrong, in any
+  language, so there is nothing to repair afterwards.
+*/
+const LABEL_TOKENS = [
+  'send_message',
+  'send_question',
+  'ask_directly',
+  'ask_about_project',
+  'ask_about_client_work',
+  'ask_to_be_kept_posted',
+  'ask_about_it',
+  'open_index',
+]
+
 const ANSWER_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['reply', 'focus_section', 'actions', 'followups', 'unknown', 'used_entries'],
+  required: ['reply', 'focus_section', 'actions', 'followups', 'unknown', 'dead_end', 'used_entries'],
   properties: {
     reply: { type: 'string', description: 'What Joy says. Plain prose, no markdown.' },
     focus_section: {
@@ -67,16 +139,19 @@ const ANSWER_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['type', 'label'],
+        required: ['type', 'label_token'],
         properties: {
           // A closed set. There is deliberately no url field.
           type: { type: 'string', enum: ['compose', 'index'] },
-          label: {
+          label_token: {
             type: 'string',
+            enum: LABEL_TOKENS,
             description:
-              'What the control does. For compose, it opens the message form ' +
-              'right here — label it that way ("Send it to Ethan from here"), ' +
-              'never "Email …": the visitor is not leaving the site.',
+              'Which label the control carries. The site renders it in the ' +
+              'visitor\'s language; you are choosing which one fits, not ' +
+              'writing the words. Use open_index only with type index. A ' +
+              'compose control opens the message form right here — the ' +
+              'visitor is not leaving the site.',
           },
         },
       },
@@ -90,6 +165,29 @@ const ANSWER_SCHEMA = {
         'them. Leave empty only when nothing sensibly follows.',
     },
     unknown: { type: 'boolean' },
+    /*
+      Whether this answer is a DEAD END: a question the site cannot take any
+      further, either because the knowledge base lacks it or because it is not
+      published. Structured rather than inferred.
+
+      This replaces reading the opening sentence of the reply for phrases like
+      "not public" or "I do not have". That test could not survive translation —
+      the sentence splitter keyed on English punctuation, so a Japanese reply
+      came back as one sentence and the pattern matched nothing — and adding a
+      second pattern set would have brought back the false positives the
+      first-sentence-only rule was invented to remove. The model already knows
+      whether it hit a wall; asking it is cheaper and more honest than guessing
+      from its prose.
+    */
+    dead_end: {
+      type: 'boolean',
+      description:
+        'True when this answer is a dead end for the visitor: the knowledge ' +
+        'base does not contain what they asked for, or it is explicitly not ' +
+        'published. False when you answered the question, even if the answer ' +
+        'mentions a boundary in passing. A complete answer that ends "and the ' +
+        'site does not publish anything further" is NOT a dead end.',
+    },
     used_entries: { type: 'array', items: { type: 'string', enum: ENTRY_IDS } },
   },
 }
@@ -142,7 +240,19 @@ WHEN TO ATTACH THE COMPOSE ACTION. Only in these three cases:
   3. The question is about working together, and the next step is a conversation.
 An answer that fully answers the question gets NO action. The offer is a way out
 of a dead end, not a signature on every reply — attaching it to a complete answer
-makes the whole site read as a contact form.`
+makes the whole site read as a contact form.
+
+DEAD_END. Set it true when the visitor has hit a wall: the knowledge base does
+not contain what they asked for, or it is there only as something explicitly not
+published. Set it false when you answered them. Naming a boundary on the way out
+of a complete answer is not a dead end — "Yorocobu builds X and Y, and the site
+does not publish anything further" ANSWERED the question. This field decides
+whether the message form is offered, so guessing high turns every answer into a
+contact form and guessing low strands people.
+
+LABELS. You choose a label_token, not words. The site renders it in the
+visitor's language. Pick the one that fits what the control will do; do not
+worry about how it reads.`
 
 const GROUNDING = `Answer only from the knowledge base below. It is the complete
 and only source of truth about Yorocobu. Do not use outside knowledge about the
@@ -183,7 +293,31 @@ KNOWLEDGE BASE
 ==============
 ${context}`
 
-const ANSWER_PROMPT = `${VOICE}\n\n${GROUNDING}`
+/*
+  The language constraint.
+
+  Stated as a hard rule rather than a preference, and repeated for the action
+  labels specifically, because a label is the field most likely to drift: it is
+  short, it is generated last, and it is the one piece of Joy's output that
+  reads like UI rather than like speech.
+
+  The instruction is not trusted on its own. _shared/language.mjs checks what
+  comes back, and a violation is treated as a failed response rather than as
+  something to tidy up — see the stream handler below.
+*/
+const languageRule = (locale) => `LANGUAGE. Write your entire response in ${LOCALE_NAMES[locale]}.
+This applies to every field without exception: the reply, every action label,
+every follow-up question, and any refusal or unknown-answer response.
+
+- Never mix languages inside one response.
+- Never apologise for the language you are writing in, and never mention it.
+- If the visitor writes to you in another language, understand them in that
+  language and answer in ${LOCALE_NAMES[locale]} anyway. Do not comment on
+  having done so.
+- Proper names stay as they are written in the knowledge base: Yorocobu, Joy,
+  Ethan Gailushas, Bence Burton. A Japanese term the knowledge base quotes —
+  喜ぶ, 喜, 忘れ者 — stays in Japanese even in an English answer, because it is
+  the thing being named rather than a word being translated.`
 
 const COMPOSE_PROMPT = `${VOICE}
 
@@ -208,6 +342,14 @@ RULES FOR THE DRAFT, which matter more than making it read well:
 Nothing is ever sent without the visitor pressing send, so never say the message
 has been sent.`
 
+const answerPrompt = (locale) => `${VOICE}\n\n${languageRule(locale)}\n\n${GROUNDING}`
+const composePrompt = (locale) => `${COMPOSE_PROMPT}\n\n${languageRule(locale)}
+
+The DRAFT is the exception to the language rule above. It is the visitor's own
+message in their own voice, so it is written in the language THEY used, not in
+${LOCALE_NAMES[locale]}. Everything you say around it still follows the rule.`
+
+
 /*
   "Every unknown names what it can help with instead" was an instruction, and an
   instruction is followed unevenly: the model holds it when the question is
@@ -218,33 +360,6 @@ has been sent.`
   nothing attached, the offer is added here, from the same site map the chips are
   built from. It cannot be missed regardless of what the model returns.
 */
-/*
-  A compose action labelled "Email Ethan" is the denial in button form: the
-  control sends the message from right here, and a label that says email
-  teaches the visitor the opposite. The schema description asks the model not
-  to; this makes it not matter if it does anyway.
-*/
-function fixComposeLabels(result) {
-  if (!result?.actions?.length) return result
-  return {
-    ...result,
-    actions: result.actions.map((a) =>
-      a?.type === 'compose' && /\b(e-?mail|mail)\b/i.test(a.label ?? '')
-        ? { ...a, label: 'Send it to Ethan from here' }
-        : a
-    ),
-  }
-}
-
-/*
-  What a dead end sounds like. One definition, used in both directions: an
-  answer that says this is a dead end EARNS the offer, and an answer that does
-  not say so cannot keep one. Editing this changes both, which is the point —
-  the two rules are the same rule.
-*/
-const GAP_SHAPED =
-  /\b(not (public|published|covered)|(does|do)(n't| not) (publish|cover|say|describe|explain|have)|i (do not|don't) (have|know)|isn'?t (public|published)|nothing (is )?(public|published)|no [a-z ]{0,24}(is|are) public|and (stops|stop) there|and nothing more|without guessing|have nothing to point)\b/i
-
 /*
   Where an offer belongs on an answer that is not a dead end: the conversation
   cases. Same derivation the eval asserts against, so the function and the test
@@ -296,32 +411,37 @@ function rescueFalseUnknown(result, question, mode) {
 /**
  * One decision about the offer, enforced in both directions.
  *
- * This replaces a pair of functions that keyed on the same regex — one adding
- * the offer where a reply looked like a dead end, the other stripping it where
- * it did not. Sharing the key was meant to make them one rule; what it did was
- * make them collude. The adder fired, and the stripper then exempted exactly
- * what the adder had just created, so `stripped_offers` read 0 on every call
- * while stray offers went out anyway.
- *
- * The second bug was the key itself. GAP_SHAPED was tested against the whole
- * reply, and a good complete answer routinely names a boundary in passing —
- * "…and the site does not publish anything further." Four of six realistic
- * complete answers were misread as dead ends that way. A dead end announces
- * itself in its OPENING sentence; a caveat arrives after the answer has landed.
- * Testing the first sentence only separates them: 0 of 6 false positives.
- *
  * The model may suggest a compose action; this decides whether it keeps one.
  * Four rounds of prompt instructions did not stop stray offers, and the eval
  * showed why a fifth would not either — within one entry, "who is in charge"
  * came back clean while "who runs the company" did not, and the two swapped
  * places on the next run. That is per-request guessing, not a rule applied
- * imperfectly.
+ * imperfectly, so the rule is applied here instead.
+ *
+ * WHAT CHANGED FOR THE SECOND LANGUAGE. This used to take the opening sentence
+ * of the reply and test it against GAP_SHAPED, an English alternation. Both
+ * halves broke in Japanese: the splitter keyed on `[.!?]` followed by a space,
+ * and Japanese ends sentences with 。 and no space, so `opening` came back as
+ * the entire reply; the pattern then matched nothing regardless. The rule did
+ * not merely stop working, it INVERTED — offers were stripped from genuine dead
+ * ends and kept only where focus happened to be contact or services.
+ *
+ * Patching both would have meant two pattern sets and a sentence splitter per
+ * language, and testing the whole reply again reintroduces exactly the false
+ * positives that first-sentence-only was invented to remove: four of six
+ * complete answers read as dead ends, because a good answer routinely names a
+ * boundary in passing.
+ *
+ * So the prose test is gone. `dead_end` is a field in the structured output.
+ * The model knows whether it hit a wall — it does not have to be inferred from
+ * how it phrased the reply — and a boolean means the same thing in every
+ * language. OFFER_FOCUS was already token-based and is unchanged.
  */
-function decideOffer(result, mode) {
+function decideOffer(result, mode, locale) {
+  const t = useTranslations(locale)
   if (!result || mode === 'compose') return { result, offer: 'n/a' }
 
-  const opening = String(result.reply ?? '').split(/(?<=[.!?])\s/)[0]
-  const deadEnd = Boolean(result.unknown) || GAP_SHAPED.test(opening)
+  const deadEnd = Boolean(result.unknown) || Boolean(result.dead_end)
   const shouldOffer = deadEnd || OFFER_FOCUS.includes(result.focus_section)
 
   const actions = result.actions ?? []
@@ -333,8 +453,13 @@ function decideOffer(result, mode) {
       offer: 'added',
       result: {
         ...result,
-        actions: [...actions, { type: 'compose', label: 'Send the question to Ethan' }],
-        followups: result.followups?.length ? result.followups : offers.map((d) => d.query),
+        actions: [...actions, { type: 'compose', label_token: 'send_question' }],
+        /*
+          The injected fallback followups are rendered here rather than shipped
+          as ids, because the client renders whatever string it is given. Ids
+          would have appeared on screen as "portfolio" and "founders".
+        */
+        followups: result.followups?.length ? result.followups : offers.map((d) => t(`ask.${d.id}`)),
       },
     }
   }
@@ -355,12 +480,18 @@ function decideOffer(result, mode) {
  * about. What this returns for a given question IS what production sends, byte
  * for byte, at the same commit of /knowledge.
  */
-export function buildModelInput({ mode, question, turns = [], seed = '' }) {
+export function buildModelInput({ mode, question, turns = [], seed = '', locale }) {
   const asked = turns.filter((t) => t.role === 'assistant').length
   const forceDraft = mode === 'compose' && asked >= MAX_COMPOSE_TURNS
+  // Never the requested locale directly: the server decides what it will answer
+  // in, so a locale in a request body cannot switch off the guards.
+  const replyLocale = replyLocaleFor(locale)
 
   return [
-    { role: 'system', content: mode === 'compose' ? COMPOSE_PROMPT : ANSWER_PROMPT },
+    {
+      role: 'system',
+      content: mode === 'compose' ? composePrompt(replyLocale) : answerPrompt(replyLocale),
+    },
     ...(mode === 'compose' && seed
       ? [
           {
@@ -460,11 +591,21 @@ export default async (req) => {
   const question = String(body.question ?? '').trim().slice(0, MAX_QUESTION)
   const turns = Array.isArray(body.turns) ? body.turns.slice(-6) : []
   const seed = String(body.seed ?? '').trim().slice(0, MAX_QUESTION)
+  const requestedLocale = String(body.locale ?? 'en').trim().slice(0, 8)
+  const replyLocale = replyLocaleFor(requestedLocale)
 
   // Logged before anything can fail, so an arriving request is always on record.
   console.log(
-    `joy: request mode=${mode} qlen=${question.length} turns=${turns.length} knowledge=${KNOWLEDGE_FINGERPRINT}`
+    `joy: request mode=${mode} qlen=${question.length} turns=${turns.length} ` +
+      `locale=${requestedLocale}->${replyLocale} knowledge=${KNOWLEDGE_FINGERPRINT}`
   )
+  if (replyLocale !== requestedLocale) {
+    console.log(
+      `joy: answering in ${replyLocale} for a request that asked for ` +
+        `"${requestedLocale}". Only ${REPLY_LOCALES.join(', ')} are served, because ` +
+        `the output guards can only police those. The console shows a notice saying so.`
+    )
+  }
 
   if (mode === 'answer' && !question) {
     trace(started, 'rejected, no question')
@@ -476,7 +617,7 @@ export default async (req) => {
     return json(429, { error: 'a few too many just now. Try again a little later.' })
   }
 
-  const input = buildModelInput({ mode, question, turns, seed })
+  const input = buildModelInput({ mode, question, turns, seed, locale: replyLocale })
 
   let upstream
   try {
@@ -591,14 +732,47 @@ export default async (req) => {
         } catch {
           console.error('joy: model output was not valid json')
         }
-        // Guarantee first, then strip: the guarantee only ever adds where a dead
-        // end earned it, and the strip only ever removes where none did, so the
-        // order cannot have them fighting over the same answer.
-        // Rescue first: a false unknown replaces the whole result, and the offer
-        // decision must then run over what is actually being sent.
+        // Rescue first: a false unknown replaces the whole result, and the
+        // offer decision must then run over what is actually being sent.
+        /*
+          The language constraint, checked rather than trusted.
+
+          This runs FIRST, before the offer and rescue guards, because those
+          guards are the thing at stake: every one of them keys on English, and
+          on a Japanese reply they match nothing and fail open. Running them
+          over a reply in the wrong language would produce a result that had
+          passed three checks while none of them actually looked at anything.
+
+          A violation is treated as a FAILED response, not as something to
+          repair. There is no honest way to repair it here — rewriting the
+          reply would mean translating it, and this function has no business
+          inventing prose the model did not produce. Failing hands the request
+          to the browser's existing fallback, which answers from the offline
+          index in English and tells the visitor it did so. That keeps the
+          notice above the input true, which is the whole point.
+        */
+        const wrongLanguage = resultLocaleViolation(result, replyLocale)
+        if (wrongLanguage) {
+          console.error(
+            `joy: LANGUAGE VIOLATION — ${wrongLanguage}. The prompt pinned the ` +
+              `response to ${replyLocale} and the model did not comply. Serving a ` +
+              `failure so the browser falls back to the offline index rather than ` +
+              `running English-keyed guards over a reply they cannot read.`
+          )
+          void recordQuality('language', { question, entry: result?.focus_section ?? null })
+          trace(started, 'failed, wrong language', `locale=${replyLocale}`)
+          send({ error: 'wrong language' })
+          return
+        }
+
         const { result: checked, rescued } = rescueFalseUnknown(result, question, mode)
-        const { result: decided, offer } = decideOffer(checked, mode)
-        const finished = fixComposeLabels(decided)
+        /*
+          fixComposeLabels used to run here, rewriting any compose label that
+          said "email". It is gone: the label is a closed token now and the
+          locale dictionary supplies the words, so there is no free-text label
+          left for the model to get wrong and nothing to repair.
+        */
+        const { result: finished, offer } = decideOffer(checked, mode, replyLocale)
         send({ done: true, result: finished, source: 'model' })
 
         /*
