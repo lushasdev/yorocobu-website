@@ -59,7 +59,7 @@ const ENGLISH_THAT_MUST_PASS = [
   'Ethan Gailushas made a documentary called 忘れ者. There are two versions, one in English and one in Japanese, and either can be opened from here.',
   'The documentary is called 忘れ者.',
   'The standard romanization of 喜ぶ is yorokobu, with a k. The company name is spelled yorocobu, with a c.',
-  'Yorocobu LLC finds holes in niche markets and builds apps to fill them.',
+  'Yorocobu LLC does two things: tailored agent engineering, and custom software development.',
   'I do not have that one. I can tell you about what Yorocobu builds or who is behind it, or I can send your question to Ethan.',
 
   /*
@@ -154,7 +154,7 @@ console.log('\n  the mirror, for when Japanese is the requested locale')
   // Ready for Unit C. A Japanese answer keeps Latin proper nouns and must pass.
   const ok = 'Yorocobu は React と Swift でアプリを作っています。'
   report(localeViolation(ok, 'ja') === null, `a Japanese answer with Latin names is accepted`)
-  const bad = 'Yorocobu builds apps for niche markets that are underserved.'
+  const bad = 'Yorocobu does tailored agent engineering and custom software development.'
   report(localeViolation(bad, 'ja') !== null, `an English answer is caught when Japanese was asked for`)
   // An unknown locale must be an error, never a silent pass.
   report(
@@ -252,7 +252,7 @@ async function ask(question, locale, payload) {
 }
 
 const ENGLISH_PAYLOAD = {
-  reply: 'Yorocobu LLC finds holes in niche markets and builds apps to fill them.',
+  reply: 'Yorocobu LLC does two things: tailored agent engineering, and custom software development.',
   focus_section: 'company',
   actions: [],
   followups: ['what does the name mean'],
@@ -344,7 +344,7 @@ console.log('\n  the offer follows the dead_end token, not the prose')
   const cases = [
     [
       'a complete answer that mentions a boundary keeps no offer',
-      { ...base, reply: 'Yorocobu builds apps for niche markets, and the site does not publish anything further.', dead_end: false },
+      { ...base, reply: 'Yorocobu builds custom software, and the site does not publish anything further.', dead_end: false },
       false,
     ],
     [
@@ -364,7 +364,7 @@ console.log('\n  the offer follows the dead_end token, not the prose')
     ],
     [
       'a stray offer on a complete answer is stripped',
-      { ...base, reply: 'Yorocobu builds apps for niche markets.', dead_end: false, actions: [{ type: 'compose', label_token: 'send_message' }] },
+      { ...base, reply: 'Yorocobu builds custom software.', dead_end: false, actions: [{ type: 'compose', label_token: 'send_message' }] },
       false,
     ],
   ]
@@ -424,7 +424,7 @@ console.log('\n  both served locales are policed, not just English')
     its default would produce.
   */
   const wrongWay = await ask('Yorocobu とは何ですか', 'ja', {
-    reply: 'Yorocobu LLC finds holes in niche markets and builds apps to fill them.',
+    reply: 'Yorocobu LLC does two things: tailored agent engineering, and custom software development.',
     focus_section: 'company',
     actions: [],
     followups: ['what does the name mean'],

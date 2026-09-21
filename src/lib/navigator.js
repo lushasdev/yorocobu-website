@@ -51,15 +51,6 @@ function firedGuard(query, patterns) {
   return null
 }
 
-function matchProject(query) {
-  const projects = byId.portfolio?.projects ?? []
-  const q = query.toLowerCase()
-  return projects.find((p) => {
-    const words = p.title.toLowerCase().split(/\s+/).filter((w) => w.length > 3)
-    return q.includes(p.title.toLowerCase()) || words.every((w) => q.includes(w))
-  })
-}
-
 /*
   Matching.
 
@@ -167,10 +158,10 @@ const MATCH_THRESHOLD = 3.3
 
 /* Dictionary keys, not text. The chip's words come from the active locale. */
 const FOLLOWUPS_BY_ENTRY = {
-  company: ['ask.name', 'ask.inDevelopment'],
+  company: ['ask.name', 'ask.portfolio'],
   name: ['ask.company', 'ask.founders'],
   founders: ['ask.company', 'ask.contact'],
-  stack: ['ask.buildForMyOrg', 'ask.inDevelopment'],
+  stack: ['ask.buildForMyOrg', 'ask.portfolio'],
   portfolio: ['ask.buildForMyOrg', 'ask.contact'],
   services: ['ask.stack', 'ask.contact'],
   contact: ['ask.buildForMyOrg', 'ask.founders'],
@@ -190,22 +181,13 @@ const REPLY_OVERRIDE = {
     The summary names the two of them; this adds what the site actually says
     about each. Without it the offline path answers "who runs it" with less than
     the page directly underneath it is showing.
+
+    What We Build used to have an override here too, assembling a sentence around
+    a list of project titles. The entry publishes two lines now and its summary
+    is those two lines, so the summary is the answer and there is nothing to
+    assemble.
   */
   founders: (t) => t('navigator.founders', { bios: founderLine() }),
-  portfolio: (t) => t('navigator.portfolio', { titles: projectTitles(t) }),
-}
-
-/*
-  A list, punctuated by the locale rather than by English.
-
-  English wants "a, b, and c"; Japanese wants 「a、b、c」 with no conjunction at
-  all. Both separators come from the dictionary so neither language is forced
-  through the other's grammar.
-*/
-const projectTitles = (t) => {
-  const titles = (byId.portfolio?.projects ?? []).map((p) => p.title)
-  if (titles.length <= 1) return titles.join('')
-  return titles.slice(0, -1).join(t('navigator.listSeparator')) + t('navigator.listFinal') + titles.at(-1)
 }
 
 function fromEntry(entry, t, reply) {
@@ -256,22 +238,6 @@ export function resolve(query, locale = defaultLocale) {
   const phrase = matchPhrase(trimmed, patterns)
   if (phrase && byId[phrase]) return fromEntry(byId[phrase], t)
 
-  // A project asked about by category, before anything else can guess at it.
-  const project = matchProject(trimmed)
-  if (project && patterns.projectDetail.test(trimmed)) {
-    return {
-      reply: t('navigator.projectRefusal', { title: project.title }),
-      // A refusal that routes somewhere is a pointer: the region complements it.
-      pointer: true,
-      focus_section: 'portfolio',
-      actions: [composeAction(t('action.askAboutIt'))],
-      followups: [t('ask.inDevelopment'), t('ask.buildForMyOrg')],
-      unknown: false,
-      used_entries: ['portfolio'],
-      source: 'local',
-    }
-  }
-
   const guard = firedGuard(trimmed, patterns)
   if (guard) {
     return {
@@ -289,17 +255,14 @@ export function resolve(query, locale = defaultLocale) {
     }
   }
 
-  // "what have you shipped" deserves a straight answer rather than a summary.
-  if (patterns.shipped.test(trimmed)) {
-    return {
-      reply: t('navigator.nothingShipped', { titles: projectTitles(t) }),
-      focus_section: 'portfolio',
-      actions: [composeAction(t('action.askToBeKeptPosted'))],
-      followups: [t('ask.stack'), t('ask.buildForMyOrg')],
-      unknown: false,
-      used_entries: ['portfolio'],
-      source: 'local',
-    }
+  /*
+    "what have you shipped". After the guards, so a date question still reaches
+    the timeline guard, and answered from What We Build rather than with a
+    sentence of its own: the entry's two lines ARE the answer, and its
+    do_not_claim is what keeps "shipped" from being conceded.
+  */
+  if (patterns.shipped.test(trimmed) && byId.portfolio) {
+    return fromEntry(byId.portfolio, t)
   }
 
   const ranked = entries

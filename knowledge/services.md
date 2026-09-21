@@ -24,10 +24,11 @@ do_not_claim:
   - No client names, past engagements, case studies, testimonials, or references are public.
   - No contract terms, engagement models, processes, or scoping steps are public.
   - Every answer about client work ends by routing to the contact action.
-last_updated: 2026-08-18
+last_updated: 2026-09-21
 ---
 
-Yorocobu takes on client work alongside its own projects.
+Yorocobu takes on client work in both of the things it builds: tailored agent
+engineering, and custom software development.
 
 What a project would cost, how long it would take, and whether Yorocobu has room for
 it right now are all conversations rather than published figures. To start one,

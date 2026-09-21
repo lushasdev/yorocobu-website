@@ -49,6 +49,16 @@
   padding-bottom: 8rem;
 }
 
+/*
+  Without JavaScript there is no console above these, so the regions are the
+  first thing under the mark and have to reserve its lane themselves. With
+  JavaScript the answer column above them has already reserved it, and adding it
+  again here would only open a gap.
+*/
+:root:not(.js) .regions {
+  padding-top: var(--masthead-clearance);
+}
+
 .region {
   padding-top: clamp(3rem, 8vh, 4.5rem);
 }
@@ -118,18 +128,39 @@
   margin-right: 0.35rem;
 }
 
-/* The bar owns the bottom of the viewport on small screens. */
-@media (max-width: 46rem) {
-  /*
-    On a phone the escape link shares the top-left with the parked mark, so it
-    sits beside it rather than under it. Mark then link, reading as one small
-    cluster.
-  */
+/*
+  The escape link leaves the bottom-right corner whenever that corner is
+  contested: on a phone, where the console bar owns the bottom of the viewport,
+  and on a short screen, where the suggestion chips reach the bottom edge. Both
+  are the same condition, no room down there, so both send it to the same
+  place, beside the parked mark. Mark then link, reading as one small cluster.
+*/
+@media (max-width: 46rem), (max-height: 30rem) {
   .escape {
     right: auto;
-    left: calc(var(--frame-inset) + 12px + 84px + 0.7rem);
+    /* Beside the mark, measured from the mark's own lane tokens rather than from
+       a copy of its numbers. The copy is what drifts when the mark resizes. */
+    left: calc(var(--frame-inset) + var(--logo-x) + var(--logo-w) + 0.7rem);
     bottom: auto;
     top: calc(var(--frame-inset) + 0.85rem);
+  }
+}
+
+/*
+  Narrower than this the row runs out: the link set beside the mark reaches the
+  language switch, which is why "full index" and "EN" printed over each other at
+  320px. So the cluster stacks, link under mark, and the lane DEEPENS to hold
+  both, which is the whole point of the lane being a token rather than a number
+  in one rule. Everything that reserves or masks the lane follows automatically.
+*/
+@media (max-width: 22rem) {
+  :root {
+    --masthead: calc(var(--frame-inset) + var(--logo-y) + var(--logo-w) / 5 + 1.6rem);
+  }
+
+  .escape {
+    left: calc(var(--frame-inset) + var(--logo-x));
+    top: calc(var(--frame-inset) + var(--logo-y) + var(--logo-w) / 5 + 0.35rem);
   }
 }
 

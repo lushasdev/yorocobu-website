@@ -47,7 +47,7 @@ const EN_PHRASES = [
       /\bwhat\s+(apps|projects|products)\b/i,
       /\bwhat\s+are\s+you\s+building\b/i,
       /\bwhat\s+areas\b/i,
-      /\bin\s+development\b/i,
+      /\b(agents?|agent engineering|custom software)\b/i,
     ],
   },
   {
@@ -212,11 +212,15 @@ const EN_SCAFFOLDING = new Set([
 const EN_IDENTITY =
   /\b(yorocobu|the company|this (site|company|place)|you (guys|all)|overview|introduce|what.*(company|business|startup|agency)|who.*(behind|runs|owns))\b/i
 
-/** A question about what one of the five unnamed projects actually is. */
-const EN_PROJECT_DETAIL =
-  /\b(what|which|how|tell me|describe|explain|details?|features?|does it|is it)\b/i
+/*
+  "what have you shipped". Answered from What We Build, which publishes two
+  service lines and a do_not_claim forbidding any claim that something shipped.
 
-/** "what have you shipped" deserves a straight answer rather than a summary. */
+  It stays a pattern of its own, checked AFTER the guards rather than folded into
+  the phrase list, because phrases win outright: `live` sitting in a phrase
+  pattern reads "where does bence live" as a shipping question, and `released`
+  takes a date question away from the timeline guard.
+*/
 const EN_SHIPPED = /\b(shipped|released|launched|live|download|app store|try it|available)\b/i
 
 /*
@@ -314,10 +318,11 @@ const JA_PHRASES = [
   {
     to: 'portfolio',
     patterns: [
-      /(どんな|どういう|どのような)(アプリ|もの|プロジェクト|製品|サービス)/,
+      /(どんな|どういう|どのような)(アプリ|もの|プロジェクト|製品|サービス|仕事)/,
       /(開発中|制作中|進行中)/,
       /(何|なに)(を)?(作|開発|手がけ)/,
       /(プロジェクト|案件|プロダクト)(は|が|について)/,
+      /(エージェント|受託開発|オーダーメイド)/,
       /(リリース|公開)(した|済み)/,
     ],
   },
@@ -472,10 +477,7 @@ const JA_SCAFFOLDING = new Set([
 const JA_IDENTITY =
   /(yorocobu|会社|御社|貴社|ここ(は|って)|サイト(は|って|について)|概要|紹介)/i
 
-/** A question about what one of the five unnamed projects actually is. */
-const JA_PROJECT_DETAIL = /(どんな|どういう|何|なに|内容|詳し|説明|機能|できる)/
-
-/** 「もう公開されていますか」 deserves a straight answer rather than a summary. */
+/** 「もう公開されていますか」. After the guards, for the reason given above. */
 const JA_SHIPPED =
   /(リリース(済|され|しました)|公開(済|され|しました)|ダウンロード|アプリストア|App\s*Store|使え(ます|る)|出て(います|る))/i
 
@@ -485,7 +487,6 @@ const PATTERNS = {
     guards: EN_GUARDS,
     scaffolding: EN_SCAFFOLDING,
     identity: EN_IDENTITY,
-    projectDetail: EN_PROJECT_DETAIL,
     shipped: EN_SHIPPED,
   },
   ja: {
@@ -493,7 +494,6 @@ const PATTERNS = {
     guards: JA_GUARDS,
     scaffolding: JA_SCAFFOLDING,
     identity: JA_IDENTITY,
-    projectDetail: JA_PROJECT_DETAIL,
     shipped: JA_SHIPPED,
   },
 }

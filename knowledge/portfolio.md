@@ -3,54 +3,35 @@ id: portfolio
 order: 5
 nav: what we build
 nav_order: 1
-title: Work in Development
+title: What We Build
 aliases:
   [portfolio, what have you shipped, what have you built, your work, projects,
    apps, what are you working on, what kind of apps, what sort of apps,
    what apps do you make, what are you building, what we build, what kinds of projects,
-   what areas, email platform, family history app, mobile tool,
-   scheduling program for institutions, marketplace tool]
-status: in development
-kind: portfolio
-summary: Five projects are in development. Each is published only as a category, with no name, description, or release date.
-projects:
-  - id: email-platform
-    title: Email Platform
-    status: in development
-  - id: family-history-app
-    title: Family History App
-    status: in development
-  - id: mobile-tool
-    title: Mobile Tool
-    status: in development
-  - id: scheduling-program-for-institutions
-    title: Scheduling Program for Institutions
-    status: in development
-  - id: marketplace-tool
-    title: Marketplace Tool
-    status: in development
+   what areas, agent engineering, agents, ai agents, do you build agents,
+   custom software, software development, bespoke software]
+status: active
+kind: service
+summary: 'Yorocobu does two things: tailored agent engineering, and custom software development.'
 links:
   - label: Email Yorocobu
     url: mailto:ethan@yorocobu.org
 do_not_claim:
-  - Nothing in this portfolio has shipped. Never say any project is released, live, launched, downloadable, in beta, or available to try.
-  - These projects have no public names. The five titles are categories, not product names. Never present a category as a product name.
-  - These projects have no public descriptions. Never guess, infer, or extrapolate what a project does from its category name. "Family History App" does not license any claim about genealogy features; "Marketplace Tool" does not license any claim about buyers or sellers. The same applies to all five.
-  - No launch dates, release windows, quarters, years, or timelines are public for any project.
-  - No pricing, business model, or platform is public for any project.
-  - No clients, partners, or customers are associated with any project.
-  - No links, screenshots, demos, waitlists, or app store pages exist for any project.
-  - If asked what any of the five is, confirm only that it is in development, say the site does not describe it further, and offer the contact action.
-last_updated: 2026-08-18
+  - These two lines are the whole of what is published about the work. Never add a third service, a specialism, a sector, or an industry.
+  - The word "tailored" describes how the work is done, not who it is for. Never infer a market, a customer type, or an industry from it.
+  - Never describe what a Yorocobu agent does, what it is built on, or what problem it solves. Nothing about that is public.
+  - No named products, projects, or portfolio pieces are public. Never name one, and never say anything has shipped, launched, is live, is downloadable, is in beta, or is available to try.
+  - No launch dates, release windows, quarters, years, or timelines are public.
+  - No pricing, business model, platform, or engagement model is public.
+  - No clients, partners, or customers are associated with the work.
+  - No links, screenshots, demos, waitlists, or app store pages exist.
+last_updated: 2026-09-21
 ---
 
-Five projects are in development across multiple sectors:
+Yorocobu does two things:
 
-- **Email Platform** — in development
-- **Family History App** — in development
-- **Mobile Tool** — in development
-- **Scheduling Program for Institutions** — in development
-- **Marketplace Tool** — in development
+- **Tailored agent engineering**
+- **Custom software development**
 
-Product names, descriptions, and release dates are not public yet. Anyone who wants
-to hear more as these move toward release is welcome to get in touch.
+The site does not publish named work, and anyone who wants to talk about a
+project is welcome to get in touch.

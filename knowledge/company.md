@@ -13,7 +13,7 @@ kind: about
 founded: 2025
 jurisdiction: Wyoming
 based: Chapel Hill, North Carolina
-summary: Yorocobu LLC finds holes in niche markets and builds apps to fill them. Filed in Wyoming in 2025, operating from Chapel Hill, North Carolina, and working remotely.
+summary: 'Yorocobu LLC does two things: tailored agent engineering, and custom software development. Filed in Wyoming in 2025, operating from Chapel Hill, North Carolina, and working remotely.'
 links:
   - label: Email Yorocobu
     url: mailto:ethan@yorocobu.org
@@ -25,14 +25,15 @@ do_not_claim:
   - No street address, office, or phone number is public. The work is remote; there is no place to visit.
   - No month or day of the filing date is public, only the year.
   - Never describe Yorocobu as an agency, a studio, or a consultancy unless quoting the services entry.
-last_updated: 2026-08-18
+  - The two lines under What We Build are the whole of what Yorocobu says it does. Never add a third, and never name a market, sector, or customer type for either of them.
+last_updated: 2026-09-21
 ---
 
-Yorocobu LLC is an app development company. Its mission is stated plainly: find
-holes in niche markets, and build apps to fill them.
+Yorocobu LLC is a software company. What it does is stated plainly: tailored
+agent engineering, and custom software development.
 
 The company was filed in Wyoming in 2025. Operations are based in Chapel Hill,
 North Carolina, and the work is done remotely.
 
-The work spans web and mobile, built on React, Swift, and Flutter. Five projects
-are in development. Yorocobu also takes on client work.
+The work spans web and mobile, built on React, Swift, and Flutter. Yorocobu
+takes on client work.

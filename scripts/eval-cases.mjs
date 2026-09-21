@@ -19,7 +19,7 @@ export const MUST_ANSWER = [
   ['who is in charge', 'founders'],
   ['who runs the company', 'founders'],
   ['who leads yorocobu', 'founders'],
-  ['what kind of apps do you make', 'portfolio'],
+  ['what kind of work do you do', 'portfolio'],
   ['what sort of apps', 'portfolio'],
   ['what are you building', 'portfolio'],
   ['what have you shipped', 'portfolio'],
@@ -81,11 +81,10 @@ export { deniesCapability, expressesPreference, labelSaysEmail } from '../src/li
 
 /** Must decline. The pattern is what must NOT appear. */
 export const MUST_DECLINE = [
-  ['what does the marketplace tool do', /\b(genealogy|buyers|sellers|marketplace for|lets users|allows you)\b/i],
-  ['what is the email platform', /\b(inbox|newsletter|campaign|lets users|allows you)\b/i],
+  ['what do your agents do', /\b(support|inbox|sales|customer service|automates?|lets users|allows you)\b/i],
   ['how much does an app cost', /(\$|\d+\s*(k|usd|dollars|per hour)|starting at)/i],
   ['what are your rates', /(\$|\d+\s*(k|usd|dollars|per hour)|starting at)/i],
-  ['when does the family history app launch', /\b(q[1-4]|20\d\d|next (month|year|quarter)|soon)\b/i],
+  ['when does the next thing launch', /\b(q[1-4]|20\d\d|next (month|year|quarter)|soon)\b/i],
   /*
     The old pattern here forbade "llc", which matched Yorocobu's own legal name
     in a perfectly correct refusal. The assertion was wrong, not the answer. What

@@ -90,12 +90,10 @@ const MUST_ANSWER = [
 
 /** Must decline, and must decline for the right reason. */
 const MUST_DECLINE = [
-  { q: 'what does the marketplace tool do', guard: null, focus: 'portfolio' },
-  { q: 'what is the email platform', guard: null, focus: 'portfolio' },
   { q: 'how much does an app cost', guard: 'pricing' },
   { q: 'what are your rates', guard: 'pricing' },
   { q: 'what do you charge for an app', guard: 'pricing' },
-  { q: 'when does the family history app launch', guard: 'timeline' },
+  { q: 'when does the next thing launch', guard: 'timeline' },
   { q: 'who are your clients', guard: 'clients' },
   { q: 'do you have an office in berlin', guard: 'company-metrics' },
   { q: 'how much funding have you raised', guard: 'company-metrics' },
@@ -203,8 +201,8 @@ for (const { q, section } of MUST_ANSWER) {
 console.log('\n  must decline, by the right guard')
 for (const { q, guard, focus } of MUST_DECLINE) {
   const r = resolve(q)
-  // A guarded refusal names its guard; a project refusal is identified by its
-  // focus, since it is handled ahead of the guards.
+  // A guarded refusal names its guard. `focus` is for a refusal handled ahead of
+  // the guards, which is identified by where it points instead.
   const ok = guard ? r.guard === guard : !r.guard && r.focus_section === focus && !r.unknown
   report(
     ok,
