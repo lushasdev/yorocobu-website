@@ -122,7 +122,6 @@ function buildBootLines(entries) {
     sequence — adding a status to an entry should make someone translate it.
   */
   const STATUS_KEYS = {
-    'in development': 'boot.value.inDevelopment',
     open: 'boot.value.open',
     active: 'boot.value.active',
     online: 'boot.value.online',
@@ -139,20 +138,18 @@ function buildBootLines(entries) {
     return key
   }
 
-  const portfolio = byId.portfolio
-  if (portfolio) {
-    const projects = toArray(portfolio.projects)
-    const counts = projects.reduce((acc, p) => {
-      acc[p.status] = (acc[p.status] ?? 0) + 1
-      return acc
-    }, {})
-    for (const [status, count] of Object.entries(counts)) {
-      lines.push({
-        labelKey: 'boot.label.portfolio',
-        valueKey: statusKey(status, 'portfolio project'),
-        count,
-      })
-    }
+  /*
+    This used to count the entries under `projects:` and emit one line per
+    status, which is how the boot sequence came to read "5 in development". The
+    entry publishes two service lines and no project list now, so there is no
+    count to derive, so the line carries the entry's own status, exactly as the
+    client-work line below it does.
+  */
+  if (byId.portfolio) {
+    lines.push({
+      labelKey: 'boot.label.engineering',
+      valueKey: statusKey(byId.portfolio.status, 'knowledge/portfolio.md'),
+    })
   }
 
   if (byId.services) {

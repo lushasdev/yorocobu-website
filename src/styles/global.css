@@ -81,6 +81,25 @@
   --frame-inset: 22px;
   --measure: 34rem;
 
+  /*
+    The mark's lane.
+
+    The mark is fixed chrome in the top-left corner, which means its footprint is
+    not in the flow and nothing below it can discover it. These tokens ARE that
+    footprint, declared once: Logo.astro lays the mark out from them, and every
+    scrolling column reserves --masthead-clearance from them. Change the mark's
+    size here and the space kept clear for it follows, instead of two sets of
+    numbers drifting apart until content prints through the mark.
+
+    The mark is 5:1, so its height is its width over five.
+  */
+  --logo-w: 118px;
+  --logo-x: 18px;
+  --logo-y: 16px;
+  --masthead: calc(var(--frame-inset) + var(--logo-y) + var(--logo-w) / 5);
+  --masthead-fade: 1.5rem;
+  --masthead-clearance: calc(var(--masthead) + var(--masthead-fade));
+
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --unmask: 180ms;
 }
@@ -173,6 +192,11 @@
 @media (max-width: 46rem) {
   :root {
     --frame-inset: 11px;
+    /* The mark is smaller here, so its lane is shallower. Everything that
+       reserves or masks that lane follows from these three. */
+    --logo-w: 84px;
+    --logo-x: 12px;
+    --logo-y: 10px;
   }
 }
 
@@ -394,6 +418,50 @@ a:hover {
 .frame__mark--br {
   bottom: -6px;
   right: -6px;
+}
+
+/* ─── The mark's lane ────────────────────────────────────────────────────── */
+/*
+  The mark, the language switch and the theme toggle are all fixed, so the
+  document scrolls underneath them. Reserving space below the lane keeps content
+  out of it at rest, but a scrolled line would still run straight through the
+  mark, which is the collision this band closes: the page colour, painted across
+  the lane and faded out at its lower edge, so a line leaves the screen under the
+  chrome rather than crossing it.
+
+  It is the same treatment the console's status bar already gives the bottom edge
+  .bar already carries a background and a gradient above it for this reason.
+  The top edge simply never had one.
+
+  Below the frame (40) so the top hairline still draws across it, above the
+  document so nothing prints through the mark. Rendered by Logo.astro, so the
+  band exists precisely where the mark does.
+*/
+
+.masthead {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--masthead);
+  z-index: 39;
+  background: var(--bg);
+  pointer-events: none;
+}
+
+.masthead::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: var(--masthead-fade);
+  background: linear-gradient(to bottom, var(--bg), transparent);
+}
+
+/* Hidden while calibrating, like the frame and the mark. */
+:root[data-booting] .masthead {
+  opacity: 0;
 }
 
 /* ─── Motion ─────────────────────────────────────────────────────────────── */

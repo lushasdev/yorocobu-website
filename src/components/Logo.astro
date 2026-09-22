@@ -16,6 +16,15 @@
 import logo from '../assets/yorocobu-logo.svg?raw'
 ---
 
+{/*
+  The band the mark sits in, painted in the page colour so scrolled content
+  leaves the screen under the chrome rather than crossing the mark. It ships
+  with the mark rather than with the layout, so the band exists exactly where
+  something is fixed over the document and nowhere else. Styled in global.css,
+  beside the frame it sits under.
+*/}
+<div class="masthead" aria-hidden="true"></div>
+
 <div class="logo" data-logo aria-hidden="false" set:html={logo} />
 
 <style>
@@ -24,13 +33,17 @@ import logo from '../assets/yorocobu-logo.svg?raw'
     reduced motion gets, and where every session ends up. Arrival is expressed
     as a transform away from it, which is also why the travel cannot shift
     layout — the element is fixed and only ever transforms.
+
+    Laid out from the lane tokens in global.css rather than from its own numbers.
+    Those tokens are what the scrolling columns reserve and what the band masks,
+    so the mark and the space kept clear for it cannot drift apart.
   */
   .logo {
     position: fixed;
-    top: calc(var(--frame-inset) + 16px);
-    left: calc(var(--frame-inset) + 18px);
+    top: calc(var(--frame-inset) + var(--logo-y));
+    left: calc(var(--frame-inset) + var(--logo-x));
     z-index: 44;
-    width: 118px;
+    width: var(--logo-w);
     color: var(--text-primary);
     transform-origin: top left;
     pointer-events: none;
@@ -69,14 +82,6 @@ import logo from '../assets/yorocobu-logo.svg?raw'
   @media (prefers-reduced-motion: reduce) {
     :root.js[data-logo-ready] .logo {
       transition: opacity 240ms var(--ease);
-    }
-  }
-
-  @media (max-width: 46rem) {
-    .logo {
-      width: 84px;
-      top: calc(var(--frame-inset) + 10px);
-      left: calc(var(--frame-inset) + 12px);
     }
   }
 </style>

@@ -109,9 +109,9 @@ const check = (name, pass, detail = '') => {
   await p.waitForTimeout(1800)
   const cases = [
     ['how much does an app cost', /not published pricing|not going to invent/i],
-    ['when does the marketplace tool launch', /no launch dates|in development/i],
+    ['when does the next thing launch', /no dates are public|does not publish timelines/i],
     ['who are your clients', /does not publish client names/i],
-    ['what does the marketplace tool do', /in development|without guessing/i],
+    ['what do you build', /tailored agent engineering|custom software development/i],
     ['what is ethan gailushas background', /no bios are published|nothing further/i],
   ]
   for (const [q, expected] of cases) {

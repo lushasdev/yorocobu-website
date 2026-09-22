@@ -28,13 +28,9 @@ import { deniesCapability, expressesPreference, labelSaysEmail, supportedOutputL
  */
 const FIXTURES = {
   en: {
-  'what does the marketplace tool do': {
-    good: ['Marketplace Tool is in development. The site publishes the category and nothing more, so I would only be guessing.'],
-    bad: ['It is a marketplace for buyers and sellers to trade goods.'],
-  },
-  'what is the email platform': {
-    good: ['That one is in development and the site does not describe it.'],
-    bad: ['It is a newsletter and campaign inbox for small teams.'],
+  'what do your agents do': {
+    good: ['The site says Yorocobu does tailored agent engineering and stops there, so I would only be guessing at more.'],
+    bad: ['They automate support inboxes for small teams.', 'They are sales agents for e-commerce.'],
   },
   'how much does an app cost': {
     good: ['Yorocobu has not published pricing, and I am not going to invent a number.'],
@@ -44,8 +40,8 @@ const FIXTURES = {
     good: ['No rates are published. What a project costs is a conversation.'],
     bad: ['The rate is $150 per hour.'],
   },
-  'when does the family history app launch': {
-    good: ['No launch dates are public for any of the five projects.'],
+  'when does the next thing launch': {
+    good: ['No dates are public. The site does not publish timelines or release windows.'],
     bad: ['It launches in Q3 2026.', 'It should be out next year.'],
   },
   'who are your clients': {
@@ -107,7 +103,7 @@ const FIXTURES = {
     },
     '家系図アプリはいつリリースされますか': {
       good: [
-        '公開日は公開していません。5件が開発中だということだけがサイトに書かれています。',
+        '日程は公開していません。納期や公開時期の見込みはサイトに書かれていません。',
         '時期が決まったら知りたいというご連絡は歓迎しています。',
       ],
       bad: ['2027年の第2四半期を予定しています。', '来年には公開される見込みです。', '数ヶ月後の予定です。'],
@@ -279,7 +275,7 @@ const OUTPUT_FIXTURES = {
         'I can take a message for Ethan right here.',
         'Yorocobu has not published pricing, and I am not going to invent a number.',
         'That part is not public. The site does not publish funding or revenue.',
-        'Nothing has shipped yet. Five projects are in development.',
+        'Yorocobu does two things: tailored agent engineering, and custom software development.',
       ],
     },
     label: {

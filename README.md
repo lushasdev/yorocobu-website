@@ -71,7 +71,7 @@ Nothing about the knowledge base is hardcoded anywhere else:
 
 | Generated | From |
 |---|---|
-| The boot sequence status lines and their counts | every entry, plus `portfolio.projects` and `services.status` |
+| The boot sequence status lines and their counts | every entry, plus `portfolio.status`, `services.status` and `stack` |
 | The full index, its contents list and reading order | every entry, ordered by `order` |
 | The content regions the navigator surfaces | every entry |
 | The context passed to the model (phase 3) | `src/generated/knowledge-context.md` |

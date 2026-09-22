@@ -59,7 +59,7 @@ const en = {
   'boot.title': 'Yorocobu',
   'boot.skip': 'Press any key to skip',
   'boot.label.knowledgeBase': 'knowledge base',
-  'boot.label.portfolio': 'portfolio',
+  'boot.label.engineering': 'engineering',
   'boot.label.clientWork': 'client work',
   'boot.label.stack': 'stack',
   'boot.label.founders': 'founders',
@@ -71,7 +71,6 @@ const en = {
   'boot.value.available': 'available',
   // {count} is substituted, never concatenated: the number sits in a different
   // place in the two languages.
-  'boot.value.inDevelopment': '{count} in development',
   'boot.value.technologies': '{count} technologies',
   'boot.value.count': '{count}',
 
@@ -149,22 +148,15 @@ const en = {
   'guard.pricing':
     'Yorocobu has not published pricing, and I am not going to invent a number. What I can tell you is that it does take on client work, and what a project costs is a conversation with Ethan and Bence.',
   'guard.timeline':
-    'No launch dates are public. What the site does say is that five projects are in development, and Yorocobu is happy to hear from anyone who wants to know when that changes.',
+    'No dates are public. The site does not publish timelines, delivery estimates, or release windows, and I am not going to invent one. Yorocobu is happy to hear from anyone who wants to talk about a schedule.',
   'guard.clients':
     'Yorocobu does not publish client names or case studies, so I have nothing to point you to there. It does take on client work, and that conversation starts with an email.',
 
   // ── The offline navigator's generated answers ────────────────────────────
   'navigator.founders': 'Yorocobu was founded by two Co-Founders. {bios}',
-  'navigator.portfolio':
-    'Five projects are in development: {titles}. Those are the categories Yorocobu publishes; the product names and descriptions are not public yet.',
-  'navigator.projectRefusal':
-    '{title} is in development. The site publishes the category and nothing more, so I cannot tell you what it does without guessing, and I would rather not.',
-  'navigator.nothingShipped': 'Nothing has shipped yet. Five projects are in development: {titles}.',
   'navigator.unknown':
     'I do not have that one. I can tell you about {offers}, or I can send your question to Ethan.',
   // How a list is punctuated. Separate keys because Japanese does not use "and".
-  'navigator.listSeparator': ', ',
-  'navigator.listFinal': ', and ',
   'navigator.offerSeparator': ' or ',
 
   // ── How each entry is described when offered as a next step ──────────────
@@ -172,7 +164,7 @@ const en = {
   'offer.name': 'where the name comes from',
   'offer.founders': 'who is behind it',
   'offer.stack': 'the technology it builds with',
-  'offer.portfolio': 'the five projects in development',
+  'offer.portfolio': 'what Yorocobu builds',
   'offer.services': 'working together',
   'offer.contact': 'how to get in touch',
   'offer.documentary': 'the documentary',
@@ -183,12 +175,11 @@ const en = {
   'ask.name': 'what does the name mean',
   'ask.founders': 'who is behind this',
   'ask.stack': 'what do you build with',
-  'ask.portfolio': 'what kind of apps do you make',
+  'ask.portfolio': 'what kind of work do you do',
   'ask.services': 'do you take clients',
   'ask.contact': 'how do i get in touch',
   'ask.documentary': 'where can i watch the documentary',
   'ask.joy': 'what are you',
-  'ask.inDevelopment': 'what is in development',
   'ask.buildForMyOrg': 'can you build an app for my org',
 
 
@@ -201,16 +192,16 @@ const en = {
   'nav.contact': 'get in touch',
 
   // ── Home page ────────────────────────────────────────────────────────────
-  'home.title': 'Yorocobu — apps for underserved markets',
+  'home.title': 'Yorocobu — tailored agent engineering and custom software',
   'home.description':
-    'Yorocobu LLC finds holes in niche markets and builds apps to fill them. Five projects in development, built with React, Swift, and Flutter. Ask the navigator, or read the full index.',
-  'home.heading': 'Yorocobu — apps for underserved markets',
+    'Yorocobu LLC does two things: tailored agent engineering, and custom software development. Ask the navigator, or read the full index.',
+  'home.heading': 'Yorocobu — tailored agent engineering and custom software development',
   'home.fullIndexLink': 'full index',
 
   // ── Full index ───────────────────────────────────────────────────────────
   'index.title': 'Full index — Yorocobu',
   'index.description':
-    'Everything Yorocobu publishes, on one page: the mission, the name, the founders, the technology, the five projects in development, client work, and how to get in touch.',
+    'Everything Yorocobu publishes, on one page: what Yorocobu builds, the name, the founders, the technology, client work, and how to get in touch.',
   'index.kicker': 'full index',
   'index.heading': 'Everything on this site',
   'index.lede':
@@ -265,7 +256,7 @@ const ja: Record<UIKey, string> = {
   'boot.title': 'Yorocobu',
   'boot.skip': 'キーを押すとスキップします',
   'boot.label.knowledgeBase': '知識ベース',
-  'boot.label.portfolio': '開発中の案件',
+  'boot.label.engineering': '開発',
   'boot.label.clientWork': '受託',
   'boot.label.stack': '技術',
   'boot.label.founders': '創業者',
@@ -275,7 +266,6 @@ const ja: Record<UIKey, string> = {
   'boot.value.open': '受付中',
   'boot.value.active': '進行中',
   'boot.value.available': '公開中',
-  'boot.value.inDevelopment': '{count}件 開発中',
   'boot.value.technologies': '{count}種類',
   'boot.value.count': '{count}名',
 
@@ -367,23 +357,14 @@ const ja: Record<UIKey, string> = {
   'guard.pricing':
     'Yorocobu は料金を公開していません。金額を推測してお伝えするつもりもありません。お伝えできるのは、受託の仕事を受けているということと、費用は Ethan と Bence との相談で決まるということです。',
   'guard.timeline':
-    '公開日は公開していません。サイトに書かれているのは、5件が開発中だということだけです。時期が決まったら知りたいというご連絡は歓迎しています。',
+    '日程は公開していません。納期や公開時期の見込みもサイトには書かれておらず、推測でお伝えするつもりもありません。日程についてのご相談は歓迎しています。',
   'guard.clients':
     'Yorocobu は取引先の名前も事例も公開していないため、お見せできるものがありません。受託の仕事自体は受けていますので、まずはご連絡からになります。',
 
   // ── The offline navigator's generated answers ────────────────────────────
   'navigator.founders': 'Yorocobu は二名の Co-Founder が創業しました。{bios}',
-  'navigator.portfolio':
-    '5件が開発中です。{titles}。公開しているのはこれらの分類までで、製品名や説明はまだ公開していません。',
-  'navigator.projectRefusal':
-    '{title} は開発中です。サイトが公開しているのは分類までなので、内容をお伝えするとなると推測になってしまいます。それは避けたいと思います。',
-  'navigator.nothingShipped': 'まだ公開したものはありません。5件が開発中です。{titles}。',
   'navigator.unknown':
     'それについては分かりません。{offers}についてならお話しできますし、ご質問を Ethan にお送りすることもできます。',
-  // Japanese lists take 、 throughout and have no "and", so the final separator
-  // is the same as the others. This is why they are two keys.
-  'navigator.listSeparator': '、',
-  'navigator.listFinal': '、',
   'navigator.offerSeparator': 'か',
 
   // ── How each entry is described when offered as a next step ──────────────
@@ -391,7 +372,7 @@ const ja: Record<UIKey, string> = {
   'offer.name': '社名の由来',
   'offer.founders': '誰がやっているか',
   'offer.stack': '使っている技術',
-  'offer.portfolio': '開発中の5件',
+  'offer.portfolio': 'Yorocobu が作っているもの',
   'offer.services': '一緒に仕事をすること',
   'offer.contact': '連絡の取り方',
   'offer.documentary': 'ドキュメンタリー作品',
@@ -402,12 +383,11 @@ const ja: Record<UIKey, string> = {
   'ask.name': '社名の由来は',
   'ask.founders': '誰がやっているのですか',
   'ask.stack': 'どんな技術を使っていますか',
-  'ask.portfolio': 'どんなアプリを作っていますか',
+  'ask.portfolio': 'どんな仕事をしていますか',
   'ask.services': '受託もしていますか',
   'ask.contact': '連絡はどう取ればいいですか',
   'ask.documentary': 'ドキュメンタリーはどこで見られますか',
   'ask.joy': 'あなたは何ですか',
-  'ask.inDevelopment': '今は何を開発中ですか',
   'ask.buildForMyOrg': '自分の団体のアプリを作ってもらえますか',
 
 
@@ -421,23 +401,26 @@ const ja: Record<UIKey, string> = {
 
   // ── Home page ────────────────────────────────────────────────────────────
   // Written for a Japanese search result, not translated from the English one.
-  'home.title': 'Yorocobu — サービスが行き届いていない市場に、アプリを',
+  'home.title': 'Yorocobu — AI エージェント開発とソフトウェア開発',
   /*
-    「サービスが行き届いていない市場」 for "underserved markets", per Ethan.
-    行き届く is the idiom for service reaching someone, so the market is the one
-    not being reached. 「手の届いていない」 was wrong in a way that is easy to
-    miss in English: it frames the gap from Yorocobu's side, as markets we
-    failed to reach, rather than as people going without.
+    「目的に合わせた」 carries "tailored" without claiming a market: it says the
+    work is fitted to the job, which is what the English says, and nothing about
+    whose job it is. 「オーダーメイド」 is the ordinary word for work made to
+    order and reads as plainly here as "custom" does in English, where
+    「カスタム」 would be a transliteration standing in for a real word.
+
+    The title drops both modifiers rather than running to forty characters in a
+    search result; the description carries them in full.
   */
   'home.description':
-    'Yorocobu LLC は、ニッチな市場に残された穴を見つけて、それを埋めるアプリを作っています。React、Swift、Flutter で5件を開発中。ナビゲーターに聞くか、全体目次をご覧ください。',
-  'home.heading': 'Yorocobu — サービスが行き届いていない市場に、アプリを',
+    'Yorocobu LLC が手がけているのは二つです。目的に合わせた AI エージェント開発と、オーダーメイドのソフトウェア開発。ナビゲーターに聞くか、全体目次をご覧ください。',
+  'home.heading': 'Yorocobu — 目的に合わせた AI エージェント開発と、オーダーメイドのソフトウェア開発',
   'home.fullIndexLink': '全体目次',
 
   // ── Full index ───────────────────────────────────────────────────────────
   'index.title': '全体目次 — Yorocobu',
   'index.description':
-    'Yorocobu が公開している内容をすべて1ページに。理念、社名の由来、創業者、技術、開発中の5件、受託、連絡先までまとめています。',
+    'Yorocobu が公開している内容をすべて1ページに。作っているもの、社名の由来、創業者、技術、受託、連絡先までまとめています。',
   'index.kicker': '全体目次',
   'index.heading': 'このサイトにあるものすべて',
   'index.lede':

@@ -82,8 +82,18 @@
      still draws across the bar rather than being painted over by it. */
   z-index: 38;
   padding-inline: calc(var(--frame-inset) + 1.25rem);
-  /* Centred on arrival; the transform is what animates the migration. */
-  transform: translateY(calc(50svh - 50%));
+  /*
+    Centred on arrival; the transform is what animates the migration.
+
+    Floored at the mark's lane, because centring alone has no lower bound: once
+    the composition is taller than the viewport, `50svh - 50%` goes NEGATIVE and
+    the whole bar, including the slot the mark flies to, rides up through the
+    language switch and off the top edge. Measured at −19px on a 740x360 screen.
+    max() is the floor the centring never had; the short-viewport sizes below are
+    what keeps the composition inside the band rather than hanging off the bottom
+    of it.
+  */
+  transform: translateY(max(var(--masthead-clearance), calc(50svh - 50%)));
   transition: transform 520ms var(--ease);
 }
 
@@ -319,8 +329,14 @@
   padding-inline: calc(var(--frame-inset) + 1.25rem);
 }
 
+/*
+  Reserves the mark's lane, so an answer never starts underneath the mark. The
+  clamp alone used to land at 64px against a lane 62px deep, clearing it by two
+  pixels, which is the same as not clearing it. max() makes the reservation
+  follow the mark instead of happening to miss it.
+*/
 .console[data-engaged] .answer {
-  padding-top: clamp(4rem, 12vh, 7rem);
+  padding-top: max(var(--masthead-clearance), clamp(4rem, 12vh, 7rem));
 }
 
 .answer__q {
@@ -447,10 +463,11 @@
 
 /* ─── Transcript rail ────────────────────────────────────────────────────── */
 
+/* Directly under the mark, so it reserves the lane on the same terms. */
 .rail {
   position: fixed;
   left: calc(var(--frame-inset) + 1.1rem);
-  top: clamp(4rem, 12vh, 7rem);
+  top: max(var(--masthead-clearance), clamp(4rem, 12vh, 7rem));
   width: 11rem;
   z-index: 45;
 }
@@ -626,6 +643,94 @@
   }
   .intro__body {
     font-size: 0.95rem;
+  }
+}
+
+/*
+  The arrival composition answers to viewport height as well as width.
+
+  Every size above is drawn from vw alone, which is half the constraint: on a
+  short screen the block is simply taller than the space between the mark's lane
+  and the bottom edge, and the centring transform used to resolve that by pushing
+  it off the top. With the transform floored, the composition has to fit the band
+  instead, so the display sizes and the arrival slot scale with the height that
+  is actually available. Nothing is dropped; it is the same composition, set
+  smaller, which is what a short viewport asks of any display type.
+*/
+@media (max-height: 44rem) {
+  .intro {
+    margin-bottom: 1.4rem;
+  }
+
+  .intro__status {
+    margin-bottom: 0.7rem;
+  }
+
+  /* Later in the file than the max-width block, so this is what lands when both
+     apply, on a narrow screen that is also short. */
+  .intro__logo-slot {
+    width: min(48vw, 190px);
+    margin-bottom: 0.8rem;
+  }
+
+  .intro__claim {
+    font-size: clamp(1.7rem, 5.6vh, 2.75rem);
+  }
+
+  .intro__proof {
+    font-size: clamp(1.05rem, 3.2vh, 1.6rem);
+  }
+
+  .intro__body {
+    margin-top: 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .suggestions {
+    margin-top: 0.8rem;
+  }
+}
+
+/*
+  A phone held sideways. The band left between the mark's lane and the bottom
+  edge is about 260px, and the composition has to live inside it rather than
+  hanging off the bottom. Flooring the transform moved the problem from the top
+  edge to the bottom one, and neither is an answer on its own.
+
+  One more step down on the display sizes, and the status line steps out. It is
+  machine voice and pure atmosphere: the only thing in this composition that
+  carries nothing a visitor needs, which is what makes it the one to drop when
+  something has to.
+*/
+@media (max-height: 30rem) {
+  .intro__status {
+    display: none;
+  }
+
+  .intro {
+    margin-bottom: 1rem;
+  }
+
+  .intro__logo-slot {
+    width: min(34vw, 150px);
+    margin-bottom: 0.55rem;
+  }
+
+  .intro__claim {
+    font-size: clamp(1.4rem, 5vh, 2rem);
+  }
+
+  .intro__proof {
+    font-size: clamp(1rem, 3vh, 1.25rem);
+  }
+
+  .intro__body {
+    margin-top: 0.6rem;
+    font-size: 0.85rem;
+  }
+
+  .suggestions {
+    margin-top: 0.7rem;
   }
 }
 

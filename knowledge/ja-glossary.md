@@ -85,22 +85,26 @@ of spelling it.
 When a Japanese answer needs to describe what Yorocobu does, build it from this
 rather than re-inventing the phrasing each time:
 
-> Yorocobu LLC は、サービスが行き届いていない市場に残された穴を見つけて、それを
-> 埋めるアプリを作っています。
+> Yorocobu LLC が手がけているのは二つです。目的に合わせた AI エージェント開発と、
+> オーダーメイドのソフトウェア開発です。
 
-「ニッチ市場」 is acceptable where the sentence needs to be shorter, but
-「サービスが行き届いていない市場」 is the preferred rendering of *underserved
-markets*: it puts the gap on the market's side, as people going without, rather
-than on Yorocobu's side as markets it failed to reach.
+「目的に合わせた」 carries *tailored* without claiming a market: it says the
+work is fitted to the job, which is what the English says, and nothing about who
+the job belongs to. 「オーダーメイド」 is the ordinary Japanese word for work
+made to order, and reads as plainly in business copy as *custom* does in
+English, where 「カスタム」 would be a transliteration standing in for a real word.
+
+The two lines are the whole of it. Never add a third, and never name a market,
+a sector, or a customer type in either of them.
 
 ## Services
 
 | English | Japanese |
 |---|---|
+| tailored agent engineering | 目的に合わせた AI エージェント開発 |
+| custom software development | オーダーメイドのソフトウェア開発 |
 | client work | 受託（の仕事） |
 | takes on client projects | 受託の仕事を受けています |
-| in development | 開発中 |
-| five projects in development | 5件を開発中 |
 | the full index | 全体目次 |
 | the navigator | ナビゲーター |
 
