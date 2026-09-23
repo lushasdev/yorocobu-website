@@ -582,7 +582,50 @@ export default function Console({ docUrls = null, locale = defaultLocale, answer
 
     place()
     window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
+
+    /*
+      A resize is not the only thing that moves the slot.
+
+      The offset was measured once, against whatever the composition happened to
+      look like at hydration, and only a resize re-measured it. Anything else
+      that reflowed the introduction left the mark holding an offset for a layout
+      that no longer existed.
+
+      The display face swapping in for its fallback is the everyday case. The bar
+      is centred with `50svh - 50%`, and that 50% is half the bar's OWN height,
+      so a claim line that sets one pixel taller moves the slot underneath a mark
+      that has no idea it moved. Holding the font files back by 2.5s strands the
+      mark 34px off its slot at 1440x900 and 12px at 390x844. Which direction it
+      strands in depends on whether the real face sets taller or shorter than the
+      fallback, so it can land on the status line directly under the slot as
+      easily as above it.
+
+      Observing both boxes covers the two ways the slot can move: the slot itself
+      resizing, and the bar around it changing height and carrying the slot with
+      it. There is no feedback loop to guard against, because place() only writes
+      custom properties that drive a transform on a fixed element, and neither a
+      transform nor a fixed element affects layout.
+    */
+    const slot = logoSlotRef.current
+    const bar = slot?.closest('.bar')
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(place) : null
+    observer && slot && observer.observe(slot)
+    observer && bar && observer.observe(bar)
+
+    /*
+      The braces to that belt: a face can change the type's metrics without
+      changing any box this observes, and document.fonts.ready is the one signal
+      that covers every such swap at once. Guarded because the promise outlives
+      the effect on a fast unmount.
+    */
+    let live = true
+    document.fonts?.ready.then(() => live && place()).catch(() => {})
+
+    return () => {
+      live = false
+      window.removeEventListener('resize', place)
+      observer?.disconnect()
+    }
   }, [engaged])
 
   /*
